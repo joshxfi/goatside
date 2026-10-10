@@ -382,7 +382,7 @@ export async function editTransaction(data: {
   )
 }
 
-const TREND_CATEGORIES = 5
+const TREND_CATEGORIES = 4
 
 /**
  * Spending and income for the `months` months ending at `month`, with

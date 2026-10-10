@@ -104,6 +104,16 @@
   --income-foreground: oklch(0.5 0.13 152);
   --expense: oklch(0.63 0.19 27);
   --expense-foreground: oklch(0.54 0.19 27);
+  /*
+   * Category series, validated with the dataviz palette checker (CVD and
+   * normal-vision separation, both modes). No red or green: those mean money
+   * out / money in. Order matters, see apps/app/src/lib/series.ts.
+   */
+  --series-1: #2a78d6;
+  --series-2: #eda100;
+  --series-3: #e87ba4;
+  --series-4: #6250d6;
+  --series-other: oklch(0.8 0.008 80);
 
   --chart-1: oklch(0.76 0.13 82);
   --chart-2: oklch(0.62 0.01 250);
@@ -150,6 +160,11 @@
   --income-foreground: oklch(0.78 0.15 152);
   --expense: oklch(0.66 0.18 27);
   --expense-foreground: oklch(0.74 0.16 25);
+  --series-1: #3987e5;
+  --series-2: #c98500;
+  --series-3: #d55181;
+  --series-4: #9085e9;
+  --series-other: oklch(0.42 0.008 80);
 
   --chart-1: oklch(0.8 0.13 82);
   --chart-2: oklch(0.72 0.008 250);

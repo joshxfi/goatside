@@ -4,7 +4,6 @@ import { createFileRoute } from "@tanstack/react-router"
 import { z } from "zod"
 import { cn } from "@workspace/ui/lib/utils"
 import { useAgent } from "@/components/agent-provider"
-import { CategoryList } from "@/components/category-list"
 import { Composer } from "@/components/composer"
 import { DailyBars } from "@/components/daily-bars"
 import { Feed } from "@/components/feed"
@@ -16,6 +15,7 @@ import {
   Overview,
   RecentCard,
   RepeatsCard,
+  SpendingBreakdown,
 } from "@/components/overview"
 import { PeopleList } from "@/components/people-list"
 import { Questions } from "@/components/questions"
@@ -46,6 +46,7 @@ function Home() {
   const { m } = Route.useSearch()
   const { viewer } = Route.useRouteContext()
   const { data } = useSuspenseQuery(monthQuery(m))
+  const { data: trend } = useSuspenseQuery(trendQuery(data.month))
   const [selected, setSelected] = useState<LedgerTxn | null>(null)
   const { ask } = useAgent()
   const hasRepeats = data.transactions.some((t) => t.recurring && t.amount < 0)
@@ -72,7 +73,18 @@ function Home() {
         <div className="flex flex-col gap-8 lg:hidden">
           <Summary view={data} />
           <DailyBars daily={data.daily} today={data.today} />
-          <CategoryList categories={data.byCategory} total={data.totals.out} />
+          <section
+            aria-labelledby="phone-categories"
+            className="flex flex-col gap-3"
+          >
+            <h2
+              id="phone-categories"
+              className="text-sm font-medium text-muted-foreground"
+            >
+              Where it went
+            </h2>
+            <SpendingBreakdown view={data} trend={trend} size={180} />
+          </section>
           <PeopleList people={data.people} />
           <Feed view={data} onSelect={setSelected} />
         </div>

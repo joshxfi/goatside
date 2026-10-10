@@ -6,16 +6,21 @@ import { useSuspenseQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { formatPeso } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
-import { CategoryList } from "@/components/category-list"
 import {
+  CalendarHeatmap,
+  CashFlowChart,
   DailyChart,
+  HeatLegend,
   PaceChart,
-  SERIES_COLORS,
+  SpendingDonut,
   TrendChart,
+  projection,
+  spendingSlices,
 } from "@/components/charts"
 import { capitalize, dayLabel, monthName } from "@/lib/format"
 import { trendQuery } from "@/lib/queries"
-import type { LedgerTxn, MonthView } from "@/server/ledger"
+import { OTHER, STACK_ORDER, seriesColors } from "@/lib/series"
+import type { LedgerTxn, MonthView, TrendView } from "@/server/ledger"
 
 export function Card({
   title,
@@ -179,28 +184,159 @@ function Legend({
   )
 }
 
-/** Pace, categories, trend and daily spending. */
+const lineKey = (className: string) => <span className={cn("w-4", className)} />
+
+/**
+ * The month's spending as a donut (top categories by six-month rank, then
+ * Other) above a list that doubles as its legend: each slice's share and
+ * amount, with the categories Other folds in listed under it.
+ */
+export function SpendingBreakdown({
+  view,
+  trend,
+  size = 200,
+}: {
+  view: MonthView
+  trend: TrendView
+  size?: number
+}) {
+  const slices = spendingSlices(view, trend)
+  const total = view.totals.out
+  if (!view.byCategory.length) {
+    return <p className="text-sm text-muted-foreground">No spending yet.</p>
+  }
+  const named = new Set(slices.map((s) => s.name))
+  const folded = view.byCategory.filter((c) => !named.has(c.name))
+  const rows = slices.toSorted(
+    (a, b) =>
+      Number(a.name === OTHER) - Number(b.name === OTHER) || b.out - a.out
+  )
+  return (
+    <div className="flex flex-col gap-5">
+      <SpendingDonut slices={slices} total={total} size={size} />
+      <ul className="flex flex-col gap-2.5" aria-label="Spending by category">
+        {rows.map((s) => (
+          <li key={s.name} className="flex flex-col gap-1">
+            <ShareRow
+              emoji={s.name === OTHER ? undefined : s.emoji}
+              name={s.name}
+              out={s.out}
+              total={total}
+              color={s.color}
+            />
+            {s.name === OTHER && (
+              <ul className="mt-1 flex flex-col gap-1 pl-[1.125rem]">
+                {folded.map((c) => (
+                  <li
+                    key={c.id ?? "none"}
+                    className="flex items-center gap-2 text-xs text-muted-foreground"
+                  >
+                    <span aria-hidden>{c.emoji}</span>
+                    <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                    <span className="figure">{formatPeso(c.out)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function ShareRow({
+  emoji,
+  name,
+  out,
+  total,
+  color,
+}: {
+  emoji?: string
+  name: string
+  out: number
+  total: number
+  color: string
+}) {
+  const share = total ? out / total : 0
+  return (
+    <>
+      <div className="flex items-center gap-2 text-sm">
+        <span
+          aria-hidden
+          className="size-2.5 shrink-0 rounded-sm"
+          style={{ background: color }}
+        />
+        {emoji && <span aria-hidden>{emoji}</span>}
+        <span className="min-w-0 flex-1 truncate">{name}</span>
+        <span className="figure text-xs text-muted-foreground">
+          {Math.round(share * 100)}%
+        </span>
+        <span className="figure">{formatPeso(out)}</span>
+      </div>
+      <div className="h-1 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${Math.max(share * 100, 1)}%`, background: color }}
+        />
+      </div>
+    </>
+  )
+}
+
+/** Pace, categories, rhythm, and the six-month view. */
 export function Overview({ view }: { view: MonthView }) {
   const { data: trend } = useSuspenseQuery(trendQuery(view.month))
-  const hasTrend = trend.months.some((m) => m.out > 0)
+  const hasTrend = trend.months.some((m) => m.out > 0 || m.in > 0)
+  const ahead = projection(view)
+  const colors = seriesColors(trend.series)
 
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
       <Card
         title="Pace"
-        description={`Running total, ${monthName(view.month)} against ${monthName(view.previous.month)}`}
+        description={
+          ahead ? (
+            <>
+              Heading for{" "}
+              <span className="figure font-medium text-foreground">
+                {formatPeso(ahead.total)}
+              </span>{" "}
+              by the end of {monthName(view.month)}
+              {view.previous.hasData && (
+                <>
+                  {" "}
+                  · {monthName(view.previous.month)} ended at{" "}
+                  {formatPeso(view.previous.daily.reduce((s, d) => s + d, 0))}
+                </>
+              )}
+            </>
+          ) : (
+            `Running total, ${monthName(view.month)} against ${monthName(view.previous.month)}`
+          )
+        }
         className="xl:col-span-2"
         action={
           <Legend
             items={[
               {
                 label: monthName(view.month),
-                swatch: <span className="h-0.5 w-4 rounded-full bg-expense" />,
+                swatch: lineKey("h-0.5 rounded-full bg-expense"),
               },
+              ...(ahead
+                ? [
+                    {
+                      label: "Projected",
+                      swatch: lineKey(
+                        "border-t-2 border-dotted border-expense/60"
+                      ),
+                    },
+                  ]
+                : []),
               {
                 label: monthName(view.previous.month),
-                swatch: (
-                  <span className="w-4 border-t-2 border-dashed border-muted-foreground/60" />
+                swatch: lineKey(
+                  "border-t-2 border-dashed border-muted-foreground/60"
                 ),
               },
             ]}
@@ -212,17 +348,9 @@ export function Overview({ view }: { view: MonthView }) {
 
       <Card
         title="Where it went"
-        description={`${view.byCategory.length} ${view.byCategory.length === 1 ? "category" : "categories"}`}
+        description={`${view.byCategory.length} ${view.byCategory.length === 1 ? "category" : "categories"} this month`}
       >
-        {view.byCategory.length ? (
-          <CategoryList
-            categories={view.byCategory}
-            total={view.totals.out}
-            bare
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">No spending yet.</p>
-        )}
+        <SpendingBreakdown view={view} trend={trend} />
       </Card>
 
       <Card
@@ -234,24 +362,31 @@ export function Overview({ view }: { view: MonthView }) {
       </Card>
 
       <Card
-        title="Six months"
-        description="Spending by top category"
+        title="Calendar"
+        description={`${monthName(view.month)}, redder on bigger days`}
+        footer={<HeatLegend />}
+      >
+        <CalendarHeatmap view={view} />
+      </Card>
+
+      <Card
+        title="Six months by category"
+        description="Top categories keep their colors across every chart"
+        className="xl:col-span-2"
         footer={
           <Legend
-            items={trend.series.map((name, i) => ({
-              label: name,
-              swatch: (
-                <span
-                  className="size-2.5 rounded-sm"
-                  style={{
-                    background:
-                      name === "Other"
-                        ? "var(--muted-foreground)"
-                        : SERIES_COLORS[i],
-                  }}
-                />
-              ),
-            }))}
+            items={colors
+              .ordered(STACK_ORDER)
+              .filter((name) => trend.series.includes(name))
+              .map((name) => ({
+                label: name,
+                swatch: (
+                  <span
+                    className="size-2.5 rounded-sm"
+                    style={{ background: colors.color(name) }}
+                  />
+                ),
+              }))}
           />
         }
       >
@@ -260,6 +395,33 @@ export function Overview({ view }: { view: MonthView }) {
         ) : (
           <p className="text-sm text-muted-foreground">
             Log a few entries to see your trend.
+          </p>
+        )}
+      </Card>
+
+      <Card
+        title="Money in and out"
+        description="Six months, side by side"
+        action={
+          <Legend
+            items={[
+              {
+                label: "In",
+                swatch: <span className="size-2.5 rounded-sm bg-income" />,
+              },
+              {
+                label: "Out",
+                swatch: <span className="size-2.5 rounded-sm bg-expense" />,
+              },
+            ]}
+          />
+        }
+      >
+        {hasTrend ? (
+          <CashFlowChart trend={trend} />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Log a few entries to see your cash flow.
           </p>
         )}
       </Card>
