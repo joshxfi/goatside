@@ -1,6 +1,6 @@
 # Goatside: plan
 
-> Status: **M0–M2 built** (see §9). Next up: M3, AI parsing.
+> Status: **M0–M2 built; M3 and ask mode built, awaiting a live test with an AI Gateway key** (see §9).
 
 Goatside is an open-source, personal, agentic finance tracker that you self-host. You type a
 line like `-500 lunch at berto's` or `+250 paid by x`, and it becomes a categorized
@@ -135,13 +135,14 @@ From the founder's sketch: "goat side" means *which side of the coin are you on?
 | Charts | **TanStack Charts** (`@tanstack/react-charts`) | Just reached 1.0. Fallback is shadcn charts (Recharts) if the React adapter turns out rough. Theme either through our CSS variables |
 | DB | **Turso** (libSQL) + **Drizzle ORM** | `drizzle-orm/libsql`. Native vectors via `F32_BLOB`. Local dev uses `turso dev` |
 | Auth | **`packages/auth`** (~100 lines, Web Crypto) | Single account from env; see §6 |
-| LLM | **AI SDK** with gateway model strings → `deepseek/deepseek-v4.1-flash` | Vercel AI Gateway (§5.6). No provider packages |
-| Embeddings | **AI SDK** → `openai/text-embedding-3-small` @ 512 dims | Also through AI Gateway |
+| Categorizing | **AI SDK `experimental_decide`** → `typesafe-ai/jev` | Decision model with probabilities (§5.1). Through Vercel AI Gateway |
+| Questions | **AI SDK `streamText`** + tools → `deepseek/deepseek-v4.1-flash` | Vercel AI Gateway (§5.6). No provider packages |
+| Embeddings (maybe later) | **AI SDK** → `openai/text-embedding-3-small` @ 512 dims | Only if exact-description memory proves too narrow |
 | Hosting | **Vercel** | One project per app (Root Directory `apps/app` / `apps/web`) |
 | Lint/format | **oxlint + oxfmt** | No ESLint or Prettier. oxfmt sorts Tailwind classes natively |
 | Tests | Vitest (unit + AI evals); Playwright later | |
 
-**About the model ID:** DeepSeek shipped V4.1 Flash on 2026-09-10. On AI Gateway it's `deepseek/deepseek-v4.1-flash` (input $0.30, output $1.20 per 1M tokens at the time of writing). Model IDs live in env (`LLM_MODEL`, `EMBEDDING_MODEL`) so self-hosters can swap them for any gateway model.
+**About the model ID:** DeepSeek shipped V4.1 Flash on 2026-09-10. On AI Gateway it's `deepseek/deepseek-v4.1-flash` (input $0.30, output $1.20 per 1M tokens at the time of writing). Model IDs live in env (`DECISION_MODEL`, `CHAT_MODEL`) so self-hosters can swap them for any gateway model.
 
 ---
 
@@ -173,54 +174,66 @@ goatside/
 
 ## 5. AI design
 
-### 5.1 Two modes
+### 5.1 Two models, two jobs
 
-- **Log mode** (`+`/`-` prefix): a single structured-output call. It is not an agent loop, which keeps it fast, cheap and predictable.
-- **Ask mode** (questions, commands): a tool-calling agent loop, streamed to the UI with `useChat`.
+- **Logging uses a decision model:** TypeSafe's **Jev** (`typesafe-ai/jev`), through AI Gateway with AI SDK's `experimental_decide`. Filing an entry is a set of typed judgments (which category? money in or out? does it repeat?), not text generation. Jev answers choice and boolean questions with probabilities in one fast call per line, so the code can act when it's sure and ask when it isn't.
+- **Questions use a chat model:** **DeepSeek V4.1 Flash** (`deepseek/deepseek-v4.1-flash`) runs a tool-calling loop over read-only ledger tools, streamed to the UI with `useChat`. It is only used for the owner's questions.
 
-### 5.2 Log pipeline
+Both model IDs are env-overridable (`DECISION_MODEL`, `CHAT_MODEL`). Without AI Gateway credentials the app still works: entries save uncategorized, and sign-less entries still get an "in or out?" question.
+
+### 5.2 Log pipeline (`packages/ai/src/categorize.ts`, `apps/app/src/server/agent.server.ts`)
 
 ```
 raw text
   │
-  ├─ 1. core.preparse()      deterministic: split on commas, extract sign, amount,
-  │                          date words ("yesterday", "last fri"), "split N"
-  │                          → if no amount: route to ask mode
+  ├─ 1. core.preparse()      deterministic: split lines, sign, amount, date words, "split N"
+  │                          → no amount: ask mode
   │
-  ├─ 2. insert pending row   (optimistic, amount locked, status = 'pending')
+  ├─ 2. memory               newest owner-confirmed transaction with the same description
+  │                          → gives direction + category; skips the model when it settles both
   │
-  ├─ 3. retrieve context     embed raw text → top-5 similar past txns
-  │                          (with their FINAL category/merchant after corrections)
-  │                          + categories, people, open IOUs
+  ├─ 3. Jev decide call      state: { entry, amount }   questions (asked only as needed):
+  │                            direction  choice out|in     (only when there's no sign)
+  │                            expense    choice over expense categories
+  │                            income     choice over income categories
+  │                            recurring  boolean
+  │                          each category's criteria = built-in hint + up to 6 recent
+  │                          descriptions filed there (confirmed rows first)
   │
-  ├─ 4. LLM structured out   DeepSeek V4.1 Flash via AI Gateway, no thinking, Zod schema:
-  │                          { kind, category, merchant, person,
-  │                            date, note, recurring, confidence } per line
+  ├─ 4. resolveLine()        trust order: explicit sign > memory > model
+  │                          direction applied at ≥ 0.85, category at ≥ 0.6, recurring at ≥ 0.8
+  │                          anything below → saved with the best guess + a question
   │
-  ├─ 5. validate + reconcile amount must equal preparse; unknown category → 'Uncategorized';
-  │                          new person/merchant → create; settle IOU if applicable
-  │
-  └─ 6. update row           status = 'parsed' | 'needs_review'; store embedding
+  └─ 5. save                 status parsed | needs_review | pending (no model); questions rows
 ```
 
-- **Prompt-cache friendly ordering:** a static system prompt goes first, then the category and people lists (these rarely change), then the retrieved examples, then the input. DeepSeek charges very little for cache hits.
-- **Shortcut (later):** if the top neighbor has cosine similarity ≥ 0.95 and the same merchant tokens, copy its categorization and skip the LLM call.
-- **Kinds:** `expense | income | lend | settle`. Only `expense` and `income` count toward the spending totals. `lend` and `settle` drive the People balances.
+Model failures (timeout 6s, one retry) never block logging; the line just saves with less certainty. `resolveLine` is pure and unit-tested with AI SDK's mock decision model.
 
-### 5.3 Ask-mode tools
+### 5.2.1 Human in the loop: questions
 
-| Tool | Type |
+When the agent is unsure, it asks, one card at a time above the composer:
+
+- **"₱500 for 'lunch': was that money out or in?"** for a sign-less line Jev is torn on (or any sign-less line when AI is off). The direction question stores the category rankings for both sides, so answering "in" also files it under the best income category, and asks a category follow-up if that's uncertain too.
+- **"Which category fits 'grab bgc'?"** with the top three guesses, the current one highlighted, plus "Other…" to open the edit drawer.
+- **"Keep guess"** confirms the saved value.
+
+Answers that differ from the guess are stored as `corrections`. Answered (and hand-edited) rows become `confirmed`, which makes them memory and examples for the next categorization, so the agent learns the owner's habits without fine-tuning. Rows with open questions show a "Check" marker in the feed.
+
+Next candidates for decision questions: person detection for IOUs (M5, choosing from the owner's people), split detection, duplicate-entry detection, and spotting subscriptions from repeats.
+
+### 5.3 Ask mode (`apps/app/src/server/ask.server.ts`, `POST /api/ask`)
+
+| Tool | What it does |
 |---|---|
-| `getSummary(range, groupBy)` | read |
-| `listTransactions(filters)` | read |
-| `searchTransactions(query)` (semantic) | read |
-| `compareMonths(a, b)` | read |
-| `getPersonBalance(person)` | read |
-| `createTransaction / updateTransaction / deleteTransaction` | write, **requires approval** (AI SDK tool approval → confirm card in UI) |
+| `summarize(from, to, groupBy, direction, category?)` | Totals for a range, grouped by category, day or month |
+| `findTransactions(from, to, direction, category?, text?, sort, limit)` | Matching entries, newest or largest first, with their count and sum |
 
-Each tool runs a scoped SQL query for the current user. The model never writes SQL.
+Both are fixed, read-only queries; the model never writes SQL or changes data. The system prompt (`packages/ai/src/ask.ts`) gives today's date and timezone and the category names, and requires every figure to come from a tool. The route needs a session and passes the CSRF check; it keeps the last 12 messages and streams with `reasoning: "none"`. Write tools with approval cards, comparisons and inline charts come later (M5).
 
-### 5.4 Embeddings
+### 5.4 Embeddings (deferred)
+
+Not built. Memory currently matches the exact description, and Jev sees recent examples per category. Embeddings would add fuzzy recall ("grab to bgc" ≈ "grab bgc"); the notes below stand if we add them.
+
 
 I recommend `text-embedding-3-small` with `dimensions: 512`. The reasons:
 
@@ -235,34 +248,31 @@ Store `embedding_model` on each row so re-embedding stays possible. A `pnpm reem
 
 ### 5.5 Quality & safety
 
-- **Evals:** about 100 fixture inputs mapped to expected structured output, run with Vitest on every prompt or model change. They track category accuracy, kind accuracy and the amount invariant (which must be 100%).
-- **Prompt injection:** transaction text is the owner's own, but notes are still treated as data. Write tools always need approval.
-- **Privacy:** the ledger lives in the owner's Turso database. Entry text is sent through the owner's AI Gateway to the model providers (DeepSeek, OpenAI). The README should say plainly what leaves the instance.
+- **Evals (todo):** about 100 fixture inputs with expected category and direction, run against the live decision model on every criteria or model change, to tune the 0.85 / 0.6 thresholds. Amounts never pass through a model, so the amount invariant holds by construction.
+- **Prompt injection:** transaction text is the owner's own, but the ask prompt still treats descriptions as data. The ask tools are read-only; future write tools need approval.
+- **Privacy:** the ledger lives in the owner's Turso database. Entry text and amounts go through the owner's AI Gateway to TypeSafe (categorizing); questions and the ledger rows the tools return go to DeepSeek. The README should say plainly what leaves the instance.
 
 ### 5.6 Vercel AI Gateway
 
 The AI SDK talks to AI Gateway with plain `provider/model` strings, so there are no provider packages and one bill:
 
 ```ts
-// packages/ai (sketch)
-import { embed, generateText, Output } from "ai"
-
-const { output } = await generateText({
-  model: env.LLM_MODEL ?? "deepseek/deepseek-v4.1-flash",
-  output: Output.object({ schema: draftSchema }),
-  prompt,
+// categorize.ts (abridged)
+const { answers } = await experimental_decide({
+  model: "typesafe-ai/jev",
+  state: { entry: "grab to bgc", amount: "₱180" },
+  questions: { expense: { type: "choice", instructions: "…", criteria } },
 })
+answers.expense.probabilities // { c0: 0.08, c2: 0.81, … }
 
-const { embedding } = await embed({
-  model: env.EMBEDDING_MODEL ?? "openai/text-embedding-3-small",
-  value: text,
-  providerOptions: { openai: { dimensions: 512 } },
-})
+// ask.server.ts (abridged)
+streamText({ model: "deepseek/deepseek-v4.1-flash", system, messages, tools,
+  stopWhen: isStepCount(6), reasoning: "none" })
 ```
 
 - **Auth:** on Vercel, the gateway authenticates through the project's OIDC token automatically. Locally (or on another host) set `AI_GATEWAY_API_KEY`.
 - The gateway gives logs, token and cost analytics, budgets, retries and provider fallbacks without code changes.
-- Check AI SDK APIs against the installed version's docs (`node_modules/ai/docs/`) when building M3; this sketch is from memory of AI SDK 7.
+- AI SDK docs for the installed version ship in `node_modules/ai/docs/` (decisions: `03-ai-sdk-core/32-decisions.mdx`).
 
 ---
 
@@ -280,7 +290,7 @@ const { embedding } = await embed({
 
 ## 7. Data model
 
-> As built in `packages/db/src/schema` (migration `0000_init`). Embedding columns arrive with M3.
+> As built in `packages/db/src/schema` (migrations `0000`–`0002`). Embedding columns may arrive later; retrieval currently uses exact-description memory and recent examples.
 
 All money is stored as **integer centavos**, always PHP, and formatted with `Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })`. The day a transaction belongs to is `local_date` (`YYYY-MM-DD` in the owner's timezone), so month grouping is a string prefix with no timezone math. `created_at` orders entries within a day. There's no separate `occurred_at`: a backdated entry only knows its day anyway.
 
@@ -306,6 +316,10 @@ transactions   id, entry_id?, kind ('expense'|'income'|'lend'|'settle'),
                + embedding F32_BLOB(512), embedding_model   (M3)
 
 corrections    id, transaction_id, field, from_value, to_value, created_at
+
+questions      id, transaction_id, kind ('direction'|'category'), guess,
+               options (json: value + model probability), context (json),
+               answer?, resolved_at?, created_at        -- the agent asking the owner
 
 login_attempts id, ip, device_id?, succeeded, created_at   (sign-in throttling, pruned after a day)
 
@@ -344,9 +358,9 @@ TURSO_AUTH_TOKEN=
 # AI: OIDC on Vercel; a key locally or on other hosts
 AI_GATEWAY_API_KEY=
 
-# optional (M3)
-LLM_MODEL=deepseek/deepseek-v4.1-flash
-EMBEDDING_MODEL=openai/text-embedding-3-small
+# optional model overrides
+DECISION_MODEL=typesafe-ai/jev
+CHAT_MODEL=deepseek/deepseek-v4.1-flash
 ```
 
 Env is validated with Zod on first use, so a missing var fails loudly with a clear message. Locally it lives in `apps/app/.env.local`; on Vercel, in the project's environment variables (`vercel env pull` syncs them down).
@@ -364,7 +378,7 @@ Later: a **Deploy to Vercel** button (`vercel.com/new/clone?repository-url=…&r
 - GitHub Actions runs lint, typecheck, unit tests and evals (only on `packages/ai` changes). Vercel's Git integration handles preview and production deploys.
 - Migrations run with `drizzle-kit` against Turso before deploy.
 
-**Cost estimate:** a log parse is about 1.5k input tokens (mostly cached) plus about 150 output tokens, which is a fraction of a cent. Hundreds of entries a month should cost well under $1 in AI. Turso's and Vercel's free tiers should cover one person.
+**Cost estimate:** a categorization is a few hundred input tokens on Jev ($0.042 per 1M tokens at the time of writing), so effectively free; a question is a few thousand DeepSeek tokens, a fraction of a cent. Hundreds of entries a month should cost well under $1 in AI. Turso's and Vercel's free tiers should cover one person.
 
 ---
 
@@ -375,9 +389,9 @@ Later: a **Deploy to Vercel** button (`vercel.com/new/clone?repository-url=…&r
 | M0 | **Scaffold** | Turborepo + pnpm, shadcn monorepo (`-t start -b base`), both apps build with Nitro (Vercel Build Output verified locally). **Status: done; first Vercel deploy pending** |
 | M1 | **Auth + DB** | Zod env validation; single-account sign-in from env with throttling; Drizzle schema migrated to Turso; default categories seeded. **Status: done, tested locally** |
 | M2 | **Manual logging (no AI)** | `core.preparse` with tests; composer saves rows; feed grouped by day; month totals. Usable on its own. **Status: done (composer with live preview, optimistic save, undo, edit drawer, month switcher, interim daily bars + category breakdown)** |
-| M3 | **AI parsing** | AI SDK through Vercel AI Gateway, structured-output pipeline, embeddings, retrieval of past examples, review drawer, corrections, undo, eval suite |
+| M3 | **AI parsing** | Jev categorization through AI Gateway, memory and examples from confirmed rows, questions for uncertain fields, corrections, undo, eval suite. **Status: built and unit-tested; needs a live run with an AI Gateway key, then an eval set** |
 | M4 | **Dashboard** | Month switcher, daily bars, category breakdown, Insights page, category management |
-| M5 | **Ask mode + People** | Tool-calling agent with streamed answers and inline charts; IOUs, splits, settle-up |
+| M5 | **Ask mode + People** | Tool-calling agent with streamed answers and inline charts; IOUs, splits, settle-up. **Status: ask mode built (DeepSeek, two read-only tools, streamed sheet); charts and People pending** |
 | M6 | **Polish + ship** | PWA + offline queue, quick-repeat chips, monthly recap, CSV export, `docs/self-hosting.md`, landing page |
 | Later | | "Of all time" records (lowest-spend day/week/month, streaks), budgets and pace line, recurring detection, receipt photo (vision model), bank/e-wallet CSV import, wallets and balances |
 

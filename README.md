@@ -19,7 +19,25 @@ account, whose username and password you set in its environment.
 | `packages/core` | Pure TS: the entry parser, money (PHP centavos), dates        |
 | `packages/db`   | Drizzle schema and migrations for Turso (libSQL)              |
 | `packages/auth` | Single-account auth: env credentials, signed session cookie   |
+| `packages/ai`   | The agent: Jev categorization policy, ask-mode instructions   |
 | `packages/ui`   | shadcn/ui components (Base UI), the coin brand, theme, styles |
+
+## The agent
+
+- **Filing entries.** Each line goes to TypeSafe's [Jev](https://docs.typesafe.ai/), a
+  decision model, through AI Gateway. It picks the category, notices recurring bills,
+  and decides money in or out when you leave off the sign. It learns from entries you
+  confirmed before.
+- **Asking you.** When Jev isn't sure, the entry is saved with its best guess and a
+  quick question appears above the composer ("₱500 for 'lunch': money out or in?").
+  One tap confirms or fixes it, and the answer teaches the next guess.
+- **Answering you.** Type a question instead of an amount ("how much on food this
+  month?") and DeepSeek V4.1 Flash answers from your ledger with read-only tools.
+
+**What leaves your instance:** entry text and amounts (to TypeSafe, for categorizing),
+and your questions plus the ledger rows needed to answer them (to DeepSeek), both via
+your own AI Gateway. Without AI Gateway credentials, Goatside still works: entries
+save uncategorized and sign-less ones still get an "in or out?" question.
 
 ## Development
 
@@ -63,7 +81,7 @@ pnpm dlx shadcn@latest add drawer -c apps/app
    your username, a password of 12+ characters, a session secret
    (`openssl rand -base64 32`) and the Turso URL and token. On Vercel, AI
    Gateway authenticates through OIDC, so `AI_GATEWAY_API_KEY` is only needed
-   locally.
+   locally. Enable AI Gateway on your Vercel team for the agent to work.
 4. Deploy and sign in.
 
 Changing the username, password or session secret signs out every device.
