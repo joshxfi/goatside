@@ -22,10 +22,10 @@ const EXAMPLES = [
     tags: ["Freelance"],
   },
   {
-    input: "-2400 dinner with sam and jo split 3",
+    input: "-2400 dinner with nini and daniel split 3",
     direction: "out",
     amount: "−₱800",
-    tags: ["Food", "Sam owes ₱800", "Jo owes ₱800"],
+    tags: ["Food", "Nini owes ₱800", "Daniel owes ₱800"],
   },
 ] as const
 
@@ -47,7 +47,7 @@ function Landing() {
       <main className="flex flex-1 flex-col gap-24 pt-10 pb-24 md:pt-20">
         <section className="grid items-center gap-12 md:grid-cols-[1.2fr_1fr]">
           <div className="flex flex-col gap-6">
-            <h1 className="text-5xl leading-[1.05] font-semibold tracking-tight text-balance md:text-7xl">
+            <h1 className="font-display text-5xl leading-[1.05] tracking-tight text-balance md:text-7xl">
               Which side of the coin are you on?
             </h1>
             <p className="max-w-md text-lg text-pretty text-muted-foreground">
@@ -95,7 +95,7 @@ function Landing() {
 
         <section id="how" className="flex scroll-mt-8 flex-col gap-8">
           <div className="flex flex-col gap-2">
-            <h2 className="text-4xl font-semibold tracking-tight">
+            <h2 className="font-display text-4xl tracking-tight">
               One line in. A whole ledger out.
             </h2>
             <p className="max-w-lg text-muted-foreground">
@@ -125,7 +125,7 @@ function Landing() {
                   </div>
                   <span
                     className={cn(
-                      "figure shrink-0 text-2xl leading-none font-semibold whitespace-nowrap",
+                      "figure shrink-0 font-display text-2xl leading-none whitespace-nowrap",
                       ex.direction === "in"
                         ? "text-income-foreground"
                         : "text-expense-foreground"
@@ -141,7 +141,7 @@ function Landing() {
 
         <section className="grid gap-10 md:grid-cols-2">
           <div className="flex flex-col gap-3">
-            <h2 className="text-4xl font-semibold tracking-tight">
+            <h2 className="font-display text-4xl tracking-tight">
               Your GOAT days, on record.
             </h2>
             <p className="text-muted-foreground">
@@ -151,7 +151,7 @@ function Landing() {
             </p>
           </div>
           <div className="flex flex-col gap-3">
-            <h2 className="text-4xl font-semibold tracking-tight">
+            <h2 className="font-display text-4xl tracking-tight">
               Built for one person: you.
             </h2>
             <p className="text-muted-foreground">

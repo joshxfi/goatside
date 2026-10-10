@@ -33,7 +33,7 @@ account, whose username and password you set in its environment.
 - **Asking you.** When Jev isn't sure, the entry is saved with its best guess and a
   quick question appears above the composer ("₱500 for 'lunch': money out or in?").
   One tap confirms or fixes it, and the answer teaches the next guess.
-- **People and IOUs.** "lent sam 1000", "jo paid me back", "dinner with sam and jo, I paid"
+- **People and IOUs.** "lent nini 1000", "daniel paid me back", "dinner with nini and daniel, I paid"
   become loans, repayments and split bills. The home screen shows who owes whom, with
   one-tap settle.
 - **Catching mistakes.** The same payment logged twice gets a "keep both?" check, and

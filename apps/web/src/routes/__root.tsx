@@ -37,7 +37,7 @@ export const Route = createRootRoute({
   }),
   notFoundComponent: () => (
     <main className="mx-auto max-w-xl p-4 pt-16">
-      <h1 className="text-4xl font-semibold">Off the edge.</h1>
+      <h1 className="font-display text-4xl">Off the edge.</h1>
       <p className="mt-2 text-muted-foreground">
         That page doesn’t exist. <a href="/">Head back home</a>.
       </p>
