@@ -1,6 +1,7 @@
 /**
- * Ask mode on the server: the chat agent and its read-only ledger tools.
- * Each tool runs a fixed query; the model never writes SQL or changes data.
+ * Ask mode on the server: the chat agent, its read-only ledger tools, and
+ * write tools that only run after the owner approves (ask-actions.server).
+ * Every tool runs a fixed query; the model never writes SQL.
  */
 import {
   type UIMessage,
@@ -19,6 +20,11 @@ import { DEFAULT_TIME_ZONE, todayIn } from "@workspace/core/dates"
 import { formatPeso } from "@workspace/core/money"
 import { type Db, schema } from "@workspace/db"
 import { peopleWithBalances } from "./agent.server"
+import {
+  actionApprovals,
+  actionTools,
+  approvalSecret,
+} from "./ask-actions.server"
 import { serverEnv } from "./env"
 import { getDb } from "./services"
 
@@ -260,7 +266,7 @@ function explain(error: unknown) {
 export async function answerAsk(body: unknown) {
   const db = getDb()
   const messages = (body as { messages?: unknown })?.messages
-  const tools = ledgerTools(db)
+  const tools = { ...ledgerTools(db), ...actionTools(db) }
   const validated = await validateUIMessages<UIMessage>({
     messages: Array.isArray(messages) ? messages.slice(-MAX_MESSAGES) : [],
     tools,
@@ -286,6 +292,8 @@ export async function answerAsk(body: unknown) {
     }),
     messages: await convertToModelMessages(validated),
     tools,
+    toolApproval: actionApprovals(db),
+    experimental_toolApprovalSecret: approvalSecret(),
     stopWhen: isStepCount(6),
     reasoning: "none",
     maxOutputTokens: 800,

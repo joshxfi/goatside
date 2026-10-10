@@ -1,8 +1,11 @@
 import { useState } from "react"
 import { useChat } from "@ai-sdk/react"
-import { useSuspenseQuery } from "@tanstack/react-query"
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import { DefaultChatTransport } from "ai"
+import {
+  DefaultChatTransport,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+} from "ai"
 import { z } from "zod"
 import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
@@ -47,7 +50,18 @@ function Home() {
   const { data } = useSuspenseQuery(monthQuery(m))
   const [selected, setSelected] = useState<LedgerTxn | null>(null)
   const [asking, setAsking] = useState(false)
-  const chat = useChat({ transport })
+  const queryClient = useQueryClient()
+  const chat = useChat({
+    transport,
+    // After the owner confirms a change, continue so the tool runs.
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+    // The agent may have changed the ledger; refresh what's on screen.
+    onFinish: () => {
+      for (const key of ["month", "trend", "people", "categories"]) {
+        void queryClient.invalidateQueries({ queryKey: [key] })
+      }
+    },
+  })
 
   function ask(question: string) {
     if (!viewer.ai) {

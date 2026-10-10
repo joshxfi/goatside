@@ -8,6 +8,7 @@ import {
   settleWith,
   trendView,
 } from "./ledger.server"
+import { restoreCategories } from "./ask-actions.server"
 import { AnswerError, answer } from "./questions.server"
 import { getDb } from "./services"
 import { authMiddleware } from "./session"
@@ -83,3 +84,16 @@ export const settleUp = createServerFn({ method: "POST" })
     })
   )
   .handler(({ data }) => settleWith(data.personId, data.amount))
+
+/** Undo for the agent's moveToCategory: puts entries back where they were. */
+export const undoRecategorize = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(
+    z.object({
+      changes: z
+        .array(z.object({ id: z.uuid(), categoryId: z.uuid().nullable() }))
+        .min(1)
+        .max(200),
+    })
+  )
+  .handler(({ data }) => restoreCategories(data.changes))

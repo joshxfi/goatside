@@ -1,7 +1,8 @@
 import { useState } from "react"
 import type { UseChatHelpers } from "@ai-sdk/react"
-import type { UIMessage } from "ai"
+import { type UIMessage, getToolName, isToolUIPart } from "ai"
 import { ArrowUpIcon, SquareIcon } from "lucide-react"
+import { ACTION_TITLES, AgentAction } from "@/components/agent-action"
 import { useDesktop } from "@/lib/use-desktop"
 import {
   Drawer,
@@ -16,8 +17,9 @@ export type AskChat = UseChatHelpers<UIMessage>
 
 const SUGGESTIONS = [
   "How much did I spend this month?",
-  "What was my biggest expense last week?",
   "Food this month vs last month?",
+  "Move all grab rides this month to Transport",
+  "I spent 350 on lunch yesterday",
 ]
 
 const TOOL_LABELS: Record<string, string> = {
@@ -119,6 +121,20 @@ export function AskSheet({
                     return i > lastTool ? (
                       <Answer key={i} text={part.text} />
                     ) : null
+                  }
+                  if (
+                    isToolUIPart(part) &&
+                    getToolName(part) in ACTION_TITLES
+                  ) {
+                    return (
+                      <AgentAction
+                        key={part.toolCallId}
+                        part={part}
+                        onRespond={(response) =>
+                          void chat.addToolApprovalResponse(response)
+                        }
+                      />
+                    )
                   }
                   const label = TOOL_LABELS[part.type]
                   if (!label) return null
