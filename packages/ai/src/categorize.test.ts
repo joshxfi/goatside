@@ -5,6 +5,7 @@ import {
   type CategoryOption,
   type Signals,
   askModel,
+  isRecurring,
   needsModel,
   resolveLine,
 } from "./categorize"
@@ -235,5 +236,20 @@ describe("resolveLine", () => {
   it("marks recurring lines", () => {
     expect(resolveLine(out, { recurring: 0.85 }, null).recurring).toBe(true)
     expect(resolveLine(out, { recurring: 0.5 }, null).recurring).toBe(false)
+  })
+})
+
+describe("isRecurring", () => {
+  it("trusts history over the text", () => {
+    expect(isRecurring(0.1, 2, null)).toBe(true)
+    expect(isRecurring(0.45, 1, null)).toBe(true)
+    expect(isRecurring(0.45, 0, null)).toBe(false)
+    expect(
+      isRecurring(undefined, 0, {
+        direction: "out",
+        categoryId: null,
+        recurring: true,
+      })
+    ).toBe(true)
   })
 })

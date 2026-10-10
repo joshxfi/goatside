@@ -91,26 +91,19 @@ function QuestionCard({
     >
       <div className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
         <span>Quick check{remaining > 1 ? ` · ${remaining} waiting` : ""}</span>
-        <button
-          type="button"
-          onClick={() => onAnswer(question.guess)}
-          className="rounded-md px-1.5 py-0.5 transition-colors hover:text-foreground"
-        >
-          Keep guess
-        </button>
+        {/* A duplicate's options already say "keep". */}
+        {question.kind !== "duplicate" && (
+          <button
+            type="button"
+            onClick={() => onAnswer(question.guess)}
+            className="rounded-md px-1.5 py-0.5 transition-colors hover:text-foreground"
+          >
+            Keep guess
+          </button>
+        )}
       </div>
       <p className="text-sm">
-        {question.kind === "direction" ? (
-          <>
-            <span className="figure font-medium">{amount}</span> for {what}: was
-            that money out or in?
-          </>
-        ) : (
-          <>
-            Which category fits {what}{" "}
-            <span className="figure text-muted-foreground">({amount})</span>?
-          </>
-        )}
+        <Prompt question={question} what={what} amount={amount} />
       </p>
       <div className="flex flex-wrap gap-2">
         {question.options.map((option) => (
@@ -161,4 +154,49 @@ function AnswerButton({
       {...props}
     />
   )
+}
+
+function Prompt({
+  question,
+  what,
+  amount,
+}: {
+  question: OpenQuestion
+  what: string
+  amount: string
+}) {
+  const figure = <span className="figure font-medium">{amount}</span>
+  switch (question.kind) {
+    case "direction":
+      return (
+        <>
+          {figure} for {what}: was that money out or in?
+        </>
+      )
+    case "relation":
+      return (
+        <>
+          {figure} for {what}: is that yours, or between you and{" "}
+          {question.people.length > 1 ? "them" : (question.people[0] ?? "them")}
+          ?
+        </>
+      )
+    case "duplicate":
+      return (
+        <>
+          {figure} for {what} again? It looks like{" "}
+          {question.earlier?.description
+            ? `“${capitalize(question.earlier.description)}”`
+            : "an entry"}{" "}
+          you already logged.
+        </>
+      )
+    case "category":
+      return (
+        <>
+          Which category fits {what}{" "}
+          <span className="figure text-muted-foreground">({amount})</span>?
+        </>
+      )
+  }
 }

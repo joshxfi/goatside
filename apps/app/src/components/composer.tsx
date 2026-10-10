@@ -57,6 +57,7 @@ export function Composer({
           status: "pending",
           createdAt: now,
           category: null,
+          person: null,
         }))
       if (previous && optimistic.length) {
         queryClient.setQueryData(queryKey, {
@@ -226,18 +227,36 @@ function Preview({ parsed, today }: { parsed: Preparsed; today: string }) {
 }
 
 function describe(
-  saved: { amount: number; description: string; categoryId: string | null }[],
+  saved: {
+    amount: number
+    description: string
+    categoryId: string | null
+    relation: string
+    people: string[]
+  }[],
   categories: MonthView["categories"]
 ): string {
   const [first, ...rest] = saved
   if (!first) return "Logged."
   if (rest.length) return `Logged ${saved.length} entries.`
   const amount = formatPeso(first.amount, { sign: first.amount > 0 })
+  const who = first.people.join(" and ")
+  const between: Record<string, string> = {
+    lent: `lent to ${who}`,
+    borrowed: `borrowed from ${who}`,
+    repaid_me: `${who} paid you back`,
+    i_repaid: `paid ${who} back`,
+    shared: `your share, split with ${who}`,
+  }
   const category = categories.find((c) => c.id === first.categoryId)
   return [
     `Logged ${amount}`,
-    first.description,
-    category && `${category.emoji} ${category.name}`,
+    // For an IOU the relation says it all ("lent to Mara").
+    first.relation === "own" || first.relation === "shared"
+      ? first.description
+      : null,
+    between[first.relation] ??
+      (category && `${category.emoji} ${category.name}`),
   ]
     .filter(Boolean)
     .join(" · ")

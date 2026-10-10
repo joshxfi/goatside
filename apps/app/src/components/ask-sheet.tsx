@@ -22,6 +22,7 @@ const SUGGESTIONS = [
 const TOOL_LABELS: Record<string, string> = {
   "tool-summarize": "Added up your ledger",
   "tool-findTransactions": "Looked through your entries",
+  "tool-balances": "Checked who owes what",
 }
 
 /** Ask mode: questions about your money, answered from your own ledger. */
@@ -101,9 +102,16 @@ export function AskSheet({
                 key={message.id}
                 className="flex flex-col gap-2 text-[15px] leading-relaxed"
               >
-                {message.parts.map((part, i) => {
-                  if (part.type === "text")
-                    return <Answer key={i} text={part.text} />
+                {message.parts.map((part, i, parts) => {
+                  if (part.type === "text") {
+                    // Text before a tool call is narration ("I'll check…").
+                    const lastTool = parts.findLastIndex((p) =>
+                      p.type.startsWith("tool-")
+                    )
+                    return i > lastTool ? (
+                      <Answer key={i} text={part.text} />
+                    ) : null
+                  }
                   const label = TOOL_LABELS[part.type]
                   if (!label) return null
                   return (

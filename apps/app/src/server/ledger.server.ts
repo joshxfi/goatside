@@ -20,15 +20,12 @@ import {
 } from "@workspace/core/dates"
 import { preparse } from "@workspace/core/preparse"
 import { type Db, schema } from "@workspace/db"
-import {
-  categorize,
-  openQuestions,
-  resolveQuestionsFor,
-  saveQuestions,
-} from "./agent.server"
+import { peopleWithBalances, saveLines } from "./agent.server"
+import { openQuestions, resolveQuestionsFor } from "./questions.server"
 import { getDb } from "./services"
 
-const { categories, corrections, entries, settings, transactions } = schema
+const { categories, corrections, entries, people, settings, transactions } =
+  schema
 
 async function today(db: Db) {
   const row = await db.query.settings.findFirst({
@@ -51,6 +48,8 @@ const txnColumns = {
   categoryId: transactions.categoryId,
   categoryName: categories.name,
   categoryEmoji: categories.emoji,
+  personId: transactions.personId,
+  personName: people.name,
 }
 
 function fetchTransactions(db: Db, where: SQL | undefined) {
@@ -58,6 +57,7 @@ function fetchTransactions(db: Db, where: SQL | undefined) {
     .select(txnColumns)
     .from(transactions)
     .leftJoin(categories, eq(categories.id, transactions.categoryId))
+    .leftJoin(people, eq(people.id, transactions.personId))
     .where(where)
     .orderBy(desc(transactions.localDate), desc(transactions.createdAt))
 }
@@ -82,6 +82,10 @@ function toLedgerTxn(row: TxnRow) {
             name: row.categoryName,
             emoji: row.categoryEmoji ?? "",
           }
+        : null,
+    person:
+      row.personId && row.personName
+        ? { id: row.personId, name: row.personName }
         : null,
   }
 }
@@ -192,6 +196,10 @@ export async function monthView(requested?: string) {
     transactions: txns,
     categories: activeCategories,
     questions: await openQuestions(db, labels),
+    people: (await peopleWithBalances(db))
+      .filter((p) => p.owed !== 0)
+      .map(({ id, name, owed }) => ({ id, name, owed }))
+      .toSorted((a, b) => Math.abs(b.owed) - Math.abs(a.owed)),
   }
 }
 
@@ -220,58 +228,41 @@ export async function logText(text: string) {
     .returning({ id: entries.id })
   if (!entry) throw new Error("Could not save entry")
 
-  const resolved = await categorize(
+  const { saved, transactionIds, asked } = await saveLines(
     db,
-    parsed.lines.map((line) => ({
-      description: line.description,
-      amount: line.share,
-      direction: line.signInferred ? null : line.direction,
-    }))
+    entry.id,
+    parsed.lines
   )
-
-  const inserted = await db
-    .insert(transactions)
-    .values(
-      parsed.lines.map((line, i) => {
-        const r = resolved[i]
-        const direction = r?.direction ?? line.direction
-        return {
-          entryId: entry.id,
-          kind: direction === "in" ? ("income" as const) : ("expense" as const),
-          amount: direction === "in" ? line.share : -line.share,
-          localDate: line.localDate,
-          description: line.description,
-          split: line.split,
-          categoryId: r?.categoryId ?? null,
-          aiConfidence: r?.confidence ?? null,
-          recurring: r?.recurring ?? false,
-          status: r?.status ?? ("pending" as const),
-        }
-      })
-    )
-    .returning({ id: transactions.id })
-
-  await saveQuestions(
-    db,
-    inserted.flatMap((txn, i) =>
-      (resolved[i]?.questions ?? []).map((draft) => ({
-        transactionId: txn.id,
-        draft,
-      }))
-    )
-  )
-
   return {
     kind: "log" as const,
     entryId: entry.id,
-    transactionIds: inserted.map((t) => t.id),
-    saved: parsed.lines.map((line, i) => ({
-      amount: resolved[i]?.direction === "in" ? line.share : -line.share,
-      description: line.description,
-      categoryId: resolved[i]?.categoryId ?? null,
-    })),
-    asked: resolved.some((r) => r.questions.length > 0),
+    transactionIds,
+    saved,
+    asked,
   }
+}
+
+/** Records that a person and the owner are square. */
+export async function settleWith(personId: string) {
+  const db = getDb()
+  const person = (await peopleWithBalances(db)).find((p) => p.id === personId)
+  if (!person) throw new Error("Person not found")
+  if (person.owed === 0) return { amount: 0, id: null }
+  // They owe you: money comes in. You owe them: money goes out.
+  const amount = person.owed
+  const [row] = await db
+    .insert(transactions)
+    .values({
+      kind: "settle",
+      amount,
+      personId,
+      localDate: await today(db),
+      // The row's IOU label already says who paid whom.
+      description: "Settled up",
+      status: "confirmed",
+    })
+    .returning({ id: transactions.id })
+  return { amount, id: row?.id ?? null }
 }
 
 /** Soft-deletes the transactions from the newest entry that still has any. */

@@ -5,13 +5,14 @@ import {
   logText,
   monthView,
   setDeleted,
+  settleWith,
 } from "./ledger.server"
-import { AnswerError, answer } from "./agent.server"
+import { AnswerError, answer } from "./questions.server"
 import { getDb } from "./services"
 import { authMiddleware } from "./session"
 
 export type { LedgerTxn, MonthView } from "./ledger.server"
-export type { OpenQuestion } from "./agent.server"
+export type { OpenQuestion } from "./questions.server"
 
 const MONTH = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -63,3 +64,9 @@ export const answerQuestion = createServerFn({ method: "POST" })
       throw error
     }
   })
+
+/** Marks a person as square with the owner (logs the settlement). */
+export const settleUp = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ personId: z.uuid() }))
+  .handler(({ data }) => settleWith(data.personId))

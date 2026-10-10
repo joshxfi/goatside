@@ -14,6 +14,7 @@ import {
 } from "@workspace/ui/components/drawer"
 import { Input } from "@workspace/ui/components/input"
 import { cn } from "@workspace/ui/lib/utils"
+import { iouLabel } from "@/lib/format"
 import {
   type LedgerTxn,
   type MonthView,
@@ -63,7 +64,10 @@ function EditForm({
   const queryClient = useQueryClient()
   const [description, setDescription] = useState(txn.description)
   const [localDate, setLocalDate] = useState(txn.localDate)
-  const income = txn.amount > 0
+  const iou = txn.person
+    ? iouLabel(txn.kind, txn.amount, txn.person.name)
+    : null
+  const income = txn.amount > 0 && !iou
   const options = categories.filter(
     (c) => c.kind === (income ? "income" : "expense")
   )
@@ -118,7 +122,7 @@ function EditForm({
             income && "text-gold-foreground"
           )}
         >
-          {formatPeso(txn.amount, { sign: income })}
+          {formatPeso(txn.amount, { sign: txn.amount > 0 })}
         </DrawerTitle>
         <DrawerDescription>
           {txn.split ? `Your share of a ${txn.split}-way split. ` : ""}
@@ -127,34 +131,40 @@ function EditForm({
       </DrawerHeader>
 
       <div className="flex flex-col gap-5 px-4">
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-2 text-sm font-medium">Category</legend>
-          <div className="flex flex-wrap gap-2">
-            {options.map((c) => {
-              const active = c.id === txn.category?.id
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  aria-pressed={active}
-                  disabled={update.isPending}
-                  onClick={() =>
-                    update.mutate({ categoryId: active ? null : c.id })
-                  }
-                  className={cn(
-                    "flex h-10 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-[background-color,transform] duration-150 ease-out active:scale-[0.97]",
-                    active
-                      ? "border-foreground bg-foreground text-background"
-                      : "bg-card [@media(hover:hover)]:hover:bg-muted"
-                  )}
-                >
-                  <span aria-hidden>{c.emoji}</span>
-                  {c.name}
-                </button>
-              )
-            })}
-          </div>
-        </fieldset>
+        {iou ? (
+          <p className="rounded-xl bg-muted px-3.5 py-3 text-sm">
+            🤝 {iou}. IOUs don’t count toward your spending.
+          </p>
+        ) : (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-2 text-sm font-medium">Category</legend>
+            <div className="flex flex-wrap gap-2">
+              {options.map((c) => {
+                const active = c.id === txn.category?.id
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    aria-pressed={active}
+                    disabled={update.isPending}
+                    onClick={() =>
+                      update.mutate({ categoryId: active ? null : c.id })
+                    }
+                    className={cn(
+                      "flex h-10 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-[background-color,transform] duration-150 ease-out active:scale-[0.97]",
+                      active
+                        ? "border-foreground bg-foreground text-background"
+                        : "bg-card [@media(hover:hover)]:hover:bg-muted"
+                    )}
+                  >
+                    <span aria-hidden>{c.emoji}</span>
+                    {c.name}
+                  </button>
+                )
+              })}
+            </div>
+          </fieldset>
+        )}
 
         <div className="flex flex-col gap-2">
           <label htmlFor="txn-description" className="text-sm font-medium">

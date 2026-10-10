@@ -12,6 +12,7 @@ import { Composer } from "@/components/composer"
 import { DailyBars } from "@/components/daily-bars"
 import { Feed } from "@/components/feed"
 import { MonthHeader } from "@/components/month-header"
+import { PeopleList } from "@/components/people-list"
 import { Questions } from "@/components/questions"
 import { Summary } from "@/components/summary"
 import { TransactionDrawer } from "@/components/transaction-drawer"
@@ -68,6 +69,7 @@ function Home() {
         <Summary view={data} />
         <DailyBars daily={data.daily} today={data.today} />
         <CategoryList categories={data.byCategory} total={data.totals.out} />
+        <PeopleList people={data.people} />
         <Feed view={data} onSelect={setSelected} />
       </main>
       <Composer view={data} viewKey={m} onAsk={ask}>

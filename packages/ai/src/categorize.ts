@@ -14,7 +14,14 @@ import {
   type Experimental_DecisionQuestion,
   experimental_decide,
 } from "ai"
+import { formatPeso } from "@workspace/core/money"
 import type { Direction } from "@workspace/core/preparse"
+import {
+  type PeopleSignals,
+  type PersonInput,
+  type Relation,
+  resolvePeople,
+} from "./people"
 
 export const DEFAULT_DECISION_MODEL = "typesafe-ai/jev"
 
@@ -41,6 +48,10 @@ export interface LineInput {
   amount: number
   /** From an explicit + or −; null when the owner didn't say. */
   direction: Direction | null
+  /** "split N" from the text. */
+  split?: number | null
+  /** Earlier months with the same description and a similar amount. */
+  priorMonths?: number
 }
 
 export interface Ranked {
@@ -69,7 +80,8 @@ export interface Memory {
 /** Built-in hints for the default categories; custom ones go by name. */
 const HINTS: Record<string, string> = {
   "expense:food": "Meals, snacks, coffee, drinks, restaurants, food delivery",
-  "expense:groceries": "Supermarket, market, household supplies, toiletries",
+  "expense:groceries":
+    "Supermarket, palengke, Puregold, SM, Robinsons, S&R, household supplies, toiletries",
   "expense:transport":
     "Grab, taxi, jeep, bus, train, fuel, parking, tolls, flights",
   "expense:bills":
@@ -120,10 +132,6 @@ function ranked(
       return id ? [{ id, p }] : []
     })
     .toSorted((a, b) => b.p - a.p)
-}
-
-export function peso(centavos: number) {
-  return `₱${(centavos / 100).toLocaleString("en-PH", { maximumFractionDigits: 2 })}`
 }
 
 /**
@@ -187,7 +195,7 @@ export async function askModel(
     model,
     state: {
       entry: line.description || "(no description)",
-      amount: peso(line.amount),
+      amount: formatPeso(line.amount),
     },
     questions,
     abortSignal,
@@ -225,6 +233,25 @@ export type QuestionDraft =
       guess: string
       options: { value: string; p: number }[]
     }
+  | {
+      kind: "duplicate"
+      /** The new entry stays until the owner says otherwise. */
+      guess: "keep"
+      options: { value: "keep" | "remove"; p: number | null }[]
+      earlier: {
+        description: string
+        amount: number
+        localDate: string
+        minutesAgo: number
+      }
+    }
+  | {
+      kind: "relation"
+      /** Unsure relations are saved as the owner's own money. */
+      guess: "own"
+      options: { value: Relation; p: number }[]
+      rankings: { in: Ranked[]; out: Ranked[] }
+    }
 
 export interface Resolved {
   direction: Direction
@@ -234,6 +261,14 @@ export interface Resolved {
   recurring: boolean
   status: "pending" | "parsed" | "needs_review"
   questions: QuestionDraft[]
+  relation: Relation
+  /** Indexes of the candidates that are people. */
+  people: number[]
+}
+
+export interface PeopleInput {
+  candidates: PersonInput[]
+  signals: PeopleSignals | null
 }
 
 export const kindOf = (direction: Direction): CategoryKind =>
@@ -259,7 +294,8 @@ export function categoryQuestion(ranking: Ranked[]): QuestionDraft | null {
 export function resolveLine(
   line: LineInput,
   signals: Signals | null,
-  memory: Memory | null
+  memory: Memory | null,
+  people: PeopleInput = { candidates: [], signals: null }
 ): Resolved {
   const questions: QuestionDraft[] = []
   const rankings = { in: signals?.income ?? [], out: signals?.expense ?? [] }
@@ -278,6 +314,19 @@ export function resolveLine(
     directionSure = false
   }
 
+  // Who else is involved. A confident "lent" or "paid me back" also says
+  // which way the money went, so it can settle a missing sign.
+  const between = resolvePeople(
+    { direction: directionSure ? direction : null, split: line.split ?? null },
+    people.signals,
+    people.candidates
+  )
+  if (between.direction) {
+    direction = between.direction
+    directionSure = true
+  }
+
+  // One question at a time: direction first, then relation, then category.
   if (!directionSure) {
     const pIn = signals?.pIn ?? null
     questions.push({
@@ -289,21 +338,30 @@ export function resolveLine(
       ],
       rankings,
     })
+  } else if (between.ask.length) {
+    questions.push({
+      kind: "relation",
+      guess: "own",
+      options: between.ask,
+      rankings,
+    })
   }
 
+  // Only the owner's own money gets a category (for a shared bill, their share).
   let categoryId: string | null = null
   let confidence: number | null = null
-  const useMemory = memory && memory.direction === direction
+  const categorized =
+    between.relation === "own" || between.relation === "shared"
+  const useMemory = categorized && memory && memory.direction === direction
   if (useMemory && memory.categoryId) {
     categoryId = memory.categoryId
     confidence = 1
-  } else {
+  } else if (categorized) {
     const [top] = rankings[direction]
     if (top) {
       categoryId = top.id
       confidence = top.p
-      // One question at a time: the category follows a direction answer.
-      if (directionSure) {
+      if (!questions.length) {
         const question = categoryQuestion(rankings[direction])
         if (question) questions.push(question)
       }
@@ -315,16 +373,32 @@ export function resolveLine(
     categoryId,
     confidence,
     recurring:
-      signals?.recurring !== undefined
-        ? signals.recurring >= RECURRING
-        : (memory?.recurring ?? false),
+      categorized &&
+      isRecurring(signals?.recurring, line.priorMonths ?? 0, memory),
     status: questions.length
       ? "needs_review"
-      : signals || useMemory
+      : signals || useMemory || people.signals
         ? "parsed"
         : "pending",
     questions,
+    relation: between.relation,
+    people: between.people,
   }
+}
+
+/**
+ * Repeating charges: the model's read of the text, backed by history. A
+ * description seen in two earlier months repeats whatever the text says;
+ * seen once, a moderate model score is enough.
+ */
+export function isRecurring(
+  p: number | undefined,
+  priorMonths: number,
+  memory: Memory | null
+): boolean {
+  if (priorMonths >= 2) return true
+  if (p === undefined) return memory?.recurring ?? false
+  return p >= RECURRING || (priorMonths >= 1 && p >= 0.4)
 }
 
 /** False when the sign and the owner's past answer already settle the line. */

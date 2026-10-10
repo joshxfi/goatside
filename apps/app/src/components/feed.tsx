@@ -1,7 +1,7 @@
 import { formatPeso } from "@workspace/core/money"
 import { CoinMark } from "@workspace/ui/components/brand"
 import { cn } from "@workspace/ui/lib/utils"
-import { capitalize, dayLabel } from "@/lib/format"
+import { capitalize, dayLabel, iouLabel } from "@/lib/format"
 import type { LedgerTxn, MonthView } from "@/server/ledger"
 
 export function Feed({
@@ -55,7 +55,10 @@ function TransactionRow({
   onSelect: (txn: LedgerTxn) => void
 }) {
   const optimistic = txn.id.startsWith("optimistic:")
-  const income = txn.amount > 0
+  const iou = txn.person
+    ? iouLabel(txn.kind, txn.amount, txn.person.name)
+    : null
+  const income = txn.amount > 0 && !iou
   const title = capitalize(txn.description) || txn.category?.name || "Untitled"
 
   return (
@@ -69,9 +72,11 @@ function TransactionRow({
         aria-hidden
         className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-lg"
       >
-        {txn.category?.emoji ?? (
-          <CoinMark rim={false} className="size-5 text-muted-foreground" />
-        )}
+        {iou
+          ? "🤝"
+          : (txn.category?.emoji ?? (
+              <CoinMark rim={false} className="size-5 text-muted-foreground" />
+            ))}
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate">{title}</span>
@@ -83,7 +88,7 @@ function TransactionRow({
             </span>
           )}
           <span className="truncate">
-            {txn.category?.name ?? "Uncategorized"}
+            {iou ?? txn.category?.name ?? "Uncategorized"}
             {txn.split ? ` · split ${txn.split} ways` : ""}
             {txn.recurring ? " · repeats" : ""}
           </span>
@@ -92,10 +97,12 @@ function TransactionRow({
       <span
         className={cn(
           "figure shrink-0 font-display text-xl",
-          income && "text-gold-foreground"
+          income && "text-gold-foreground",
+          // IOUs aren't spending or income, so they stay quiet.
+          iou && "text-muted-foreground"
         )}
       >
-        {formatPeso(txn.amount, { sign: income })}
+        {formatPeso(txn.amount, { sign: txn.amount > 0 })}
       </span>
     </button>
   )

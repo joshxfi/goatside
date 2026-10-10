@@ -239,6 +239,9 @@ catalogs:
     tailwindcss:
       specifier: ^4.3.3
       version: 4.3.3
+    tsx:
+      specifier: ^4.23.15
+      version: 4.23.15
     typescript:
       specifier: ^6.0.3
       version: 6.0.3
@@ -433,6 +436,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.1
+      tsx:
+        specifier: 'catalog:'
+        version: 4.23.15
       typescript:
         specifier: 'catalog:'
         version: 6.0.3

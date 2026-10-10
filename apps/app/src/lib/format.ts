@@ -41,3 +41,16 @@ export function monthName(month: string): string {
 export function capitalize(text: string): string {
   return text.charAt(0).toLocaleUpperCase() + text.slice(1)
 }
+
+/** How an IOU row reads: "Lent to Mara", "Ben paid you back". */
+export function iouLabel(
+  kind: "expense" | "income" | "lend" | "settle",
+  amount: number,
+  name: string
+): string | null {
+  if (kind === "lend")
+    return amount < 0 ? `Lent to ${name}` : `Borrowed from ${name}`
+  if (kind === "settle")
+    return amount > 0 ? `${name} paid you back` : `Paid ${name} back`
+  return null
+}

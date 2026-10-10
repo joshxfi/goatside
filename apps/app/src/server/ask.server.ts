@@ -18,6 +18,7 @@ import { askInstructions } from "@workspace/ai/ask"
 import { DEFAULT_TIME_ZONE, todayIn } from "@workspace/core/dates"
 import { formatPeso } from "@workspace/core/money"
 import { type Db, schema } from "@workspace/db"
+import { peopleWithBalances } from "./agent.server"
 import { serverEnv } from "./env"
 import { getDb } from "./services"
 
@@ -90,6 +91,57 @@ async function ledgerRows(
 
 function ledgerTools(db: Db) {
   return {
+    balances: tool({
+      description:
+        "Who owes the owner money and whom the owner owes (IOUs, loans, shared bills), with each person's recent IOU entries. Use it for 'who owes me', 'how much does X owe me', 'do I owe anyone'.",
+      inputSchema: z.object({
+        person: z.string().optional().describe("Only this person, by name"),
+      }),
+      execute: async ({ person }) => {
+        const all = await peopleWithBalances(db)
+        const wanted = person
+          ? all.filter(
+              (p) => p.name.toLowerCase() === person.trim().toLowerCase()
+            )
+          : all.filter((p) => p.owed !== 0)
+        return Promise.all(
+          wanted.map(async (p) => {
+            const recent = await db
+              .select({
+                date: transactions.localDate,
+                description: transactions.description,
+                kind: transactions.kind,
+                amount: transactions.amount,
+              })
+              .from(transactions)
+              .where(
+                and(
+                  isNull(transactions.deletedAt),
+                  eq(transactions.personId, p.id),
+                  inArray(transactions.kind, ["lend", "settle"])
+                )
+              )
+              .orderBy(desc(transactions.localDate))
+              .limit(5)
+            return {
+              name: p.name,
+              status:
+                p.owed > 0
+                  ? `owes the owner ${formatPeso(p.owed)}`
+                  : p.owed < 0
+                    ? `the owner owes them ${formatPeso(-p.owed)}`
+                    : "square",
+              recent: recent.map((r) => ({
+                date: r.date,
+                description: r.description,
+                type: r.kind === "lend" ? "loan or shared bill" : "repayment",
+                cashFlow: money(r.amount),
+              })),
+            }
+          })
+        )
+      },
+    }),
     summarize: tool({
       description:
         "Totals for a date range, optionally grouped by category, day or month. Use it for 'how much did I spend/earn' questions and comparisons (call once per period).",

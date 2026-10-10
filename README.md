@@ -31,8 +31,14 @@ account, whose username and password you set in its environment.
 - **Asking you.** When Jev isn't sure, the entry is saved with its best guess and a
   quick question appears above the composer ("₱500 for 'lunch': money out or in?").
   One tap confirms or fixes it, and the answer teaches the next guess.
+- **People and IOUs.** "lent mara 500", "paid by x", "dinner w/ mara and ben, i paid"
+  become loans, repayments and split bills. The home screen shows who owes whom, with
+  one-tap settle.
+- **Catching mistakes.** The same payment logged twice gets a "keep both?" check, and
+  charges that recur month to month are marked as repeating.
 - **Answering you.** Type a question instead of an amount ("how much on food this
-  month?") and DeepSeek V4.1 Flash answers from your ledger with read-only tools.
+  month?", "sino may utang sakin?") and DeepSeek V4.1 Flash answers from your ledger
+  with read-only tools.
 
 **What leaves your instance:** entry text and amounts (to TypeSafe, for categorizing),
 and your questions plus the ledger rows needed to answer them (to DeepSeek), both via
@@ -62,6 +68,7 @@ pnpm lint         # oxlint
 pnpm format       # oxfmt
 pnpm db:generate  # new migration after editing packages/db/src/schema
 pnpm db:studio    # browse the local DB
+pnpm --filter @workspace/ai eval   # live accuracy evals (needs AI_GATEWAY_API_KEY)
 ```
 
 Add shadcn components from an app directory. They're installed into `packages/ui`:

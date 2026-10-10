@@ -5,7 +5,10 @@
   "private": true,
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "eval": "tsx --env-file-if-exists=../../apps/app/.env.local evals/categorize.ts && tsx --env-file-if-exists=../../apps/app/.env.local evals/people.ts && tsx --env-file-if-exists=../../apps/app/.env.local evals/duplicates.ts",
+    "eval:people": "tsx --env-file-if-exists=../../apps/app/.env.local evals/people.ts",
+    "eval:duplicates": "tsx --env-file-if-exists=../../apps/app/.env.local evals/duplicates.ts"
   },
   "exports": {
     "./*": "./src/*.ts"
@@ -19,6 +22,7 @@
     "@ai-sdk/provider": "catalog:",
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "tsx": "catalog:"
   }
 }

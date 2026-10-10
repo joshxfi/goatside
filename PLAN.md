@@ -1,6 +1,6 @@
 # Goatside: plan
 
-> Status: **M0–M2 built; M3 and ask mode built, awaiting a live test with an AI Gateway key** (see §9).
+> Status: **M0–M3 built; M5's ask mode and IOUs built** (see §9).
 
 Goatside is an open-source, personal, agentic finance tracker that you self-host. You type a
 line like `-500 lunch at berto's` or `+250 paid by x`, and it becomes a categorized
@@ -219,7 +219,37 @@ When the agent is unsure, it asks, one card at a time above the composer:
 
 Answers that differ from the guess are stored as `corrections`. Answered (and hand-edited) rows become `confirmed`, which makes them memory and examples for the next categorization, so the agent learns the owner's habits without fine-tuning. Rows with open questions show a "Check" marker in the feed.
 
-Next candidates for decision questions: person detection for IOUs (M5, choosing from the owner's people), split detection, duplicate-entry detection, and spotting subscriptions from repeats.
+### 5.2.2 People, IOUs and splits (`packages/core/src/people.ts`, `packages/ai/src/people.ts`)
+
+Extraction is code, judgment is Jev (TypeSafe's recommended split for value extraction):
+
+1. `nameCandidates()` collects words after cue words ("with", "w/", "by", "from", "to", "for", "ni", "kay", "utang", "bayad", "lent"…) plus the owner's known people and aliases, in the order mentioned. It over-collects on purpose ("grab to bgc" → "Bgc").
+2. A **second, parallel decide call** (separate so the extra context can't sway the category) asks:
+   - `person{i}` (boolean, unknown candidates only): is this a person rather than a place, shop, app or thing? Accepted at ≥ 0.6.
+   - `relation` (choice): `own` · `lent` · `borrowed` · `repaid_me` · `i_repaid` · `shared`.
+   State carries the sign and each person's open balance, **but only when the balance could explain a repayment** (money in from someone who owes you, out to someone you owe). Shown unconditionally, balances pushed a plain group dinner to "shared" at 0.98.
+3. `resolvePeople()`: with a sign, only relations that move money that way count (renormalized). Without one, a confident relation also settles the direction. "split N" with people named is always `shared`. Applied at ≥ 0.7; otherwise it's saved as the owner's own money and asked, always offering "Just my spending".
+4. `planRows()` turns the decision into rows, with signs as cash flow from the owner's side: `shared` → your share (categorized expense, `split = n`) plus one `lend` row per person; `lent`/`borrowed` → `lend`; repayments → `settle`. A person's balance is `−Σ amount` over their lend/settle rows. IOUs never count toward spending totals.
+
+Answering a relation question re-files the line in place (the primary row keeps its questions and corrections; IOU rows are replaced). The home screen lists open balances with one-tap **Settle**, and the ask agent has a `balances` tool.
+
+### 5.2.3 Duplicates and repeats
+
+- **Duplicates** (`packages/ai/src/duplicates.ts`): code finds the newest entry with the same amount within ±2 days, logged in the last 3 days. Same text within 15 minutes is a repeat outright; otherwise Jev answers "the same single payment entered twice?" with the gap between loggings in state. At ≥ 0.7 the owner is asked "Keep both / Remove this one", and that question replaces the line's others.
+- **Repeats:** a description seen in two earlier months (amount within 15%) is recurring regardless of the text; seen once, Jev's recurring score needs only 0.4 instead of 0.8.
+
+### 5.2.4 Evals (`pnpm --filter @workspace/ai eval`)
+
+Live runs against the real model, with results as of 2026-10-10:
+
+| Eval | Cases | Result |
+|---|---|---|
+| Category | 43 | 95% top-1; 91–95% applied without asking, all correct |
+| Direction without a sign | 43 | 98%; 93–95% applied without asking, all correct |
+| People + relation | 22 | 100% people found; 91–95% applied, the rest asked, 0 wrong without asking |
+| Duplicates | 15 (6 held out) | 15/15 at 0.7 |
+
+Ranges are across runs (borderline cases like "gas shell" at 0.51 move a little). Every miss so far fell below its threshold and became a question. Rerun after changing criteria, hints or models.
 
 ### 5.3 Ask mode (`apps/app/src/server/ask.server.ts`, `POST /api/ask`)
 
@@ -227,8 +257,9 @@ Next candidates for decision questions: person detection for IOUs (M5, choosing 
 |---|---|
 | `summarize(from, to, groupBy, direction, category?)` | Totals for a range, grouped by category, day or month |
 | `findTransactions(from, to, direction, category?, text?, sort, limit)` | Matching entries, newest or largest first, with their count and sum |
+| `balances(person?)` | Who owes the owner and whom they owe, with recent IOU entries |
 
-Both are fixed, read-only queries; the model never writes SQL or changes data. The system prompt (`packages/ai/src/ask.ts`) gives today's date and timezone and the category names, and requires every figure to come from a tool. The route needs a session and passes the CSRF check; it keeps the last 12 messages and streams with `reasoning: "none"`. Write tools with approval cards, comparisons and inline charts come later (M5).
+All three are fixed, read-only queries; the model never writes SQL or changes data. The system prompt (`packages/ai/src/ask.ts`) gives today's date and timezone and the category names, and requires every figure to come from a tool. The route needs a session and passes the CSRF check; it keeps the last 12 messages and streams with `reasoning: "none"`. Write tools with approval cards, comparisons and inline charts come later (M5).
 
 ### 5.4 Embeddings (deferred)
 
@@ -248,7 +279,7 @@ Store `embedding_model` on each row so re-embedding stays possible. A `pnpm reem
 
 ### 5.5 Quality & safety
 
-- **Evals (todo):** about 100 fixture inputs with expected category and direction, run against the live decision model on every criteria or model change, to tune the 0.85 / 0.6 thresholds. Amounts never pass through a model, so the amount invariant holds by construction.
+- **Evals:** see §5.2.4. Next: grow the category set toward ~100 entries, and add held-out phrasing. Amounts never pass through a model, so the amount invariant holds by construction.
 - **Prompt injection:** transaction text is the owner's own, but the ask prompt still treats descriptions as data. The ask tools are read-only; future write tools need approval.
 - **Privacy:** the ledger lives in the owner's Turso database. Entry text and amounts go through the owner's AI Gateway to TypeSafe (categorizing); questions and the ledger rows the tools return go to DeepSeek. The README should say plainly what leaves the instance.
 
@@ -317,7 +348,7 @@ transactions   id, entry_id?, kind ('expense'|'income'|'lend'|'settle'),
 
 corrections    id, transaction_id, field, from_value, to_value, created_at
 
-questions      id, transaction_id, kind ('direction'|'category'), guess,
+questions      id, transaction_id, kind ('direction'|'category'|'relation'|'duplicate'), guess,
                options (json: value + model probability), context (json),
                answer?, resolved_at?, created_at        -- the agent asking the owner
 
@@ -389,9 +420,9 @@ Later: a **Deploy to Vercel** button (`vercel.com/new/clone?repository-url=…&r
 | M0 | **Scaffold** | Turborepo + pnpm, shadcn monorepo (`-t start -b base`), both apps build with Nitro (Vercel Build Output verified locally). **Status: done; first Vercel deploy pending** |
 | M1 | **Auth + DB** | Zod env validation; single-account sign-in from env with throttling; Drizzle schema migrated to Turso; default categories seeded. **Status: done, tested locally** |
 | M2 | **Manual logging (no AI)** | `core.preparse` with tests; composer saves rows; feed grouped by day; month totals. Usable on its own. **Status: done (composer with live preview, optimistic save, undo, edit drawer, month switcher, interim daily bars + category breakdown)** |
-| M3 | **AI parsing** | Jev categorization through AI Gateway, memory and examples from confirmed rows, questions for uncertain fields, corrections, undo, eval suite. **Status: built and unit-tested; needs a live run with an AI Gateway key, then an eval set** |
+| M3 | **AI parsing** | Jev categorization through AI Gateway, memory and examples from confirmed rows, questions for uncertain fields, corrections, undo, eval suite. **Status: done; tested live, evals in §5.2.4** |
 | M4 | **Dashboard** | Month switcher, daily bars, category breakdown, Insights page, category management |
-| M5 | **Ask mode + People** | Tool-calling agent with streamed answers and inline charts; IOUs, splits, settle-up. **Status: ask mode built (DeepSeek, two read-only tools, streamed sheet); charts and People pending** |
+| M5 | **Ask mode + People** | Tool-calling agent with streamed answers and inline charts; IOUs, splits, settle-up. **Status: ask mode (DeepSeek, three read-only tools), IOUs, splits, balances and settle-up built; inline charts and a full People page pending** |
 | M6 | **Polish + ship** | PWA + offline queue, quick-repeat chips, monthly recap, CSV export, `docs/self-hosting.md`, landing page |
 | Later | | "Of all time" records (lowest-spend day/week/month, streaks), budgets and pace line, recurring detection, receipt photo (vision model), bank/e-wallet CSV import, wallets and balances |
 

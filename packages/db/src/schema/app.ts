@@ -164,7 +164,12 @@ export const corrections = sqliteTable(
   (t) => [index("corrections_transaction_idx").on(t.transactionId)]
 )
 
-export const QUESTION_KINDS = ["direction", "category"] as const
+export const QUESTION_KINDS = [
+  "direction",
+  "category",
+  "relation",
+  "duplicate",
+] as const
 
 /**
  * Things the agent wasn't sure about and asked the owner. The transaction is
