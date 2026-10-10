@@ -106,6 +106,16 @@ Amounts accept `500`, `1.5k`, `1,250.50` and an optional `₱` or `php` prefix. 
 - **PWA**: installable, with an offline queue. Entries typed offline save locally and get parsed when you're back online.
 - Haptic tick on save (`navigator.vibrate` where supported).
 
+### 2.6 Brand
+
+From the founder's sketch: "goat side" means *which side of the coin are you on?*
+
+- **Mark:** a coin whose "g" is a goat's head. The spiral horn is the bowl of the "g", and the neck is its descender. Components live in `packages/ui/src/components/brand.tsx` (`CoinMark`, `Coin`, `CoinFlip`, `Wordmark`).
+- **Metals:** gold is the save side (money in), silver is the spend side (money out), bronze is an accent. They're theme tokens (`text-gold-foreground`, `bg-silver`, …) on a warm paper/ink palette, light and dark.
+- **Type:** Instrument Serif for display figures, Geist for UI, tabular numerals (`.figure`) for money.
+- **Motion:** the coin toss and flip are reserved for rare moments (landing, sign-in, loading). The composer is used constantly, so it gets no decorative motion. Reduced motion is respected.
+- **Voice:** steady climbing, resilience, abundance, stability. "GOAT" also means greatest of all time, so personal records ("lowest-spend week of all time") are part of the brand.
+
 ---
 
 ## 3. Stack
@@ -271,37 +281,38 @@ Better Auth with the Drizzle adapter (`provider: "sqlite"`) and its TanStack Sta
 
 ---
 
-## 7. Data model (first pass)
+## 7. Data model
 
-All money is stored as **integer centavos** (`amount_minor`), always PHP, and formatted with `Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })`. Dates are stored as both `occurred_at` (UTC timestamp) and `local_date` (`YYYY-MM-DD` in the user's timezone), so month grouping is a simple string prefix that ignores timezones.
+> As built in `packages/db/src/schema` (migration `0000_init`). Embedding columns arrive with M3.
+
+All money is stored as **integer centavos**, always PHP, and formatted with `Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })`. The day a transaction belongs to is `local_date` (`YYYY-MM-DD` in the owner's timezone), so month grouping is a string prefix with no timezone math. `created_at` orders entries within a day. There's no separate `occurred_at`: a backdated entry only knows its day anyway.
 
 The tables keep a `user_id` even though there's one owner. It costs nothing and allows a partner or household member on the allowlist later.
 
 ```
-user, session, account, verification   ← Better Auth generated
+user, session, account, verification   ← Better Auth core tables
 
-profile        user_id PK, timezone ('Asia/Manila'), created_at
+profiles       user_id PK, time_zone ('Asia/Manila'), created_at
 
-category       id, user_id, name, emoji, color, kind ('expense'|'income'),
-               sort, archived
+categories     id, user_id, name, emoji, kind ('expense'|'income'),
+               sort, archived            unique (user_id, kind, lower(name))
 
-merchant       id, user_id, name (normalized), default_category_id?
+merchants      id, user_id, name, default_category_id?
+people         id, user_id, name, aliases (json)
 
-person         id, user_id, name, aliases (json)
-
-entry          id, user_id, raw_text, created_at, mode ('log'|'ask')
+entries        id, user_id, raw_text, mode ('log'|'ask'), created_at
                -- one line typed; can yield N transactions
 
-transaction    id, user_id, entry_id?, kind, amount_minor (signed),
-               occurred_at, local_date, category_id?, merchant_id?,
-               person_id?, note, recurring (bool),
-               status ('pending'|'parsed'|'needs_review'|'confirmed'),
-               ai_confidence, embedding F32_BLOB(512), embedding_model,
-               created_at, updated_at, deleted_at
+transactions   id, user_id, entry_id?, kind ('expense'|'income'|'lend'|'settle'),
+               amount (signed; for splits, your share), local_date,
+               description, note, category_id?, merchant_id?, person_id?,
+               split?, recurring, status ('pending'|'parsed'|'needs_review'|'confirmed'),
+               ai_confidence, created_at, updated_at, deleted_at (soft delete → undo)
+               + embedding F32_BLOB(512), embedding_model   (M3)
 
-correction     id, transaction_id, field, from_value, to_value, created_at
+corrections    id, transaction_id, field, from_value, to_value, created_at
 
-budget (later) id, user_id, category_id?, month?, amount_minor
+budgets (later) id, user_id, category_id?, month?, amount
 ```
 
 Indexes: `(user_id, local_date)`, `(user_id, category_id, local_date)`, `(user_id, person_id)`.
@@ -371,14 +382,14 @@ Later: a "Deploy to Cloudflare" button, if it supports monorepo subpaths.
 
 | # | Milestone | Done when |
 |---|---|---|
-| M0 | **Scaffold** | Turborepo + pnpm, shadcn monorepo (`-t start -b base`), both apps build and run on workerd (`vite preview`), first deploy to Workers. **Status: built; first deploy pending `wrangler login`** |
-| M1 | **Auth + DB** | Zod env validation; Google sign-in with allowlist works on Workers; Drizzle schema migrated to Turso; default categories seeded |
-| M2 | **Manual logging (no AI)** | `core.preparse` with tests; composer saves rows; feed grouped by day; month totals. Usable on its own |
+| M0 | **Scaffold** | Turborepo + pnpm, shadcn monorepo (`-t start -b base`), both apps build and run on workerd (`vite preview`), first deploy to Workers. **Status: done; first deploy pending `wrangler login`** |
+| M1 | **Auth + DB** | Zod env validation; Google sign-in with allowlist works on Workers; Drizzle schema migrated to Turso; default categories seeded. **Status: built and tested locally (`turso dev` + `pnpm dev:session`); real Google sign-in pending OAuth credentials** |
+| M2 | **Manual logging (no AI)** | `core.preparse` with tests; composer saves rows; feed grouped by day; month totals. Usable on its own. **Status: done (composer with live preview, optimistic save, undo, edit drawer, month switcher, interim daily bars + category breakdown)** |
 | M3 | **AI parsing** | Providers through AI Gateway, structured-output pipeline, embeddings, retrieval of past examples, review drawer, corrections, undo, eval suite |
 | M4 | **Dashboard** | Month switcher, daily bars, category breakdown, Insights page, category management |
 | M5 | **Ask mode + People** | Tool-calling agent with streamed answers and inline charts; IOUs, splits, settle-up |
 | M6 | **Polish + ship** | PWA + offline queue, quick-repeat chips, monthly recap, CSV export, `docs/self-hosting.md`, landing page |
-| Later | | Budgets and pace line, recurring detection, receipt photo (vision model), bank/e-wallet CSV import, wallets and balances |
+| Later | | "Of all time" records (lowest-spend day/week/month, streaks), budgets and pace line, recurring detection, receipt photo (vision model), bank/e-wallet CSV import, wallets and balances |
 
 ---
 

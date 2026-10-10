@@ -1,0 +1,126 @@
+import { Link, useRouter } from "@tanstack/react-router"
+import { ChevronLeftIcon, ChevronRightIcon, LogOutIcon } from "lucide-react"
+import { signOut } from "@workspace/auth/client"
+import { addMonths } from "@workspace/core/dates"
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@workspace/ui/components/avatar"
+import { CoinMark } from "@workspace/ui/components/brand"
+import { buttonVariants } from "@workspace/ui/components/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu"
+import { cn } from "@workspace/ui/lib/utils"
+import { monthName } from "@/lib/format"
+import type { Viewer } from "@/server/session"
+
+export function MonthHeader({
+  month,
+  today,
+  viewer,
+}: {
+  month: string
+  today: string
+  viewer: Viewer
+}) {
+  const current = today.slice(0, 7)
+  const prev = addMonths(month, -1)
+  const next = addMonths(month, 1)
+  const toSearch = (m: string) => ({ m: m === current ? undefined : m })
+  const navButton = cn(
+    buttonVariants({ variant: "ghost", size: "icon-lg" }),
+    "rounded-full active:scale-[0.97]"
+  )
+
+  return (
+    <header className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-1">
+        <Link
+          to="/"
+          search={toSearch(prev)}
+          className={navButton}
+          aria-label="Previous month"
+        >
+          <ChevronLeftIcon />
+        </Link>
+        <h1 className="min-w-0 text-center">
+          <span className="font-display text-3xl leading-none">
+            {monthName(month)}
+          </span>
+          {month.slice(0, 4) !== today.slice(0, 4) && (
+            <span className="ml-1.5 text-sm text-muted-foreground">
+              {month.slice(0, 4)}
+            </span>
+          )}
+        </h1>
+        {month < current ? (
+          <Link
+            to="/"
+            search={toSearch(next)}
+            className={navButton}
+            aria-label="Next month"
+          >
+            <ChevronRightIcon />
+          </Link>
+        ) : (
+          <span
+            className={cn(navButton, "pointer-events-none opacity-30")}
+            aria-hidden
+          >
+            <ChevronRightIcon />
+          </span>
+        )}
+      </div>
+      <AccountMenu viewer={viewer} />
+    </header>
+  )
+}
+
+function AccountMenu({ viewer }: { viewer: Viewer }) {
+  const router = useRouter()
+  const initials = viewer.name
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase()
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        aria-label="Account"
+      >
+        <Avatar className="size-9">
+          {viewer.image && <AvatarImage src={viewer.image} alt="" />}
+          <AvatarFallback>
+            {initials || <CoinMark rim={false} className="size-4" />}
+          </AvatarFallback>
+        </Avatar>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-56">
+        <DropdownMenuLabel className="flex flex-col">
+          <span className="text-foreground">{viewer.name}</span>
+          <span className="font-normal">{viewer.email}</span>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={async () => {
+            await signOut()
+            await router.navigate({ to: "/login" })
+          }}
+        >
+          <LogOutIcon />
+          Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}

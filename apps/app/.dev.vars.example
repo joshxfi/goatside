@@ -1,0 +1,13 @@
+# Copy to .dev.vars for local development. In production, set each with
+# `wrangler secret put NAME` (see docs/self-hosting.md).
+
+# Auth
+BETTER_AUTH_SECRET=        # openssl rand -base64 32
+BETTER_AUTH_URL=http://localhost:3000
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+ALLOWED_EMAILS=you@gmail.com
+
+# Database: `pnpm db:dev` serves a local libSQL server on :8080
+TURSO_DATABASE_URL=http://127.0.0.1:8080
+TURSO_AUTH_TOKEN=
