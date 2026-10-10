@@ -74,7 +74,7 @@ export function PeopleList({ people }: { people: MonthView["people"] }) {
               </span>
               <span
                 className={cn(
-                  "figure font-display text-xl",
+                  "figure text-xl font-semibold tracking-tight",
                   owesYou && "text-gold-foreground"
                 )}
               >

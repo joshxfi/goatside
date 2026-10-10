@@ -141,7 +141,7 @@ const columns = helper.columns([
       return (
         <span
           className={cn(
-            "figure block text-right font-display text-lg",
+            "figure block text-right text-lg font-semibold tracking-tight",
             amount > 0 && !isIou(txn) && "text-gold-foreground",
             isIou(txn) && "text-muted-foreground"
           )}

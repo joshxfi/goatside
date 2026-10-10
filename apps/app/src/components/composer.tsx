@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { ArrowUpIcon } from "lucide-react"
 import { toast } from "@workspace/ui/components/sonner"
@@ -6,6 +6,8 @@ import { type Preparsed, preparse } from "@workspace/core/preparse"
 import { formatPeso } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
 import { dayLabel } from "@/lib/format"
+import { useDesktop } from "@/lib/use-desktop"
+import { useShortcut } from "@/lib/use-shortcut"
 import { monthQuery } from "@/lib/queries"
 import {
   type LedgerTxn,
@@ -30,6 +32,20 @@ export function Composer({
 }) {
   const [text, setText] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
+  const desktop = useDesktop()
+  const shortcut = useShortcut("K")
+
+  // ⌘K / Ctrl+K jumps to the composer.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault()
+        inputRef.current?.focus()
+      }
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [])
   const queryClient = useQueryClient()
   const queryKey = monthQuery(viewKey).queryKey
 
@@ -83,7 +99,7 @@ export function Composer({
       if (result.kind === "log") {
         toast(describe(result.saved, view.categories), {
           description: result.asked
-            ? "Goatside has a quick question for you below."
+            ? "Goatside has a quick question for you."
             : undefined,
           action: {
             label: "Undo",
@@ -125,49 +141,61 @@ export function Composer({
   }
 
   return (
-    // Pinned to the thumb zone on phones; the top of the side column on desktop.
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 lg:static lg:z-auto lg:rounded-2xl lg:border lg:bg-card lg:backdrop-blur-none lg:supports-[backdrop-filter]:bg-card">
+    // Phones: pinned to the thumb zone. Desktop: a one-line bar in the header,
+    // with the preview and quick picks in a dropdown while it's focused.
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 lg:static lg:z-30 lg:w-full lg:max-w-xl lg:border-0 lg:bg-transparent lg:backdrop-blur-none lg:supports-[backdrop-filter]:bg-transparent">
       <form
-        className="mx-auto flex max-w-md flex-col gap-2 px-4 pt-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] lg:max-w-none lg:p-3"
+        className="group/composer mx-auto flex max-w-md flex-col gap-2 px-4 pt-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] lg:relative lg:max-w-none lg:p-0"
         onSubmit={(e) => {
           e.preventDefault()
           submit()
         }}
       >
-        {children}
-        {parsed.kind === "empty" && view.picks.length > 0 ? (
-          <Picks
-            picks={view.picks}
-            onPick={(pick) => log.mutate({ text: pick.text, repeat: true })}
-          />
-        ) : (
-          <Preview parsed={parsed} today={view.today} />
-        )}
+        <div className="flex flex-col gap-2 lg:hidden">{children}</div>
+        <div className="lg:absolute lg:inset-x-0 lg:top-full lg:mt-2 lg:hidden lg:rounded-xl lg:border lg:bg-popover lg:p-2.5 lg:shadow-md lg:group-focus-within/composer:block">
+          {parsed.kind === "empty" && view.picks.length > 0 ? (
+            <Picks
+              picks={view.picks}
+              onPick={(pick) => log.mutate({ text: pick.text, repeat: true })}
+            />
+          ) : (
+            <Preview parsed={parsed} today={view.today} />
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <label htmlFor="composer" className="sr-only">
             Log money in or out, or ask a question
           </label>
-          <input
-            ref={inputRef}
-            id="composer"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="-500 lunch at berto's"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            enterKeyHint="send"
-            maxLength={500}
-            className="h-12 min-w-0 flex-1 rounded-full border bg-card px-5 text-base shadow-xs outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
-          />
+          <div className="relative min-w-0 flex-1">
+            <input
+              ref={inputRef}
+              id="composer"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={
+                desktop
+                  ? "Log -500 lunch, or ask anything"
+                  : "-500 lunch at berto's"
+              }
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              enterKeyHint="send"
+              maxLength={500}
+              className="h-12 w-full rounded-full border bg-card px-5 text-base shadow-xs outline-none placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 lg:h-10 lg:pr-14 lg:pl-4 lg:text-sm"
+            />
+            <kbd className="pointer-events-none absolute top-1/2 right-3 hidden -translate-y-1/2 rounded-md border bg-muted px-1.5 text-[11px] text-muted-foreground lg:block lg:group-focus-within/composer:hidden">
+              {shortcut}
+            </kbd>
+          </div>
           <button
             type="submit"
             disabled={parsed.kind === "empty"}
             aria-label="Log it"
-            className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-30"
+            className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform duration-150 ease-out active:scale-[0.97] disabled:opacity-30 lg:size-10"
           >
-            <ArrowUpIcon className="size-5" />
+            <ArrowUpIcon className="size-5 lg:size-4" />
           </button>
         </div>
       </form>

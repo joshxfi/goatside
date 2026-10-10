@@ -58,7 +58,7 @@ function Person() {
   if (!person) return null
 
   return (
-    <div className="mx-auto flex min-h-svh max-w-md flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-[90rem] lg:px-8 lg:pt-6">
+    <div className="mx-auto flex min-h-svh max-w-md flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-none lg:px-8 lg:pt-6">
       <PageHeader title={person.name} viewer={viewer} back="/people" />
       <div className="grid gap-6 lg:mx-auto lg:w-full lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <div className="flex flex-col gap-6">
@@ -119,14 +119,16 @@ function Balance({ person }: { person: PersonDetail }) {
   return (
     <section className="flex flex-col gap-4 rounded-2xl border bg-card p-5">
       <div className="flex flex-col gap-1">
-        <h1 className="font-display text-4xl leading-none">{person.name}</h1>
+        <h1 className="text-3xl leading-none font-semibold tracking-tight">
+          {person.name}
+        </h1>
         <p className="text-sm text-muted-foreground">
           {square ? "You’re square." : owesYou ? "owes you" : "you owe"}
         </p>
         {!square && (
           <p
             className={cn(
-              "figure font-display text-6xl leading-none tracking-tight",
+              "figure text-5xl leading-none font-semibold tracking-tight",
               owesYou && "text-gold-foreground"
             )}
           >
@@ -258,7 +260,7 @@ function History({ person }: { person: PersonDetail }) {
                 </span>
               </span>
               <span className="flex flex-col items-end">
-                <span className="figure font-display text-lg">
+                <span className="figure text-lg font-semibold tracking-tight">
                   {formatPeso(h.amount, { sign: h.amount > 0 })}
                 </span>
                 <span className="figure text-xs text-muted-foreground">

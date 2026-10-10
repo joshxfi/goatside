@@ -1,15 +1,9 @@
 import { useState } from "react"
-import { useChat } from "@ai-sdk/react"
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query"
+import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
-import {
-  DefaultChatTransport,
-  lastAssistantMessageIsCompleteWithApprovalResponses,
-} from "ai"
 import { z } from "zod"
-import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
-import { AskSheet } from "@/components/ask-sheet"
+import { useAgent } from "@/components/agent-provider"
 import { CategoryList } from "@/components/category-list"
 import { Composer } from "@/components/composer"
 import { DailyBars } from "@/components/daily-bars"
@@ -42,84 +36,63 @@ export const Route = createFileRoute("/_app/")({
   component: Home,
 })
 
-const transport = new DefaultChatTransport({ api: "/api/ask" })
-
 function Home() {
   const { m } = Route.useSearch()
   const { viewer } = Route.useRouteContext()
   const { data } = useSuspenseQuery(monthQuery(m))
   const [selected, setSelected] = useState<LedgerTxn | null>(null)
-  const [asking, setAsking] = useState(false)
-  const queryClient = useQueryClient()
-  const chat = useChat({
-    transport,
-    // After the owner confirms a change, continue so the tool runs.
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
-    // The agent may have changed the ledger; refresh what's on screen.
-    onFinish: () => {
-      for (const key of ["month", "trend", "people", "categories"]) {
-        void queryClient.invalidateQueries({ queryKey: [key] })
-      }
-    },
-  })
-
-  function ask(question: string) {
-    if (!viewer.ai) {
-      toast("Questions need AI Gateway.", {
-        description:
-          "Add AI_GATEWAY_API_KEY to your environment, then restart.",
-      })
-      return
-    }
-    setAsking(true)
-    void chat.sendMessage({ text: question })
-  }
+  const { ask } = useAgent()
+  const hasRepeats = data.transactions.some((t) => t.recurring && t.amount < 0)
+  const hasPeople = data.people.length > 0
 
   return (
-    <div className="mx-auto flex min-h-svh max-w-md flex-col lg:max-w-[90rem] lg:px-8">
-      <div className="px-4 pt-[max(env(safe-area-inset-top),1rem)] lg:px-0 lg:pt-6">
-        <MonthHeader month={data.month} today={data.today} viewer={viewer} />
-      </div>
-      <div className="flex flex-1 flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-6 lg:pt-6 lg:pb-12 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <main
-          className={cn(
-            "flex flex-col gap-8 px-4 pt-8 pb-40 lg:gap-4 lg:p-0",
-            // Room for the question card above the phone composer.
-            data.questions.length > 0 && "pb-80 lg:pb-0"
-          )}
-        >
-          {/* Phone: the lighter stack, mostly for logging. */}
-          <div className="flex flex-col gap-8 lg:hidden">
-            <Summary view={data} />
-            <DailyBars daily={data.daily} today={data.today} />
-            <CategoryList
-              categories={data.byCategory}
-              total={data.totals.out}
-            />
-            <PeopleList people={data.people} />
-            <Feed view={data} onSelect={setSelected} />
-          </div>
-          {/* Desktop: the review surface. */}
-          <div className="hidden lg:flex lg:flex-col lg:gap-4">
-            <KpiRow view={data} />
-            <Overview view={data} />
-            <TransactionsTable view={data} onSelect={setSelected} />
-          </div>
-        </main>
-        <aside
-          aria-label="Log and review"
-          className="lg:sticky lg:top-6 lg:flex lg:flex-col lg:gap-4"
-        >
+    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col lg:max-w-[90rem] lg:px-8">
+      <div className="px-4 pt-[max(env(safe-area-inset-top),1rem)] lg:sticky lg:top-0 lg:z-30 lg:bg-background/90 lg:px-0 lg:py-4 lg:backdrop-blur-md">
+        <MonthHeader month={data.month} today={data.today} viewer={viewer}>
+          {/* One instance: a header bar on desktop, the bottom dock on phones. */}
           <Composer view={data} viewKey={m} onAsk={ask}>
             <Questions view={data} viewKey={m} onMore={setSelected} />
           </Composer>
-          <div className="hidden lg:contents">
-            <PeopleList people={data.people} />
-            <RepeatsCard view={data} onSelect={setSelected} />
-          </div>
-        </aside>
+        </MonthHeader>
       </div>
-      <AskSheet chat={chat} open={asking} onOpenChange={setAsking} />
+      <main
+        className={cn(
+          "flex flex-col gap-8 px-4 pt-8 pb-40 lg:gap-4 lg:px-0 lg:pt-2 lg:pb-12",
+          // Room for the question card above the phone composer.
+          data.questions.length > 0 && "pb-80"
+        )}
+      >
+        {/* Phone: the lighter stack, mostly for logging. */}
+        <div className="flex flex-col gap-8 lg:hidden">
+          <Summary view={data} />
+          <DailyBars daily={data.daily} today={data.today} />
+          <CategoryList categories={data.byCategory} total={data.totals.out} />
+          <PeopleList people={data.people} />
+          <Feed view={data} onSelect={setSelected} />
+        </div>
+        {/* Desktop: the review surface. */}
+        <div className="hidden lg:flex lg:flex-col lg:gap-4">
+          {data.questions.length > 0 && (
+            <div className="max-w-2xl">
+              <Questions view={data} viewKey={m} onMore={setSelected} />
+            </div>
+          )}
+          <KpiRow view={data} />
+          <Overview view={data} />
+          {(hasPeople || hasRepeats) && (
+            <div
+              className={cn(
+                "grid gap-4",
+                hasPeople && hasRepeats && "xl:grid-cols-2"
+              )}
+            >
+              {hasPeople && <PeopleList people={data.people} />}
+              <RepeatsCard view={data} onSelect={setSelected} />
+            </div>
+          )}
+          <TransactionsTable view={data} onSelect={setSelected} />
+        </div>
+      </main>
       <TransactionDrawer
         txn={selected}
         categories={data.categories}

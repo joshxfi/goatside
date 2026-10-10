@@ -11,7 +11,9 @@
 @theme inline {
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-sans);
+  /* Serif is for the brand only (wordmark, landing headlines), never for content. */
   --font-display: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-brand: "Instrument Serif", ui-serif, Georgia, serif;
 
   --color-gold: var(--gold);
   --color-gold-foreground: var(--gold-foreground);

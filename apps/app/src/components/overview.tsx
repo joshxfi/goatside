@@ -142,12 +142,10 @@ function Kpi({
 }) {
   return (
     <div className="flex min-w-0 flex-col gap-1 rounded-2xl border bg-card px-5 py-4">
-      <dt className="text-xs font-medium tracking-widest text-muted-foreground uppercase">
-        {label}
-      </dt>
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd
         className={cn(
-          "figure truncate font-display leading-tight tracking-tight",
+          "figure truncate leading-tight font-semibold tracking-tight",
           large ? "text-5xl" : "text-4xl",
           tone === "gold" && "text-gold-foreground"
         )}

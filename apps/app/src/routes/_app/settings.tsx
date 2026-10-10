@@ -79,15 +79,12 @@ function Settings() {
   const [suggesting, setSuggesting] = useState<Category | null>(null)
 
   return (
-    <div className="mx-auto flex min-h-svh max-w-md flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-[90rem] lg:px-8 lg:pt-6">
+    <div className="mx-auto flex min-h-svh max-w-md flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-none lg:px-8 lg:pt-6">
       <PageHeader title="Settings" viewer={viewer} />
       <div className="flex flex-col gap-8 lg:mx-auto lg:w-full lg:max-w-4xl">
-        <div className="hidden flex-col gap-1 lg:flex">
-          <h1 className="font-display text-4xl">Settings</h1>
-          <p className="text-sm text-muted-foreground">
-            Your categories teach the agent how you file things.
-          </p>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Your categories teach the agent how you file things.
+        </p>
         <div className="grid gap-8 lg:grid-cols-2">
           {(["expense", "income"] as const).map((kind) => (
             <CategorySection
@@ -427,7 +424,7 @@ function MergeDrawer({
   return (
     <SideDrawer open={Boolean(from)} onClose={onClose}>
       <DrawerHeader className="text-left group-data-[swipe-axis=y]/drawer-popup:text-left">
-        <DrawerTitle className="font-display text-2xl font-normal">
+        <DrawerTitle className="text-2xl font-semibold tracking-tight">
           Merge {from?.emoji} {from?.name} into…
         </DrawerTitle>
         <DrawerDescription>
@@ -511,7 +508,7 @@ function Suggestions({
   return (
     <>
       <DrawerHeader className="text-left group-data-[swipe-axis=y]/drawer-popup:text-left">
-        <DrawerTitle className="font-display text-2xl font-normal">
+        <DrawerTitle className="text-2xl font-semibold tracking-tight">
           {category.emoji} {category.name}
         </DrawerTitle>
         <DrawerDescription>

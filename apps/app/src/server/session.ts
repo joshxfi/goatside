@@ -67,7 +67,12 @@ async function hasSession(): Promise<boolean> {
 /** The owner's username if signed in, otherwise null. Used by route guards. */
 export const getViewer = createServerFn().handler(async () => {
   return (await hasSession())
-    ? { username: authConfig().username, ai: aiEnabled() }
+    ? {
+        username: authConfig().username,
+        ai: aiEnabled(),
+        // shadcn's sidebar remembers open/collapsed in this cookie.
+        sidebarOpen: getCookie("sidebar_state") !== "false",
+      }
     : null
 })
 

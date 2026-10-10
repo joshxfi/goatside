@@ -5,16 +5,19 @@ import { buttonVariants } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
 import { monthName } from "@/lib/format"
 import type { Viewer } from "@/server/session"
-import { AccountMenu, AppNav } from "./app-shell"
+import { AccountMenu, DesktopSidebarTrigger } from "./app-shell"
 
 export function MonthHeader({
   month,
   today,
   viewer,
+  children,
 }: {
   month: string
   today: string
   viewer: Viewer
+  /** Desktop: the composer bar, between the month and the edge. */
+  children?: React.ReactNode
 }) {
   const current = today.slice(0, 7)
   const prev = addMonths(month, -1)
@@ -28,7 +31,7 @@ export function MonthHeader({
   return (
     <header className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-1">
-        <AppNav className="mr-6" />
+        <DesktopSidebarTrigger className="mr-2" />
         <Link
           to="/"
           search={toSearch(prev)}
@@ -38,7 +41,7 @@ export function MonthHeader({
           <ChevronLeftIcon />
         </Link>
         <h1 className="min-w-0 text-center">
-          <span className="font-display text-3xl leading-none">
+          <span className="text-2xl leading-none font-semibold tracking-tight">
             {monthName(month)}
           </span>
           {month.slice(0, 4) !== today.slice(0, 4) && (
@@ -65,7 +68,8 @@ export function MonthHeader({
           </span>
         )}
       </div>
-      <AccountMenu viewer={viewer} />
+      {children}
+      <AccountMenu viewer={viewer} className="lg:hidden" />
     </header>
   )
 }

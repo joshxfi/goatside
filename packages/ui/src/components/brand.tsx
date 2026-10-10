@@ -218,7 +218,7 @@ export function Wordmark({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-2 font-display text-2xl leading-none",
+        "inline-flex items-center gap-2 font-brand text-2xl leading-none",
         className
       )}
     >
