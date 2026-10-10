@@ -73,8 +73,8 @@ export function createAuth({
       },
     },
     user: {
-      // Runs on account creation and on every Google sign-in, so removing
-      // an email from the allowlist locks that person out too.
+      // Runs on account creation and on every Google sign-in. Existing
+      // sessions are re-checked per request in the app (server/session.ts).
       validateUserInfo: ({ user }) => {
         const email = user.email?.toLowerCase()
         if (!email || !allowed.has(email)) {
