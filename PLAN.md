@@ -1,10 +1,13 @@
 # Goatside: plan
 
-> Status: **planning**. Nothing is built yet.
+> Status: **M0–M2 built** (see §9). Next up: M3, AI parsing.
 
-Goatside is an open-source, self-hostable, agentic personal finance tracker. You type a line
-like `-500 lunch at berto's` or `+250 paid by x`, and it becomes a categorized transaction.
-A mobile-first dashboard shows where the month's money went.
+Goatside is an open-source, personal, agentic finance tracker that you self-host. You type a
+line like `-500 lunch at berto's` or `+250 paid by x`, and it becomes a categorized
+transaction. A mobile-first dashboard shows where the month's money went.
+
+It's for individual use. There is no hosted Goatside service: each person deploys their own
+copy to their own Vercel account, with their own database and AI Gateway key.
 
 ---
 
@@ -12,11 +15,12 @@ A mobile-first dashboard shows where the month's money went.
 
 | Topic | Decision |
 |---|---|
-| Audience | **Open source + self-hostable**, built for a single owner's use case. Each deploy is one person's instance, so there are no public sign-ups |
+| Audience | **Individuals who self-host.** Open source; each deploy is one person's instance. No hosted service, no public sign-ups |
+| Hosting | **Vercel** (TanStack Start via Nitro, Node runtime on Fluid Compute). No Cloudflare |
 | Currency | **PHP (₱) only.** No multi-currency in v1 |
 | Scope of money | **Money in and out only.** No wallets, no account balances, no transfers |
 | Auth | **Google OAuth only**, restricted to an email allowlist set by whoever deploys it |
-| LLM | **DeepSeek V4.1 Flash** (`deepseek-flash`) through **Cloudflare AI Gateway** |
+| LLM | **DeepSeek V4.1 Flash** (`deepseek/deepseek-v4.1-flash`) through **Vercel AI Gateway** with the AI SDK |
 | Name | **Goatside** |
 
 ---
@@ -28,7 +32,7 @@ A mobile-first dashboard shows where the month's money went.
 3. **Instant, then smart.** A row appears as soon as you hit enter, and AI enrichment fills it in about a second later. You never wait on a spinner to log.
 4. **It learns from you.** Every correction becomes an example for next time, through retrieval rather than fine-tuning.
 5. **Useful without AI.** If the model is down, entries still save with amount and description and get categorized later.
-6. **Easy to self-host.** One Cloudflare account, one Turso database, a handful of secrets. No other infrastructure.
+6. **Easy to self-host.** One Vercel project, one Turso database, one Google OAuth client. AI Gateway authenticates through Vercel OIDC, so there's no AI key to manage in production.
 
 ---
 
@@ -123,21 +127,21 @@ From the founder's sketch: "goat side" means *which side of the coin are you on?
 | Concern | Choice | Notes |
 |---|---|---|
 | Monorepo | **Turborepo + pnpm** (workspaces + catalogs) | |
-| Apps | **TanStack Start** × 2 (`apps/web` landing, `apps/app` core) | Both deploy to Cloudflare Workers via `@cloudflare/vite-plugin` |
+| Apps | **TanStack Start** × 2 (`apps/web` landing, `apps/app` core) | Both build with the `nitro/vite` plugin: Vercel Build Output on Vercel, a Node server elsewhere |
 | UI | **shadcn/ui on Base UI** + Tailwind v4 | Base UI has been shadcn's default since July 2026. Scaffold with `shadcn init --monorepo -t start -b base` |
 | Data fetching | **TanStack Query** + Start server functions | Optimistic inserts for the composer |
 | Tables | **TanStack Table** + **TanStack Virtual** | Table drives sort and filter state; mobile renders cards |
 | Forms | **TanStack Form** + Zod | Edit drawer, settings |
 | Charts | **TanStack Charts** (`@tanstack/react-charts`) | Just reached 1.0. Fallback is shadcn charts (Recharts) if the React adapter turns out rough. Theme either through our CSS variables |
-| DB | **Turso** (libSQL) + **Drizzle ORM** | `@libsql/client/web` over HTTP from Workers. Native vectors via `F32_BLOB` |
+| DB | **Turso** (libSQL) + **Drizzle ORM** | `drizzle-orm/libsql`. Native vectors via `F32_BLOB`. Local dev uses `turso dev` |
 | Auth | **Better Auth** (Google only) | See §6 |
-| LLM | **AI SDK** + `@ai-sdk/deepseek` → `deepseek-flash` | Routed through Cloudflare AI Gateway (§5.6) |
-| Embeddings | **AI SDK** + `@ai-sdk/openai` → `text-embedding-3-small` @ 512 dims | Also through AI Gateway |
-| Hosting | **Cloudflare Workers** (static assets + SSR) | |
+| LLM | **AI SDK** with gateway model strings → `deepseek/deepseek-v4.1-flash` | Vercel AI Gateway (§5.6). No provider packages |
+| Embeddings | **AI SDK** → `openai/text-embedding-3-small` @ 512 dims | Also through AI Gateway |
+| Hosting | **Vercel** | One project per app (Root Directory `apps/app` / `apps/web`) |
 | Lint/format | **oxlint + oxfmt** | No ESLint or Prettier. oxfmt sorts Tailwind classes natively |
 | Tests | Vitest (unit + AI evals); Playwright later | |
 
-**About the model ID:** DeepSeek shipped V4.1 Flash on 2026-09-10 under the ID `deepseek-flash`. The older `deepseek-v4-flash` ID is now routed to it. Model IDs live in env (`LLM_MODEL`, `EMBEDDING_MODEL`) so self-hosters can swap them.
+**About the model ID:** DeepSeek shipped V4.1 Flash on 2026-09-10. On AI Gateway it's `deepseek/deepseek-v4.1-flash` (input $0.30, output $1.20 per 1M tokens at the time of writing). Model IDs live in env (`LLM_MODEL`, `EMBEDDING_MODEL`) so self-hosters can swap them for any gateway model.
 
 ---
 
@@ -189,7 +193,7 @@ raw text
   │                          (with their FINAL category/merchant after corrections)
   │                          + categories, people, open IOUs
   │
-  ├─ 4. LLM structured out   deepseek-flash, thinking disabled, Zod schema:
+  ├─ 4. LLM structured out   DeepSeek V4.1 Flash via AI Gateway, no thinking, Zod schema:
   │                          { kind, category, merchant, person,
   │                            date, note, recurring, confidence } per line
   │
@@ -233,30 +237,32 @@ Store `embedding_model` on each row so re-embedding stays possible. A `pnpm reem
 
 - **Evals:** about 100 fixture inputs mapped to expected structured output, run with Vitest on every prompt or model change. They track category accuracy, kind accuracy and the amount invariant (which must be 100%).
 - **Prompt injection:** transaction text is the owner's own, but notes are still treated as data. Write tools always need approval.
-- **Privacy:** transaction text goes to DeepSeek and OpenAI through the owner's own AI Gateway. Self-hosters bring their own keys, so the README should say plainly what data leaves the instance.
+- **Privacy:** the ledger lives in the owner's Turso database. Entry text is sent through the owner's AI Gateway to the model providers (DeepSeek, OpenAI). The README should say plainly what leaves the instance.
 
-### 5.6 Cloudflare AI Gateway
+### 5.6 Vercel AI Gateway
 
-Point each AI SDK provider's `baseURL` at the gateway:
+The AI SDK talks to AI Gateway with plain `provider/model` strings, so there are no provider packages and one bill:
 
 ```ts
-// packages/ai/src/providers.ts (sketch)
-const gw = env.CF_AIG_ACCOUNT_ID && env.CF_AIG_GATEWAY_ID
-  ? `https://gateway.ai.cloudflare.com/v1/${env.CF_AIG_ACCOUNT_ID}/${env.CF_AIG_GATEWAY_ID}`
-  : null
+// packages/ai (sketch)
+import { embed, generateText, Output } from "ai"
 
-const deepseek = createDeepSeek({
-  apiKey: env.DEEPSEEK_API_KEY,
-  baseURL: gw ? `${gw}/deepseek` : undefined,
-  headers: env.CF_AIG_TOKEN ? { 'cf-aig-authorization': `Bearer ${env.CF_AIG_TOKEN}` } : undefined,
+const { output } = await generateText({
+  model: env.LLM_MODEL ?? "deepseek/deepseek-v4.1-flash",
+  output: Output.object({ schema: draftSchema }),
+  prompt,
 })
-// same pattern for createOpenAI → `${gw}/openai`
+
+const { embedding } = await embed({
+  model: env.EMBEDDING_MODEL ?? "openai/text-embedding-3-small",
+  value: text,
+  providerOptions: { openai: { dimensions: 512 } },
+})
 ```
 
-- **The gateway is optional.** If its env vars are unset, requests go straight to the providers, so a minimal self-host setup still works.
-- The gateway gives logs, token and cost analytics, rate limiting, retries, and caching (useful for repeated embeddings) without any code changes.
-- Make it an **authenticated gateway** (`cf-aig-authorization`) so nobody else can spend through it.
-- If Cloudflare's provider routing ever lags behind a DeepSeek model, the fallback is to drop `baseURL` and call DeepSeek directly.
+- **Auth:** on Vercel, the gateway authenticates through the project's OIDC token automatically. Locally (or on another host) set `AI_GATEWAY_API_KEY`.
+- The gateway gives logs, token and cost analytics, budgets, retries and provider fallbacks without code changes.
+- Check AI SDK APIs against the installed version's docs (`node_modules/ai/docs/`) when building M3; this sketch is from memory of AI SDK 7.
 
 ---
 
@@ -275,8 +281,7 @@ Lucia used to cover that layer, but it is now just a guide you follow by hand.
 
 Better Auth with the Drizzle adapter (`provider: "sqlite"`) and its TanStack Start cookie plugin does all of that in about 30 lines of config and generates the schema.
 
-- **Allowlist:** set `ALLOWED_EMAILS` (comma-separated) in env. A Better Auth `databaseHooks.user.create.before` hook rejects any other email. This matters because a self-hosted instance is publicly reachable, and anyone with a Google account could otherwise sign in.
-- **Workers caveat:** env isn't global, so build the auth instance from a factory (`createAuth(env)`) per request, or import `env` from `cloudflare:workers`.
+- **Allowlist:** set `ALLOWED_EMAILS` (comma-separated) in env. Better Auth's `user.validateUserInfo` rejects other emails at every Google sign-in, and the app re-checks the allowlist on every request, so removing an email revokes access immediately. This matters because a self-hosted instance is publicly reachable, and anyone with a Google account could otherwise sign in.
 - Self-hosters create their own Google OAuth client. `docs/self-hosting.md` walks through it, including the redirect URI `https://<their-domain>/api/auth/callback/google`.
 
 ---
@@ -329,11 +334,12 @@ Drizzle needs a small `customType` for `F32_BLOB(512)`, and vector queries use `
 
 ### 8.1 Deploy shape
 
-- **`goatside-app`** (core Worker): the only thing a self-hoster needs to deploy.
-- **`goatside-web`** (landing Worker): the project site with features, screenshots, a self-hosting guide and a GitHub link. Only the canonical project deploys it.
-- **Turso:** pick a region close to the owner (Singapore for PH). Workers can't use embedded replicas, so it's HTTP only, which is fine at this scale.
+- **The app** (`apps/app`): the only thing a self-hoster deploys. A Vercel project with Root Directory `apps/app`; Vercel detects TanStack Start and Nitro emits Build Output with one Node function.
+- **The landing site** (`apps/web`): the project's own marketing page with a self-hosting guide and GitHub link. Only the canonical project deploys it, as a separate Vercel project.
+- **Turso:** pick a region close to the owner (Singapore for PH) and a Vercel function region near it.
+- Turborepo runs in strict env mode, so the build task declares the variables Nitro reads (`VERCEL`, `VERCEL_ENV`, `NITRO_PRESET`).
 
-### 8.2 Config (`apps/app/.dev.vars.example`)
+### 8.2 Config (`apps/app/.env.example`)
 
 ```
 # required
@@ -344,37 +350,32 @@ GOOGLE_CLIENT_SECRET=
 ALLOWED_EMAILS=you@gmail.com
 TURSO_DATABASE_URL=
 TURSO_AUTH_TOKEN=
-DEEPSEEK_API_KEY=
-OPENAI_API_KEY=
 
-# optional
-LLM_MODEL=deepseek-flash
-EMBEDDING_MODEL=text-embedding-3-small
-CF_AIG_ACCOUNT_ID=
-CF_AIG_GATEWAY_ID=
-CF_AIG_TOKEN=
+# AI: OIDC on Vercel; a key locally or on other hosts
+AI_GATEWAY_API_KEY=
+
+# optional (M3)
+LLM_MODEL=deepseek/deepseek-v4.1-flash
+EMBEDDING_MODEL=openai/text-embedding-3-small
 ```
 
-Env is validated at startup with Zod, so a missing var fails loudly with a clear message. Secrets go in via `wrangler secret`, and types come from `wrangler types`.
+Env is validated with Zod on first use, so a missing var fails loudly with a clear message. Locally it lives in `apps/app/.env.local`; on Vercel, in the project's environment variables (`vercel env pull` syncs them down).
 
 ### 8.3 Self-host flow (`docs/self-hosting.md`)
 
-1. Fork or clone, then run `pnpm i`.
-2. Run `turso db create goatside` and create a token.
-3. Create a Google OAuth client.
-4. Optionally, create an AI Gateway.
-5. Run `pnpm --filter app db:migrate`.
-6. Run `pnpm --filter app secrets:push`, a small script that pipes `.dev.vars` into `wrangler secret put`.
-7. Run `pnpm --filter app deploy`.
+1. Fork the repo.
+2. Create a Turso database and token, then run `pnpm db:migrate` against it.
+3. Create a Google OAuth client (redirect `https://<domain>/api/auth/callback/google`).
+4. Import the fork in Vercel with Root Directory `apps/app`, add the env vars, deploy.
 
-Later: a "Deploy to Cloudflare" button, if it supports monorepo subpaths.
+Later: a **Deploy to Vercel** button (`vercel.com/new/clone?repository-url=…&root-directory=apps/app&env=…`) so steps 1 and 4 become one click. Turso is also available through the Vercel Marketplace, which could provision the database and its env vars from the same flow.
 
 ### 8.4 CI
 
-- GitHub Actions runs lint, typecheck, unit tests, evals (only on `packages/ai` changes, using repo secrets) and deploys the canonical instance and landing.
+- GitHub Actions runs lint, typecheck, unit tests and evals (only on `packages/ai` changes). Vercel's Git integration handles preview and production deploys.
 - Migrations run with `drizzle-kit` against Turso before deploy.
 
-**Cost estimate:** a log parse is about 1.5k input tokens (mostly cached) plus about 150 output tokens, which is a fraction of a cent. Hundreds of entries a month should cost well under $1 in AI. Turso and Workers free tiers should cover one person.
+**Cost estimate:** a log parse is about 1.5k input tokens (mostly cached) plus about 150 output tokens, which is a fraction of a cent. Hundreds of entries a month should cost well under $1 in AI. Turso's and Vercel's free tiers should cover one person.
 
 ---
 
@@ -382,10 +383,10 @@ Later: a "Deploy to Cloudflare" button, if it supports monorepo subpaths.
 
 | # | Milestone | Done when |
 |---|---|---|
-| M0 | **Scaffold** | Turborepo + pnpm, shadcn monorepo (`-t start -b base`), both apps build and run on workerd (`vite preview`), first deploy to Workers. **Status: done; first deploy pending `wrangler login`** |
-| M1 | **Auth + DB** | Zod env validation; Google sign-in with allowlist works on Workers; Drizzle schema migrated to Turso; default categories seeded. **Status: built and tested locally (`turso dev` + `pnpm dev:session`); real Google sign-in pending OAuth credentials** |
+| M0 | **Scaffold** | Turborepo + pnpm, shadcn monorepo (`-t start -b base`), both apps build with Nitro (Vercel Build Output verified locally). **Status: done; first Vercel deploy pending** |
+| M1 | **Auth + DB** | Zod env validation; Google sign-in with allowlist; Drizzle schema migrated to Turso; default categories seeded. **Status: built and tested locally (`turso dev` + `pnpm dev:session`); real Google sign-in pending OAuth credentials** |
 | M2 | **Manual logging (no AI)** | `core.preparse` with tests; composer saves rows; feed grouped by day; month totals. Usable on its own. **Status: done (composer with live preview, optimistic save, undo, edit drawer, month switcher, interim daily bars + category breakdown)** |
-| M3 | **AI parsing** | Providers through AI Gateway, structured-output pipeline, embeddings, retrieval of past examples, review drawer, corrections, undo, eval suite |
+| M3 | **AI parsing** | AI SDK through Vercel AI Gateway, structured-output pipeline, embeddings, retrieval of past examples, review drawer, corrections, undo, eval suite |
 | M4 | **Dashboard** | Month switcher, daily bars, category breakdown, Insights page, category management |
 | M5 | **Ask mode + People** | Tool-calling agent with streamed answers and inline charts; IOUs, splits, settle-up |
 | M6 | **Polish + ship** | PWA + offline queue, quick-repeat chips, monthly recap, CSV export, `docs/self-hosting.md`, landing page |
@@ -395,5 +396,5 @@ Later: a "Deploy to Cloudflare" button, if it supports monorepo subpaths.
 
 ## 10. Remaining questions (non-blocking)
 
-1. **License.** MIT is the simplest. AGPL stops someone from running a closed hosted fork. MIT is the default unless you prefer otherwise.
+1. **License.** MIT is the simplest. AGPL stops someone from turning it into a closed hosted service, which fits the self-host-only positioning. MIT is the default unless you prefer otherwise.
 2. **Public demo.** A read-only demo instance with seeded data would help the landing page. It's nice to have and can wait until M6.

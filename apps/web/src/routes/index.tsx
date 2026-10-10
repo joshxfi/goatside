@@ -56,8 +56,9 @@ function Landing() {
               Which side of the coin are you on?
             </h1>
             <p className="max-w-md text-lg text-pretty text-muted-foreground">
-              Goatside is a finance tracker you talk to. Type what happened, and
-              it sorts itself into a month you can actually read.
+              Goatside is an open-source, personal finance tracker that you host
+              yourself. Type what happened in plain words, and its AI agent
+              files it into a month you can actually read.
             </p>
             <div className="flex flex-wrap gap-3">
               <a
@@ -67,7 +68,7 @@ function Landing() {
                   "h-11 px-5 text-base"
                 )}
               >
-                Self-host it
+                Deploy your own
               </a>
               <a
                 href="#how"
@@ -169,21 +170,21 @@ function Landing() {
           </div>
           <div className="flex flex-col gap-3">
             <h2 className="font-display text-4xl tracking-tight">
-              Your money, your server.
+              Built for one person: you.
             </h2>
             <p className="text-muted-foreground">
-              Open source and built to self-host on your own Cloudflare account
-              with a Turso database. Bring your own AI keys. Nobody else sees
-              your ledger.
+              There’s no Goatside service to sign up for. You deploy your own
+              copy to Vercel with a Turso database and an AI Gateway key, and it
+              only lets you in. Your ledger lives in your own database.
             </p>
           </div>
         </section>
       </main>
 
       <footer className="flex items-center justify-between border-t py-6 text-sm text-muted-foreground">
-        <span>Steady climbing.</span>
+        <span>Open source. Self-hosted. Steady climbing.</span>
         <a href={REPO_URL} className="hover:text-foreground">
-          Open source on GitHub
+          GitHub
         </a>
       </footer>
     </div>

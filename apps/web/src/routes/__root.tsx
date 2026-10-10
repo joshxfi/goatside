@@ -4,16 +4,19 @@ import { THEME_SCRIPT } from "@workspace/ui/lib/theme"
 import appCss from "@workspace/ui/globals.css?url"
 
 const DESCRIPTION =
-  "An open-source, self-hostable finance tracker you talk to. Type “-500 lunch at berto's” and it files itself."
+  "Goatside is an open-source, personal, agentic finance tracker that you self-host. Type “-500 lunch at berto's” and it files itself."
 
 export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Goatside · Which side of the coin are you on?" },
+      { title: "Goatside · Your self-hosted finance agent" },
       { name: "description", content: DESCRIPTION },
-      { property: "og:title", content: "Goatside" },
+      {
+        property: "og:title",
+        content: "Goatside: your self-hosted finance agent",
+      },
       { property: "og:description", content: DESCRIPTION },
       {
         name: "theme-color",
