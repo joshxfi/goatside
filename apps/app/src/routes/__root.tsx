@@ -46,6 +46,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         </p>
       </main>
     ),
+    errorComponent: ({ error, reset }) => (
+      <main className="mx-auto flex max-w-md flex-col gap-3 p-4 pt-16">
+        <h1 className="font-display text-4xl">Something slipped.</h1>
+        <p className="text-muted-foreground">
+          {error instanceof Error
+            ? error.message
+            : "An unexpected error occurred."}
+        </p>
+        <button
+          type="button"
+          onClick={reset}
+          className="self-start rounded-full border px-4 py-2 text-sm active:scale-[0.97]"
+        >
+          Try again
+        </button>
+      </main>
+    ),
     component: Outlet,
     shellComponent: RootDocument,
   }

@@ -1,10 +1,9 @@
-import { type Auth, createAuth } from "@workspace/auth"
+import type { AuthConfig } from "@workspace/auth"
 import { type Db, createDb } from "@workspace/db"
 import { serverEnv } from "./env"
 
 // Created lazily (env is read on first use) and reused for the server's lifetime.
 let db: Db | undefined
-let auth: Auth | undefined
 
 export function getDb(): Db {
   if (!db) {
@@ -17,7 +16,11 @@ export function getDb(): Db {
   return db
 }
 
-export function getAuth(): Auth {
-  auth ??= createAuth({ db: getDb(), env: serverEnv() })
-  return auth
+export function authConfig(): AuthConfig {
+  const env = serverEnv()
+  return {
+    username: env.GOATSIDE_USERNAME,
+    password: env.GOATSIDE_PASSWORD,
+    secret: env.SESSION_SECRET,
+  }
 }

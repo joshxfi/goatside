@@ -1,17 +1,13 @@
 import { Link, useRouter } from "@tanstack/react-router"
 import { ChevronLeftIcon, ChevronRightIcon, LogOutIcon } from "lucide-react"
-import { signOut } from "@workspace/auth/client"
 import { addMonths } from "@workspace/core/dates"
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar"
+import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
 import { CoinMark } from "@workspace/ui/components/brand"
 import { buttonVariants } from "@workspace/ui/components/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -19,7 +15,7 @@ import {
 } from "@workspace/ui/components/dropdown-menu"
 import { cn } from "@workspace/ui/lib/utils"
 import { monthName } from "@/lib/format"
-import type { Viewer } from "@/server/session"
+import { type Viewer, signOut } from "@/server/session"
 
 export function MonthHeader({
   month,
@@ -85,12 +81,7 @@ export function MonthHeader({
 
 function AccountMenu({ viewer }: { viewer: Viewer }) {
   const router = useRouter()
-  const initials = viewer.name
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase()
+  const initial = viewer.username.charAt(0).toUpperCase()
 
   return (
     <DropdownMenu>
@@ -99,21 +90,23 @@ function AccountMenu({ viewer }: { viewer: Viewer }) {
         aria-label="Account"
       >
         <Avatar className="size-9">
-          {viewer.image && <AvatarImage src={viewer.image} alt="" />}
           <AvatarFallback>
-            {initials || <CoinMark rim={false} className="size-4" />}
+            {initial || <CoinMark rim={false} className="size-4" />}
           </AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-56">
-        <DropdownMenuLabel className="flex flex-col">
-          <span className="text-foreground">{viewer.name}</span>
-          <span className="font-normal">{viewer.email}</span>
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex flex-col">
+            <span className="font-normal">Signed in as</span>
+            <span className="text-foreground">{viewer.username}</span>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={async () => {
             await signOut()
+            await router.invalidate()
             await router.navigate({ to: "/login" })
           }}
         >

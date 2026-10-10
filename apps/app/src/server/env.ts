@@ -1,13 +1,16 @@
 import { z } from "zod"
 
 const schema = z.object({
-  BETTER_AUTH_SECRET: z
+  GOATSIDE_USERNAME: z
+    .string()
+    .trim()
+    .min(1, "set the username you'll sign in with"),
+  GOATSIDE_PASSWORD: z
+    .string()
+    .min(12, "use at least 12 characters; this app is on a public URL"),
+  SESSION_SECRET: z
     .string()
     .min(32, "generate one with `openssl rand -base64 32`"),
-  BETTER_AUTH_URL: z.url(),
-  GOOGLE_CLIENT_ID: z.string().min(1),
-  GOOGLE_CLIENT_SECRET: z.string().min(1),
-  ALLOWED_EMAILS: z.string().min(3, "add at least one email"),
   TURSO_DATABASE_URL: z.string().min(1),
   TURSO_AUTH_TOKEN: z.string().optional(),
 })

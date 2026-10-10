@@ -1,11 +1,13 @@
 /**
- * Goatside's own tables. Money is integer centavos, always PHP.
- * `local_date` ("YYYY-MM-DD" in the owner's timezone) decides which
- * day/month a transaction belongs to; `created_at` orders within a day.
+ * Goatside's tables. One deploy belongs to one person, so there are no
+ * user ids. Money is integer centavos, always PHP. `local_date`
+ * ("YYYY-MM-DD" in the owner's timezone) decides which day/month a
+ * transaction belongs to; `created_at` orders within a day.
  */
 
 import { sql } from "drizzle-orm"
 import {
+  check,
   index,
   integer,
   real,
@@ -13,33 +15,30 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core"
-import { user } from "./auth"
 
 const now = sql`(cast(unixepoch('subsecond') * 1000 as integer))`
 const id = () =>
   text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID())
-const userId = () =>
-  text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" })
 const createdAt = () =>
   integer("created_at", { mode: "timestamp_ms" }).notNull().default(now)
 
-export const profiles = sqliteTable("profiles", {
-  userId: text("user_id")
-    .primaryKey()
-    .references(() => user.id, { onDelete: "cascade" }),
-  timeZone: text("time_zone").notNull().default("Asia/Manila"),
-  createdAt: createdAt(),
-})
+/** Single row (id = 1) of owner preferences. */
+export const settings = sqliteTable(
+  "settings",
+  {
+    id: integer("id").primaryKey().default(1),
+    timeZone: text("time_zone").notNull().default("Asia/Manila"),
+    createdAt: createdAt(),
+  },
+  (t) => [check("settings_single_row", sql`${t.id} = 1`)]
+)
 
 export const categories = sqliteTable(
   "categories",
   {
     id: id(),
-    userId: userId(),
     name: text("name").notNull(),
     emoji: text("emoji").notNull(),
     kind: text("kind", { enum: ["expense", "income"] }).notNull(),
@@ -48,11 +47,7 @@ export const categories = sqliteTable(
     createdAt: createdAt(),
   },
   (t) => [
-    uniqueIndex("categories_user_kind_name_idx").on(
-      t.userId,
-      t.kind,
-      sql`lower(${t.name})`
-    ),
+    uniqueIndex("categories_kind_name_idx").on(t.kind, sql`lower(${t.name})`),
   ]
 )
 
@@ -60,7 +55,6 @@ export const merchants = sqliteTable(
   "merchants",
   {
     id: id(),
-    userId: userId(),
     name: text("name").notNull(),
     defaultCategoryId: text("default_category_id").references(
       () => categories.id,
@@ -68,16 +62,13 @@ export const merchants = sqliteTable(
     ),
     createdAt: createdAt(),
   },
-  (t) => [
-    uniqueIndex("merchants_user_name_idx").on(t.userId, sql`lower(${t.name})`),
-  ]
+  (t) => [uniqueIndex("merchants_name_idx").on(sql`lower(${t.name})`)]
 )
 
 export const people = sqliteTable(
   "people",
   {
     id: id(),
-    userId: userId(),
     name: text("name").notNull(),
     aliases: text("aliases", { mode: "json" })
       .$type<string[]>()
@@ -85,9 +76,7 @@ export const people = sqliteTable(
       .default(sql`'[]'`),
     createdAt: createdAt(),
   },
-  (t) => [
-    uniqueIndex("people_user_name_idx").on(t.userId, sql`lower(${t.name})`),
-  ]
+  (t) => [uniqueIndex("people_name_idx").on(sql`lower(${t.name})`)]
 )
 
 /** One line typed into the composer. A log line can yield several transactions. */
@@ -95,12 +84,11 @@ export const entries = sqliteTable(
   "entries",
   {
     id: id(),
-    userId: userId(),
     rawText: text("raw_text").notNull(),
     mode: text("mode", { enum: ["log", "ask"] }).notNull(),
     createdAt: createdAt(),
   },
-  (t) => [index("entries_user_created_idx").on(t.userId, t.createdAt)]
+  (t) => [index("entries_created_idx").on(t.createdAt)]
 )
 
 export const TRANSACTION_KINDS = [
@@ -120,7 +108,6 @@ export const transactions = sqliteTable(
   "transactions",
   {
     id: id(),
-    userId: userId(),
     entryId: text("entry_id").references(() => entries.id, {
       onDelete: "set null",
     }),
@@ -155,13 +142,9 @@ export const transactions = sqliteTable(
     deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
   },
   (t) => [
-    index("transactions_user_date_idx").on(t.userId, t.localDate),
-    index("transactions_user_category_date_idx").on(
-      t.userId,
-      t.categoryId,
-      t.localDate
-    ),
-    index("transactions_user_person_idx").on(t.userId, t.personId),
+    index("transactions_date_idx").on(t.localDate),
+    index("transactions_category_date_idx").on(t.categoryId, t.localDate),
+    index("transactions_person_idx").on(t.personId),
   ]
 )
 
@@ -179,6 +162,18 @@ export const corrections = sqliteTable(
     createdAt: createdAt(),
   },
   (t) => [index("corrections_transaction_idx").on(t.transactionId)]
+)
+
+/** Sign-in attempts, for throttling password guessing on a public URL. */
+export const loginAttempts = sqliteTable(
+  "login_attempts",
+  {
+    id: id(),
+    ip: text("ip").notNull(),
+    succeeded: integer("succeeded", { mode: "boolean" }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("login_attempts_created_idx").on(t.createdAt, t.ip)]
 )
 
 export type Category = typeof categories.$inferSelect

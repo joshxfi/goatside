@@ -14,8 +14,7 @@
     "db:dev": "pnpm --filter @workspace/db dev",
     "db:generate": "pnpm --filter @workspace/db generate",
     "db:migrate": "pnpm --filter @workspace/db migrate",
-    "db:studio": "pnpm --filter @workspace/db studio",
-    "dev:session": "pnpm --filter @workspace/auth dev-session"
+    "db:studio": "pnpm --filter @workspace/db studio"
   },
   "devDependencies": {
     "oxfmt": "^0.72.0",

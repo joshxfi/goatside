@@ -19,7 +19,7 @@ copy to their own Vercel account, with their own database and AI Gateway key.
 | Hosting | **Vercel** (TanStack Start via Nitro, Node runtime on Fluid Compute). No Cloudflare |
 | Currency | **PHP (₱) only.** No multi-currency in v1 |
 | Scope of money | **Money in and out only.** No wallets, no account balances, no transfers |
-| Auth | **Google OAuth only**, restricted to an email allowlist set by whoever deploys it |
+| Auth | **One account per deploy**: username and password from env, signed session cookie. No OAuth, no sign-up |
 | LLM | **DeepSeek V4.1 Flash** (`deepseek/deepseek-v4.1-flash`) through **Vercel AI Gateway** with the AI SDK |
 | Name | **Goatside** |
 
@@ -32,7 +32,7 @@ copy to their own Vercel account, with their own database and AI Gateway key.
 3. **Instant, then smart.** A row appears as soon as you hit enter, and AI enrichment fills it in about a second later. You never wait on a spinner to log.
 4. **It learns from you.** Every correction becomes an example for next time, through retrieval rather than fine-tuning.
 5. **Useful without AI.** If the model is down, entries still save with amount and description and get categorized later.
-6. **Easy to self-host.** One Vercel project, one Turso database, one Google OAuth client. AI Gateway authenticates through Vercel OIDC, so there's no AI key to manage in production.
+6. **Easy to self-host.** One Vercel project, one Turso database, a username and password in env. AI Gateway authenticates through Vercel OIDC, so there's no AI key to manage in production.
 
 ---
 
@@ -134,7 +134,7 @@ From the founder's sketch: "goat side" means *which side of the coin are you on?
 | Forms | **TanStack Form** + Zod | Edit drawer, settings |
 | Charts | **TanStack Charts** (`@tanstack/react-charts`) | Just reached 1.0. Fallback is shadcn charts (Recharts) if the React adapter turns out rough. Theme either through our CSS variables |
 | DB | **Turso** (libSQL) + **Drizzle ORM** | `drizzle-orm/libsql`. Native vectors via `F32_BLOB`. Local dev uses `turso dev` |
-| Auth | **Better Auth** (Google only) | See §6 |
+| Auth | **`packages/auth`** (~100 lines, Web Crypto) | Single account from env; see §6 |
 | LLM | **AI SDK** with gateway model strings → `deepseek/deepseek-v4.1-flash` | Vercel AI Gateway (§5.6). No provider packages |
 | Embeddings | **AI SDK** → `openai/text-embedding-3-small` @ 512 dims | Also through AI Gateway |
 | Hosting | **Vercel** | One project per app (Root Directory `apps/app` / `apps/web`) |
@@ -155,7 +155,7 @@ goatside/
 ├─ packages/
 │  ├─ ui/                  # shadcn components (Base UI), tokens, chart wrappers
 │  ├─ db/                  # drizzle schema, migrations, client factory, vector helpers, seed
-│  ├─ auth/                # better-auth config factory (takes env)
+│  ├─ auth/                # single-account credentials + signed session tokens
 │  ├─ ai/                  # provider setup, parser pipeline, agent + tools, prompts, evals
 │  └─ core/                # pure TS: money (PHP), deterministic parser, date words, domain types
 ├─ docs/
@@ -231,7 +231,7 @@ I recommend `text-embedding-3-small` with `dimensions: 512`. The reasons:
 
 Store `embedding_model` on each row so re-embedding stays possible. A `pnpm reembed` script re-embeds everything if the model changes.
 
-**Vector search strategy:** one person has a few thousand rows a year, so we use **brute-force `vector_distance_cos` filtered by `user_id`** with no ANN index. Revisit only if a single instance passes about 50k transactions.
+**Vector search strategy:** one person has a few thousand rows a year, so we use **brute-force `vector_distance_cos`** with no ANN index. Revisit only if a single instance passes about 50k transactions.
 
 ### 5.5 Quality & safety
 
@@ -268,21 +268,13 @@ const { embedding } = await embed({
 
 ## 6. Auth
 
-**Better Auth, Google only.**
+**One account, defined in env.** A self-hosted Goatside belongs to one person, so there's no sign-up, no user table and no OAuth app to register.
 
-Arctic handles only the OAuth handshake: the authorization URL, PKCE and the code exchange. You would still write:
-
-- the sessions table and session tokens
-- cookie handling, expiry and sliding refresh
-- state/CSRF validation
-- sign-out
-
-Lucia used to cover that layer, but it is now just a guide you follow by hand.
-
-Better Auth with the Drizzle adapter (`provider: "sqlite"`) and its TanStack Start cookie plugin does all of that in about 30 lines of config and generates the schema.
-
-- **Allowlist:** set `ALLOWED_EMAILS` (comma-separated) in env. Better Auth's `user.validateUserInfo` rejects other emails at every Google sign-in, and the app re-checks the allowlist on every request, so removing an email revokes access immediately. This matters because a self-hosted instance is publicly reachable, and anyone with a Google account could otherwise sign in.
-- Self-hosters create their own Google OAuth client. `docs/self-hosting.md` walks through it, including the redirect URI `https://<their-domain>/api/auth/callback/google`.
+- **Credentials:** `GOATSIDE_USERNAME` and `GOATSIDE_PASSWORD` (12+ characters, since the app sits on a public URL). Compared in constant time via HMAC.
+- **Session:** a cookie `<expiresAt>.<HMAC-SHA256(SESSION_SECRET, expiry + username + password)>`, `HttpOnly`, `SameSite=Lax`, `Secure` in production, 30 days, renewed once past halfway. No session table: changing the username, password or secret invalidates every session.
+- **Sign-in form:** a plain HTML `POST /login` handled by a server route, so it works before hydration and credentials never land in a URL. It has an origin check (TanStack's CSRF middleware); server functions get Start's built-in CSRF protection.
+- **Throttling:** failed attempts are logged in `login_attempts`. Five failures per IP, or 25 overall, within 15 minutes block sign-in for the rest of the window. The overall cap stops distributed guessing; the cost is that an attacker could keep the owner locked out while they keep failing. Vercel's own firewall rate limits can sit in front of this.
+- **Why not Better Auth anymore:** with one env-defined account, its user, account and session tables, OAuth flow and adapters were all unused weight. `packages/auth` is about 100 lines with 16 tests.
 
 ---
 
@@ -292,23 +284,21 @@ Better Auth with the Drizzle adapter (`provider: "sqlite"`) and its TanStack Sta
 
 All money is stored as **integer centavos**, always PHP, and formatted with `Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })`. The day a transaction belongs to is `local_date` (`YYYY-MM-DD` in the owner's timezone), so month grouping is a string prefix with no timezone math. `created_at` orders entries within a day. There's no separate `occurred_at`: a backdated entry only knows its day anyway.
 
-The tables keep a `user_id` even though there's one owner. It costs nothing and allows a partner or household member on the allowlist later.
+There are no user ids: one deploy is one person's ledger.
 
 ```
-user, session, account, verification   ← Better Auth core tables
+settings       id = 1 (single row), time_zone ('Asia/Manila'), created_at
 
-profiles       user_id PK, time_zone ('Asia/Manila'), created_at
+categories     id, name, emoji, kind ('expense'|'income'),
+               sort, archived            unique (kind, lower(name))
 
-categories     id, user_id, name, emoji, kind ('expense'|'income'),
-               sort, archived            unique (user_id, kind, lower(name))
+merchants      id, name, default_category_id?
+people         id, name, aliases (json)
 
-merchants      id, user_id, name, default_category_id?
-people         id, user_id, name, aliases (json)
-
-entries        id, user_id, raw_text, mode ('log'|'ask'), created_at
+entries        id, raw_text, mode ('log'|'ask'), created_at
                -- one line typed; can yield N transactions
 
-transactions   id, user_id, entry_id?, kind ('expense'|'income'|'lend'|'settle'),
+transactions   id, entry_id?, kind ('expense'|'income'|'lend'|'settle'),
                amount (signed; for splits, your share), local_date,
                description, note, category_id?, merchant_id?, person_id?,
                split?, recurring, status ('pending'|'parsed'|'needs_review'|'confirmed'),
@@ -317,10 +307,12 @@ transactions   id, user_id, entry_id?, kind ('expense'|'income'|'lend'|'settle')
 
 corrections    id, transaction_id, field, from_value, to_value, created_at
 
-budgets (later) id, user_id, category_id?, month?, amount
+login_attempts id, ip, succeeded, created_at   (sign-in throttling, pruned after a day)
+
+budgets (later) id, category_id?, month?, amount
 ```
 
-Indexes: `(user_id, local_date)`, `(user_id, category_id, local_date)`, `(user_id, person_id)`.
+Indexes: `(local_date)`, `(category_id, local_date)`, `(person_id)`.
 
 People balances are derived: `SUM` over `lend` and `settle` transactions per person. There is no stored balance to drift.
 
@@ -343,11 +335,9 @@ Drizzle needs a small `customType` for `F32_BLOB(512)`, and vector queries use `
 
 ```
 # required
-BETTER_AUTH_SECRET=
-BETTER_AUTH_URL=https://goatside.example.com
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-ALLOWED_EMAILS=you@gmail.com
+GOATSIDE_USERNAME=
+GOATSIDE_PASSWORD=          # 12+ characters
+SESSION_SECRET=             # openssl rand -base64 32
 TURSO_DATABASE_URL=
 TURSO_AUTH_TOKEN=
 
@@ -365,10 +355,9 @@ Env is validated with Zod on first use, so a missing var fails loudly with a cle
 
 1. Fork the repo.
 2. Create a Turso database and token, then run `pnpm db:migrate` against it.
-3. Create a Google OAuth client (redirect `https://<domain>/api/auth/callback/google`).
-4. Import the fork in Vercel with Root Directory `apps/app`, add the env vars, deploy.
+3. Import the fork in Vercel with Root Directory `apps/app`, add the env vars (username, password, session secret, Turso URL and token), deploy.
 
-Later: a **Deploy to Vercel** button (`vercel.com/new/clone?repository-url=…&root-directory=apps/app&env=…`) so steps 1 and 4 become one click. Turso is also available through the Vercel Marketplace, which could provision the database and its env vars from the same flow.
+Later: a **Deploy to Vercel** button (`vercel.com/new/clone?repository-url=…&root-directory=apps/app&env=…`) so steps 1 and 3 become one click. Turso is also available through the Vercel Marketplace, which could provision the database and its env vars from the same flow.
 
 ### 8.4 CI
 
@@ -384,7 +373,7 @@ Later: a **Deploy to Vercel** button (`vercel.com/new/clone?repository-url=…&r
 | # | Milestone | Done when |
 |---|---|---|
 | M0 | **Scaffold** | Turborepo + pnpm, shadcn monorepo (`-t start -b base`), both apps build with Nitro (Vercel Build Output verified locally). **Status: done; first Vercel deploy pending** |
-| M1 | **Auth + DB** | Zod env validation; Google sign-in with allowlist; Drizzle schema migrated to Turso; default categories seeded. **Status: built and tested locally (`turso dev` + `pnpm dev:session`); real Google sign-in pending OAuth credentials** |
+| M1 | **Auth + DB** | Zod env validation; single-account sign-in from env with throttling; Drizzle schema migrated to Turso; default categories seeded. **Status: done, tested locally** |
 | M2 | **Manual logging (no AI)** | `core.preparse` with tests; composer saves rows; feed grouped by day; month totals. Usable on its own. **Status: done (composer with live preview, optimistic save, undo, edit drawer, month switcher, interim daily bars + category breakdown)** |
 | M3 | **AI parsing** | AI SDK through Vercel AI Gateway, structured-output pipeline, embeddings, retrieval of past examples, review drawer, corrections, undo, eval suite |
 | M4 | **Dashboard** | Month switcher, daily bars, category breakdown, Insights page, category management |

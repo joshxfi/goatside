@@ -5,8 +5,8 @@ Type `-500 lunch at berto's` or `+250 paid by x` and it becomes a categorized
 transaction on a mobile-first dashboard.
 
 It's built for one person. There's no hosted service: you deploy your own copy
-to Vercel, with your own Turso database and AI Gateway key, and only the emails
-you allow can sign in.
+to Vercel, with your own Turso database and AI Gateway key. It has exactly one
+account, whose username and password you set in its environment.
 
 > Early development. See [PLAN.md](./PLAN.md) for the roadmap.
 
@@ -18,7 +18,7 @@ you allow can sign in.
 | `apps/web`      | The project's landing site (TanStack Start, prerendered)      |
 | `packages/core` | Pure TS: the entry parser, money (PHP centavos), dates        |
 | `packages/db`   | Drizzle schema and migrations for Turso (libSQL)              |
-| `packages/auth` | Better Auth: Google sign-in limited to an email allowlist     |
+| `packages/auth` | Single-account auth: env credentials, signed session cookie   |
 | `packages/ui`   | shadcn/ui components (Base UI), the coin brand, theme, styles |
 
 ## Development
@@ -32,14 +32,8 @@ pnpm dev          # local DB on :8080, app on :3000, landing on :3001
 pnpm db:migrate   # first run, and after schema changes
 ```
 
-Signing in needs a Google OAuth client (redirect URI `http://localhost:3000/api/auth/callback/google`)
-and your email in `ALLOWED_EMAILS`. To try the app before setting that up:
-
-```sh
-pnpm dev:session  # prints a session cookie for the first allowlisted email (local DB only)
-```
-
-Set it as a `better-auth.session_token` cookie on `localhost`.
+Sign in at http://localhost:3000 with the `GOATSIDE_USERNAME` and `GOATSIDE_PASSWORD`
+from your `.env.local`.
 
 Other commands:
 
@@ -63,11 +57,14 @@ pnpm dlx shadcn@latest add drawer -c apps/app
 1. Create a Turso database (`turso db create goatside`) and a token
    (`turso db tokens create goatside`), then apply migrations:
    `TURSO_DATABASE_URL=libsql://… TURSO_AUTH_TOKEN=… pnpm db:migrate`
-2. Create a Google OAuth client with the redirect URI
-   `https://<your-domain>/api/auth/callback/google`.
-3. Import this repo in Vercel with **Root Directory** set to `apps/app`. Vercel
+2. Import this repo in Vercel with **Root Directory** set to `apps/app`. Vercel
    detects TanStack Start and builds it with Nitro.
-4. Add the variables from `apps/app/.env.example` in the project's settings.
-   On Vercel, AI Gateway authenticates through OIDC, so `AI_GATEWAY_API_KEY`
-   is only needed locally.
-5. Deploy. Only emails in `ALLOWED_EMAILS` can sign in.
+3. Add the variables from `apps/app/.env.example` in the project's settings:
+   your username, a password of 12+ characters, a session secret
+   (`openssl rand -base64 32`) and the Turso URL and token. On Vercel, AI
+   Gateway authenticates through OIDC, so `AI_GATEWAY_API_KEY` is only needed
+   locally.
+4. Deploy and sign in.
+
+Changing the username, password or session secret signs out every device.
+Failed sign-ins are throttled (5 per IP and 25 overall per 15 minutes).
