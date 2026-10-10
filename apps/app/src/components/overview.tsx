@@ -211,7 +211,7 @@ export function Overview({ view }: { view: MonthView }) {
 
       <Card
         title="Where it went"
-        description={`${view.byCategory.length} categories`}
+        description={`${view.byCategory.length} ${view.byCategory.length === 1 ? "category" : "categories"}`}
       >
         {view.byCategory.length ? (
           <CategoryList
