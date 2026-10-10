@@ -1,0 +1,17 @@
+{
+  "name": "@workspace/core",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

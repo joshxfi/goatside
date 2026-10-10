@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "test": "turbo test"
   },
   "devDependencies": {
     "oxfmt": "^0.72.0",
