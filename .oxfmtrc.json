@@ -17,6 +17,7 @@
     ".turbo/",
     ".tanstack/",
     ".wrangler/",
+    ".playwright-mcp/",
     "coverage/",
     "pnpm-lock.yaml",
     "routeTree.gen.ts",

@@ -23,3 +23,6 @@ todos.json
 !.dev.vars.example
 !.env.example
 worker-configuration.d.ts
+
+# local browser automation output
+.playwright-mcp
