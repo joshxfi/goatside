@@ -1,12 +1,18 @@
 import { useState } from "react"
+import { useChat } from "@ai-sdk/react"
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
+import { DefaultChatTransport } from "ai"
 import { z } from "zod"
+import { toast } from "@workspace/ui/components/sonner"
+import { cn } from "@workspace/ui/lib/utils"
+import { AskSheet } from "@/components/ask-sheet"
 import { CategoryList } from "@/components/category-list"
 import { Composer } from "@/components/composer"
 import { DailyBars } from "@/components/daily-bars"
 import { Feed } from "@/components/feed"
 import { MonthHeader } from "@/components/month-header"
+import { Questions } from "@/components/questions"
 import { Summary } from "@/components/summary"
 import { TransactionDrawer } from "@/components/transaction-drawer"
 import { monthQuery } from "@/lib/queries"
@@ -27,22 +33,47 @@ export const Route = createFileRoute("/_app/")({
   component: Home,
 })
 
+const transport = new DefaultChatTransport({ api: "/api/ask" })
+
 function Home() {
   const { m } = Route.useSearch()
   const { viewer } = Route.useRouteContext()
   const { data } = useSuspenseQuery(monthQuery(m))
   const [selected, setSelected] = useState<LedgerTxn | null>(null)
+  const [asking, setAsking] = useState(false)
+  const chat = useChat({ transport })
+
+  function ask(question: string) {
+    if (!viewer.ai) {
+      toast("Questions need AI Gateway.", {
+        description:
+          "Add AI_GATEWAY_API_KEY to your environment, then restart.",
+      })
+      return
+    }
+    setAsking(true)
+    void chat.sendMessage({ text: question })
+  }
 
   return (
     <div className="mx-auto flex min-h-svh max-w-md flex-col">
-      <main className="flex flex-1 flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-40">
+      <main
+        className={cn(
+          "flex flex-1 flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-40",
+          // Room for the question card above the composer.
+          data.questions.length > 0 && "pb-80"
+        )}
+      >
         <MonthHeader month={data.month} today={data.today} viewer={viewer} />
         <Summary view={data} />
         <DailyBars daily={data.daily} today={data.today} />
         <CategoryList categories={data.byCategory} total={data.totals.out} />
         <Feed view={data} onSelect={setSelected} />
       </main>
-      <Composer view={data} viewKey={m} />
+      <Composer view={data} viewKey={m} onAsk={ask}>
+        <Questions view={data} viewKey={m} onMore={setSelected} />
+      </Composer>
+      <AskSheet chat={chat} open={asking} onOpenChange={setAsking} />
       <TransactionDrawer
         txn={selected}
         categories={data.categories}

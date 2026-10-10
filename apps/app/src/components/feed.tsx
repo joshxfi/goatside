@@ -75,9 +75,18 @@ function TransactionRow({
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate">{title}</span>
-        <span className="truncate text-xs text-muted-foreground">
-          {txn.category?.name ?? "Uncategorized"}
-          {txn.split ? ` · split ${txn.split} ways` : ""}
+        <span className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+          {txn.status === "needs_review" && (
+            <span className="flex items-center gap-1 text-bronze">
+              <span aria-hidden className="size-1.5 rounded-full bg-bronze" />
+              Check ·
+            </span>
+          )}
+          <span className="truncate">
+            {txn.category?.name ?? "Uncategorized"}
+            {txn.split ? ` · split ${txn.split} ways` : ""}
+            {txn.recurring ? " · repeats" : ""}
+          </span>
         </span>
       </span>
       <span

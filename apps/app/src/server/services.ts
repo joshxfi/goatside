@@ -24,3 +24,8 @@ export function authConfig(): AuthConfig {
     secret: env.SESSION_SECRET,
   }
 }
+
+/** Whether AI Gateway is reachable: an API key, or Vercel's OIDC token. */
+export function aiEnabled(): boolean {
+  return Boolean(serverEnv().AI_GATEWAY_API_KEY || process.env.VERCEL)
+}

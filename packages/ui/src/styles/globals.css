@@ -243,3 +243,27 @@
     opacity: 0.55;
   }
 }
+
+@layer components {
+  /* An agent question arriving above the composer: a short settle, no flourish. */
+  .question-card {
+    transition:
+      opacity 200ms var(--ease-out),
+      transform 200ms var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .question-card {
+      transition: opacity 150ms ease;
+
+      @starting-style {
+        transform: none;
+      }
+    }
+  }
+}

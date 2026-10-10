@@ -21,7 +21,7 @@ import {
   verifySessionToken,
 } from "@workspace/auth"
 import { schema, seedDefaults } from "@workspace/db"
-import { authConfig, getDb } from "./services"
+import { aiEnabled, authConfig, getDb } from "./services"
 
 const RENEW_WHEN_LEFT_MS = 15 * 24 * 60 * 60 * 1000
 const THROTTLE_WINDOW_MS = 15 * 60 * 1000
@@ -66,10 +66,15 @@ async function hasSession(): Promise<boolean> {
 
 /** The owner's username if signed in, otherwise null. Used by route guards. */
 export const getViewer = createServerFn().handler(async () => {
-  return (await hasSession()) ? { username: authConfig().username } : null
+  return (await hasSession())
+    ? { username: authConfig().username, ai: aiEnabled() }
+    : null
 })
 
 export type Viewer = NonNullable<Awaited<ReturnType<typeof getViewer>>>
+
+/** For server routes: whether the request is signed in. */
+export const requireSession = createServerOnlyFn(hasSession)
 
 /** Rejects calls without a valid session. */
 export const authMiddleware = createMiddleware({ type: "function" }).server(

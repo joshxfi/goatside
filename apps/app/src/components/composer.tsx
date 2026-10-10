@@ -18,9 +18,15 @@ import {
 export function Composer({
   view,
   viewKey,
+  onAsk,
+  children,
 }: {
   view: MonthView
   viewKey?: string
+  /** Text that isn't an entry goes to the agent. */
+  onAsk: (question: string) => void
+  /** Shown above the input, e.g. the agent's questions. */
+  children?: React.ReactNode
 }) {
   const [text, setText] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
@@ -47,6 +53,7 @@ export function Composer({
           localDate: line.localDate,
           description: line.description,
           split: line.split,
+          recurring: false,
           status: "pending",
           createdAt: now,
           category: null,
@@ -69,12 +76,11 @@ export function Composer({
       setText((current) => current || input)
       toast.error("Couldn’t save that. Your text is back in the box.")
     },
-    onSuccess: (result, input) => {
+    onSuccess: (result) => {
       if (result.kind === "log") {
-        const preview = preparse(input, { today: view.today })
-        toast(describe(preview), {
-          description: result.signInferred
-            ? "No + or −, so we logged it as money out."
+        toast(describe(result.saved, view.categories), {
+          description: result.asked
+            ? "Goatside has a quick question for you below."
             : undefined,
           action: {
             label: "Undo",
@@ -105,10 +111,8 @@ export function Composer({
   function submit() {
     if (parsed.kind === "empty") return
     if (parsed.kind === "ask") {
-      toast("Questions arrive with the AI soon.", {
-        description:
-          "For now, start with − or + and an amount, like −500 lunch.",
-      })
+      onAsk(parsed.text)
+      setText("")
       return
     }
     log.mutate(text)
@@ -126,10 +130,11 @@ export function Composer({
           submit()
         }}
       >
+        {children}
         <Preview parsed={parsed} today={view.today} />
         <div className="flex items-center gap-2">
           <label htmlFor="composer" className="sr-only">
-            Log money in or out
+            Log money in or out, or ask a question
           </label>
           <input
             ref={inputRef}
@@ -174,13 +179,20 @@ function Preview({ parsed, today }: { parsed: Preparsed; today: string }) {
         <span
           className={cn(
             "figure font-medium",
-            line.direction === "in" ? "text-gold-foreground" : "text-foreground"
+            line.direction === "in" && !line.signInferred
+              ? "text-gold-foreground"
+              : "text-foreground"
           )}
         >
-          {formatPeso(line.direction === "in" ? line.share : -line.share, {
-            sign: line.direction === "in",
-          })}
+          {line.signInferred
+            ? formatPeso(line.share)
+            : formatPeso(line.direction === "in" ? line.share : -line.share, {
+                sign: line.direction === "in",
+              })}
         </span>
+        {line.signInferred && (
+          <span className="text-muted-foreground">· in or out? I’ll check</span>
+        )}
         {line.split && (
           <span className="text-muted-foreground">
             (your ⅟{line.split} of {formatPeso(line.amount)})
@@ -197,7 +209,9 @@ function Preview({ parsed, today }: { parsed: Preparsed; today: string }) {
     )
   } else if (parsed.kind === "ask") {
     content = (
-      <span className="text-muted-foreground">Questions are coming soon</span>
+      <span className="text-muted-foreground">
+        Ask Goatside · answers come from your ledger
+      </span>
     )
   }
 
@@ -211,18 +225,20 @@ function Preview({ parsed, today }: { parsed: Preparsed; today: string }) {
   )
 }
 
-function describe(parsed: Preparsed): string {
-  if (parsed.kind !== "log") return "Logged."
-  const [first, ...rest] = parsed.lines
+function describe(
+  saved: { amount: number; description: string; categoryId: string | null }[],
+  categories: MonthView["categories"]
+): string {
+  const [first, ...rest] = saved
   if (!first) return "Logged."
-  const amount = formatPeso(
-    first.direction === "in" ? first.share : -first.share,
-    {
-      sign: first.direction === "in",
-    }
-  )
-  const what = first.description ? ` · ${first.description}` : ""
-  return rest.length
-    ? `Logged ${parsed.lines.length} entries.`
-    : `Logged ${amount}${what}`
+  if (rest.length) return `Logged ${saved.length} entries.`
+  const amount = formatPeso(first.amount, { sign: first.amount > 0 })
+  const category = categories.find((c) => c.id === first.categoryId)
+  return [
+    `Logged ${amount}`,
+    first.description,
+    category && `${category.emoji} ${category.name}`,
+  ]
+    .filter(Boolean)
+    .join(" · ")
 }

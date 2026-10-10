@@ -20,6 +20,12 @@ import {
 } from "@workspace/core/dates"
 import { preparse } from "@workspace/core/preparse"
 import { type Db, schema } from "@workspace/db"
+import {
+  categorize,
+  openQuestions,
+  resolveQuestionsFor,
+  saveQuestions,
+} from "./agent.server"
 import { getDb } from "./services"
 
 const { categories, corrections, entries, settings, transactions } = schema
@@ -39,6 +45,7 @@ const txnColumns = {
   localDate: transactions.localDate,
   description: transactions.description,
   split: transactions.split,
+  recurring: transactions.recurring,
   status: transactions.status,
   createdAt: transactions.createdAt,
   categoryId: transactions.categoryId,
@@ -65,6 +72,7 @@ function toLedgerTxn(row: TxnRow) {
     localDate: row.localDate,
     description: row.description,
     split: row.split,
+    recurring: row.recurring,
     status: row.status,
     createdAt: row.createdAt.getTime(),
     category:
@@ -168,6 +176,7 @@ export async function monthView(requested?: string) {
     .from(categories)
     .where(eq(categories.archived, false))
     .orderBy(categories.kind, categories.sort)
+  const labels = new Map(activeCategories.map((c) => [c.id, c]))
 
   return {
     month,
@@ -182,6 +191,7 @@ export async function monthView(requested?: string) {
     byCategory: [...byCategory.values()].toSorted((a, b) => b.out - a.out),
     transactions: txns,
     categories: activeCategories,
+    questions: await openQuestions(db, labels),
   }
 }
 
@@ -210,28 +220,57 @@ export async function logText(text: string) {
     .returning({ id: entries.id })
   if (!entry) throw new Error("Could not save entry")
 
+  const resolved = await categorize(
+    db,
+    parsed.lines.map((line) => ({
+      description: line.description,
+      amount: line.share,
+      direction: line.signInferred ? null : line.direction,
+    }))
+  )
+
   const inserted = await db
     .insert(transactions)
     .values(
-      parsed.lines.map((line) => ({
-        entryId: entry.id,
-        kind:
-          line.direction === "in" ? ("income" as const) : ("expense" as const),
-        amount: line.direction === "in" ? line.share : -line.share,
-        localDate: line.localDate,
-        description: line.description,
-        split: line.split,
-        // AI categorization (M3) will move these to parsed / needs_review.
-        status: "pending" as const,
-      }))
+      parsed.lines.map((line, i) => {
+        const r = resolved[i]
+        const direction = r?.direction ?? line.direction
+        return {
+          entryId: entry.id,
+          kind: direction === "in" ? ("income" as const) : ("expense" as const),
+          amount: direction === "in" ? line.share : -line.share,
+          localDate: line.localDate,
+          description: line.description,
+          split: line.split,
+          categoryId: r?.categoryId ?? null,
+          aiConfidence: r?.confidence ?? null,
+          recurring: r?.recurring ?? false,
+          status: r?.status ?? ("pending" as const),
+        }
+      })
     )
     .returning({ id: transactions.id })
+
+  await saveQuestions(
+    db,
+    inserted.flatMap((txn, i) =>
+      (resolved[i]?.questions ?? []).map((draft) => ({
+        transactionId: txn.id,
+        draft,
+      }))
+    )
+  )
 
   return {
     kind: "log" as const,
     entryId: entry.id,
     transactionIds: inserted.map((t) => t.id),
-    signInferred: parsed.lines.some((l) => l.signInferred),
+    saved: parsed.lines.map((line, i) => ({
+      amount: resolved[i]?.direction === "in" ? line.share : -line.share,
+      description: line.description,
+      categoryId: resolved[i]?.categoryId ?? null,
+    })),
+    asked: resolved.some((r) => r.questions.length > 0),
   }
 }
 
@@ -297,11 +336,14 @@ export async function editTransaction(data: {
   }
   if (!changed.length) return
 
-  await db
-    .update(transactions)
-    .set({ ...changes, status: "confirmed" })
-    .where(eq(transactions.id, data.id))
-  // Corrections become retrieval examples for the AI (M3).
+  await db.update(transactions).set(changes).where(eq(transactions.id, data.id))
+  // Picking a category by hand answers any open category question.
+  await resolveQuestionsFor(
+    db,
+    data.id,
+    changes.categoryId !== undefined ? ["category"] : []
+  )
+  // Confirmed rows teach the categorizer; corrections keep the history.
   await db.insert(corrections).values(
     changed.map((c) => ({
       transactionId: data.id,

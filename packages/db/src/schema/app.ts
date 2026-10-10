@@ -164,6 +164,38 @@ export const corrections = sqliteTable(
   (t) => [index("corrections_transaction_idx").on(t.transactionId)]
 )
 
+export const QUESTION_KINDS = ["direction", "category"] as const
+
+/**
+ * Things the agent wasn't sure about and asked the owner. The transaction is
+ * saved with the best guess either way; answering confirms or fixes it.
+ */
+export const questions = sqliteTable(
+  "questions",
+  {
+    id: id(),
+    transactionId: text("transaction_id")
+      .notNull()
+      .references(() => transactions.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: QUESTION_KINDS }).notNull(),
+    /** The value saved on the transaction while the question is open. */
+    guess: text("guess").notNull(),
+    /** Answers offered, best first, with the model's probability when known. */
+    options: text("options", { mode: "json" })
+      .$type<{ value: string; p: number | null }[]>()
+      .notNull(),
+    /** Kind-specific data, e.g. category rankings for each direction. */
+    context: text("context", { mode: "json" }).$type<unknown>(),
+    answer: text("answer"),
+    resolvedAt: integer("resolved_at", { mode: "timestamp_ms" }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("questions_open_idx").on(t.resolvedAt, t.createdAt),
+    index("questions_transaction_idx").on(t.transactionId),
+  ]
+)
+
 /** Sign-in attempts, for throttling password guessing on a public URL. */
 export const loginAttempts = sqliteTable(
   "login_attempts",
@@ -184,3 +216,4 @@ export const loginAttempts = sqliteTable(
 export type Category = typeof categories.$inferSelect
 export type Transaction = typeof transactions.$inferSelect
 export type TransactionKind = (typeof TRANSACTION_KINDS)[number]
+export type Question = typeof questions.$inferSelect

@@ -12,14 +12,17 @@
     "start": "node .output/server/index.mjs"
   },
   "dependencies": {
+    "@ai-sdk/react": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
     "@tanstack/react-router-ssr-query": "catalog:",
     "@tanstack/react-start": "catalog:",
+    "@workspace/ai": "workspace:*",
     "@workspace/auth": "workspace:*",
     "@workspace/core": "workspace:*",
     "@workspace/db": "workspace:*",
     "@workspace/ui": "workspace:*",
+    "ai": "catalog:",
     "drizzle-orm": "catalog:",
     "lucide-react": "catalog:",
     "nitro": "catalog:",

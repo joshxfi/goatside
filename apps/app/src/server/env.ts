@@ -13,6 +13,11 @@ const schema = z.object({
     .min(32, "generate one with `openssl rand -base64 32`"),
   TURSO_DATABASE_URL: z.string().min(1),
   TURSO_AUTH_TOKEN: z.string().optional(),
+  // AI Gateway. On Vercel it authenticates through OIDC, so the key is only
+  // needed elsewhere. Without either, Goatside works without AI.
+  AI_GATEWAY_API_KEY: z.string().optional(),
+  DECISION_MODEL: z.string().trim().min(1).default("typesafe-ai/jev"),
+  CHAT_MODEL: z.string().trim().min(1).default("deepseek/deepseek-v4.1-flash"),
 })
 
 export type ServerEnv = z.infer<typeof schema>

@@ -6,9 +6,12 @@ import {
   monthView,
   setDeleted,
 } from "./ledger.server"
+import { AnswerError, answer } from "./agent.server"
+import { getDb } from "./services"
 import { authMiddleware } from "./session"
 
 export type { LedgerTxn, MonthView } from "./ledger.server"
+export type { OpenQuestion } from "./agent.server"
 
 const MONTH = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -45,3 +48,18 @@ export const updateTransaction = createServerFn({ method: "POST" })
     })
   )
   .handler(({ data }) => editTransaction(data))
+
+/** The owner's answer to one of the agent's questions. */
+export const answerQuestion = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid(), answer: z.string().min(1).max(64) }))
+  .handler(async ({ data }) => {
+    try {
+      await answer(getDb(), data.id, data.answer)
+      return { ok: true as const }
+    } catch (error) {
+      if (error instanceof AnswerError)
+        return { ok: false as const, message: error.message }
+      throw error
+    }
+  })
