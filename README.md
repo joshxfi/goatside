@@ -88,6 +88,8 @@ pnpm db:studio    # browse the local DB
 TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter @workspace/db demo
                   # 3 months of sample data into a separate local DB (local URLs only)
 pnpm --filter @workspace/ai eval   # live accuracy evals (needs AI_GATEWAY_API_KEY)
+TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter app eval:ask
+                  # chat agent scenarios against a local demo DB (writes to it)
 ```
 
 Add shadcn components from an app directory. They're installed into `packages/ui`:

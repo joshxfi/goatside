@@ -20,13 +20,14 @@ import { DEFAULT_TIME_ZONE, todayIn } from "@workspace/core/dates"
 import { formatPeso } from "@workspace/core/money"
 import { type Db, schema } from "@workspace/db"
 import { ACCOUNT_KIND_LABELS } from "@workspace/core/accounts"
-import { accountBook, peopleWithBalances } from "./agent.server"
+import { accountBook } from "./agent.server"
 import { accountBalances } from "./accounts.server"
 import {
   actionApprovals,
   actionTools,
   approvalSecret,
 } from "./ask-actions.server"
+import { peopleTools } from "./ask-people.server"
 import { serverEnv } from "./env"
 import { getDb } from "./services"
 
@@ -71,6 +72,7 @@ async function ledgerRows(
 ) {
   return db
     .select({
+      id: transactions.id,
       amount: transactions.amount,
       localDate: transactions.localDate,
       description: transactions.description,
@@ -142,57 +144,6 @@ function ledgerTools(db: Db) {
               }),
             }
           })
-      },
-    }),
-    balances: tool({
-      description:
-        "Who owes the owner money and whom the owner owes (IOUs, loans, shared bills), with each person's recent IOU entries. Use it for 'who owes me', 'how much does X owe me', 'do I owe anyone'.",
-      inputSchema: z.object({
-        person: z.string().optional().describe("Only this person, by name"),
-      }),
-      execute: async ({ person }) => {
-        const all = await peopleWithBalances(db)
-        const wanted = person
-          ? all.filter(
-              (p) => p.name.toLowerCase() === person.trim().toLowerCase()
-            )
-          : all.filter((p) => p.owed !== 0)
-        return Promise.all(
-          wanted.map(async (p) => {
-            const recent = await db
-              .select({
-                date: transactions.localDate,
-                description: transactions.description,
-                kind: transactions.kind,
-                amount: transactions.amount,
-              })
-              .from(transactions)
-              .where(
-                and(
-                  isNull(transactions.deletedAt),
-                  eq(transactions.personId, p.id),
-                  inArray(transactions.kind, ["lend", "settle"])
-                )
-              )
-              .orderBy(desc(transactions.localDate))
-              .limit(5)
-            return {
-              name: p.name,
-              status:
-                p.owed > 0
-                  ? `owes the owner ${formatPeso(p.owed)}`
-                  : p.owed < 0
-                    ? `the owner owes them ${formatPeso(-p.owed)}`
-                    : "square",
-              recent: recent.map((r) => ({
-                date: r.date,
-                description: r.description,
-                type: r.kind === "lend" ? "loan or shared bill" : "repayment",
-                cashFlow: money(r.amount),
-              })),
-            }
-          })
-        )
       },
     }),
     summarize: tool({
@@ -303,6 +254,7 @@ function ledgerTools(db: Db) {
           matches: rows.length,
           total: money(rows.reduce((sum, r) => sum + r.amount, 0)),
           transactions: sorted.slice(0, limit).map((r) => ({
+            id: r.id,
             date: r.localDate,
             description: r.description,
             amount: money(r.amount),
@@ -328,16 +280,11 @@ function explain(error: unknown) {
   return "Couldn’t get an answer. Try again."
 }
 
-/** Streams an answer to the conversation in `body`. */
-export async function answerAsk(body: unknown) {
-  const db = getDb()
-  const messages = (body as { messages?: unknown })?.messages
-  const tools = { ...ledgerTools(db), ...actionTools(db) }
-  const validated = await validateUIMessages<UIMessage>({
-    messages: Array.isArray(messages) ? messages.slice(-MAX_MESSAGES) : [],
-    tools,
-  })
-
+/**
+ * Everything the agent runs with: instructions built from the ledger, the
+ * tools, and the approval gate. Shared by the route and the eval.
+ */
+export async function askAgent(db: Db) {
   const [timeZone, active, book] = await Promise.all([
     db.query.settings
       .findFirst({ where: eq(settings.id, 1), columns: { timeZone: true } })
@@ -349,9 +296,7 @@ export async function answerAsk(body: unknown) {
       .orderBy(categories.kind, categories.sort),
     accountBook(db),
   ])
-
-  const result = streamText({
-    model: serverEnv().CHAT_MODEL,
+  return {
     system: askInstructions({
       today: todayIn(timeZone),
       timeZone,
@@ -362,9 +307,43 @@ export async function answerAsk(body: unknown) {
         isDefault: a.id === book.defaultAccountId,
       })),
     }),
-    messages: await convertToModelMessages(validated),
-    tools,
+    tools: askTools(db),
     toolApproval: actionApprovals(db),
+  }
+}
+
+export const askTools = (db: Db) => ({
+  ...ledgerTools(db),
+  ...peopleTools(db),
+  ...actionTools(db),
+})
+
+/**
+ * The latest messages, starting at one of the owner's: a cut that starts
+ * mid-answer leaves the model a tool call with no question before it.
+ */
+function recent(messages: unknown[]) {
+  const tail = messages.slice(-MAX_MESSAGES)
+  const start = tail.findIndex(
+    (m) => (m as { role?: unknown } | null)?.role === "user"
+  )
+  return start === -1 ? tail : tail.slice(start)
+}
+
+/** Streams an answer to the conversation in `body`. */
+export async function answerAsk(body: unknown) {
+  const db = getDb()
+  const messages = (body as { messages?: unknown })?.messages
+  const agent = await askAgent(db)
+  const validated = await validateUIMessages<UIMessage>({
+    messages: Array.isArray(messages) ? recent(messages) : [],
+    tools: agent.tools,
+  })
+
+  const result = streamText({
+    model: serverEnv().CHAT_MODEL,
+    ...agent,
+    messages: await convertToModelMessages(validated),
     experimental_toolApprovalSecret: approvalSecret(),
     stopWhen: isStepCount(6),
     reasoning: "none",

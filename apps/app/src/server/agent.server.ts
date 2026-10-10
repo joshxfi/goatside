@@ -573,6 +573,8 @@ export interface SavedLine {
   /** Account names: where it was filed, or both sides of a transfer. */
   account: string | null
   transfer: { from: string; to: string } | null
+  /** What the owner is asked about it, if anything (question kinds). */
+  questions: QuestionDraft["kind"][]
 }
 
 /** Decides and saves every line of an entry, with any questions. */
@@ -661,6 +663,7 @@ export async function saveLines(
       people: resolved.people.flatMap((p) => candidates[p]?.name ?? []),
       account: from,
       transfer: account.transfer && from && to ? { from, to } : null,
+      questions: resolved.questions.map((q) => q.kind),
     })
   }
   return { saved, transactionIds, asked }

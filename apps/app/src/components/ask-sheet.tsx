@@ -17,6 +17,7 @@ export type AskChat = UseChatHelpers<UIMessage>
 
 const SUGGESTIONS = [
   "How much did I spend this month?",
+  "Who owes me, and for what?",
   "Food this month vs last month?",
   "Move all grab rides this month to Transport",
   "I spent 350 on lunch yesterday",
@@ -26,6 +27,8 @@ const TOOL_LABELS: Record<string, string> = {
   "tool-summarize": "Added up your ledger",
   "tool-findTransactions": "Looked through your entries",
   "tool-balances": "Checked who owes what",
+  "tool-iouActivity": "Looked through your IOUs",
+  "tool-accounts": "Checked your accounts",
 }
 
 /** Ask mode: questions about your money, answered from your own ledger. */

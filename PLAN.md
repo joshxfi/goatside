@@ -280,20 +280,28 @@ Ranges are across runs (borderline cases like "gas shell" at 0.51 move a little)
 | Tool | What it does |
 |---|---|
 | `summarize(from, to, groupBy, direction, category?, account?)` | Totals for a range, grouped by category, day or month |
-| `findTransactions(from, to, direction, category?, text?, account?, sort, limit)` | Matching entries, newest or largest first, with their count and sum |
-| `balances(person?)` | Who owes the owner and whom they owe, with recent IOU entries |
+| `findTransactions(from, to, direction, category?, text?, account?, sort, limit)` | Matching entries (with ids), newest or largest first, with their count and sum |
+| `balances(person?)` | Where the owner stands with everyone, or one person's standing and last 10 IOUs. Names match nicknames and "kay Mara"/"Mara's"; an unknown name returns the list of people |
+| `iouActivity(from, to, person?)` | IOUs in a range with totals: lent, borrowed, paid back to the owner, paid back by the owner |
 | `accounts()` | Each account's balance (a card: owed and available), and which is the default |
-| `moveToCategory(filter, newCategory)` | **Write, approval.** Re-files matching entries; records corrections |
-| `deleteEntries(filter)` | **Write, approval.** Soft-deletes matching entries (≤ 50) |
-| `logEntries(text)` | **Write, approval.** Logs composer-syntax text through the full pipeline |
-| `settleUp(person, amount?)` | **Write, approval.** Records a full or partial repayment |
+| `moveToCategory(filter, newCategory)` | **Write, approval.** Re-files matching spending or income; records corrections |
+| `deleteEntries(filter)` | **Write, approval.** Soft-deletes matching entries of any kind (≤ 50), plus the other rows of a split bill |
+| `logEntries(text)` | **Write, approval.** Logs composer-syntax text through the full pipeline; the result says how each line was filed and what the owner will be asked |
+| `recordIou(person, type, amount, description?, date?, account?)` | **Write, approval.** A new IOU, `lent` or `borrowed`, saved as given; new names join People |
+| `settleUp(person, paidBy, amount?, date?, account?)` | **Write, approval.** A full or partial repayment on an existing balance. Refused when the direction doesn't fit the balance or the amount is more than owed |
 | `addAccount(name, kind, balance?, creditLimit?, last4?, aliases?)` | **Write, approval.** Sets up an account; for a card, `balance` is what's owed |
 | `setAccountBalance(account, balance)` | **Write, approval.** Corrects what an account holds now, keeping its entries |
 | `moveToAccount(filter, account)` | **Write, approval.** Files matching entries under an account |
 
+Filters for the write tools take a date range, text, category, exact amount, direction, `person` (IOU entries with them) and `ids` (exact entries from `findTransactions`, for when a text filter would catch too much: "grab rides" but not "grabfood").
+
+IOUs go through structured tools rather than composer text. The chat model has already understood "Ben paid for my lunch"; written as "+350 lunch paid by ben", the decision model had to read it again and filed it as Ben paying the owner back. `recordIou` and `settleUp` plan the change once, and the card and the write both use that plan.
+
 Write tools use AI SDK `toolApproval`. The approval function runs on the server: it finds exactly what would change and writes the confirmation text itself ("Move 3 entries to 🎟️ Going out: grabfood dinner (10-05, ₱510); …"), so the card shows real entries rather than the model's description. Nothing matching, or too much, is an automatic denial with a reason the model can act on. Approvals are HMAC-signed (`experimental_toolApprovalSecret`, derived from `SESSION_SECRET`), so a modified client can't forge one. Results carry undo data (restore, delete, or put categories back), and the chat auto-continues after a decision (`lastAssistantMessageIsCompleteWithApprovalResponses`).
 
-The read tools are fixed queries; the model never writes SQL or changes data. The system prompt (`packages/ai/src/ask.ts`) gives today's date and timezone and the category names, and requires every figure to come from a tool. The route needs a session and passes the CSRF check; it keeps the last 12 messages and streams with `reasoning: "none"`. Inline charts in answers come later.
+The read tools are fixed queries; the model never writes SQL or changes data. The system prompt (`packages/ai/src/ask.ts`) gives today's date and timezone and the category names, and requires every figure to come from a tool. The route needs a session and passes the CSRF check; it keeps the last 12 messages, starting at one of the owner's, and streams with `reasoning: "none"`.
+
+`pnpm --filter app eval:ask` runs 29 scenarios through the real agent, tools and approval gate against a local demo database, approving every card. Each is checked against the tool calls it should make, the writes it must not make, or the ledger afterwards. It covers IOUs (new loans, someone paying for the owner, splits, partial and full repayments, a repayment in the wrong direction, overpaying, paying for someone else's share, Taglish), spending questions, accounts, logging, re-filing and an off-topic request. It refuses a non-local `TURSO_DATABASE_URL`. Last run: 29/29. Inline charts in answers come later.
 
 ### 5.4 Embeddings (deferred)
 
