@@ -48,7 +48,7 @@ export function CategoryList({
               </div>
               <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full rounded-full bg-silver"
+                  className="h-full rounded-full bg-expense/60"
                   style={{ width: `${Math.max(share * 100, 1)}%` }}
                 />
               </div>

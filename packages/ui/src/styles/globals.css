@@ -17,6 +17,11 @@
 
   --color-gold: var(--gold);
   --color-gold-foreground: var(--gold-foreground);
+  /* Money colors: green in, red out. Gold and silver are the coin's, not money's. */
+  --color-income: var(--income);
+  --color-income-foreground: var(--income-foreground);
+  --color-expense: var(--expense);
+  --color-expense-foreground: var(--expense-foreground);
   --color-silver: var(--silver);
   --color-silver-foreground: var(--silver-foreground);
   --color-bronze: var(--bronze);
@@ -95,6 +100,10 @@
   --silver: oklch(0.76 0.008 250);
   --silver-foreground: oklch(0.42 0.01 250);
   --bronze: oklch(0.6 0.1 55);
+  --income: oklch(0.64 0.15 152);
+  --income-foreground: oklch(0.5 0.13 152);
+  --expense: oklch(0.63 0.19 27);
+  --expense-foreground: oklch(0.54 0.19 27);
 
   --chart-1: oklch(0.76 0.13 82);
   --chart-2: oklch(0.62 0.01 250);
@@ -137,6 +146,10 @@
   --silver: oklch(0.78 0.008 250);
   --silver-foreground: oklch(0.8 0.008 250);
   --bronze: oklch(0.68 0.1 55);
+  --income: oklch(0.7 0.15 152);
+  --income-foreground: oklch(0.78 0.15 152);
+  --expense: oklch(0.66 0.18 27);
+  --expense-foreground: oklch(0.74 0.16 25);
 
   --chart-1: oklch(0.8 0.13 82);
   --chart-2: oklch(0.72 0.008 250);

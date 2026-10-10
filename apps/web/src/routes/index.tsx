@@ -10,29 +10,24 @@ const REPO_URL = "https://github.com/joshxfi/goatside"
 
 const EXAMPLES = [
   {
-    input: "-500 lunch at berto's",
-    side: "silver",
-    amount: "−₱500",
-    tags: ["Food", "Berto's", "Today"],
+    input: "180 iced coffee",
+    direction: "out",
+    amount: "−₱180",
+    tags: ["Food", "Today"],
   },
   {
-    input: "+250 paid by x",
-    side: "gold",
-    amount: "+₱250",
-    tags: ["Settles X's IOU"],
+    input: "+18000 client payment",
+    direction: "in",
+    amount: "+₱18,000",
+    tags: ["Freelance"],
   },
   {
-    input: "-1200 dinner w/ x and y split 3",
-    side: "silver",
-    amount: "−₱400",
-    tags: ["Food", "X owes ₱400", "Y owes ₱400"],
+    input: "-2400 dinner with sam and jo split 3",
+    direction: "out",
+    amount: "−₱800",
+    tags: ["Food", "Sam owes ₱800", "Jo owes ₱800"],
   },
 ] as const
-
-const SIDES: Record<Metal, { label: string; line: string }> = {
-  gold: { label: "Gold side", line: "Money you keep." },
-  silver: { label: "Silver side", line: "Money you spend." },
-}
 
 function Landing() {
   const [side, setSide] = useState<Metal>("gold")
@@ -52,7 +47,7 @@ function Landing() {
       <main className="flex flex-1 flex-col gap-24 pt-10 pb-24 md:pt-20">
         <section className="grid items-center gap-12 md:grid-cols-[1.2fr_1fr]">
           <div className="flex flex-col gap-6">
-            <h1 className="font-display text-5xl leading-[1.05] tracking-tight text-balance md:text-7xl">
+            <h1 className="text-5xl leading-[1.05] font-semibold tracking-tight text-balance md:text-7xl">
               Which side of the coin are you on?
             </h1>
             <p className="max-w-md text-lg text-pretty text-muted-foreground">
@@ -87,7 +82,7 @@ function Landing() {
               type="button"
               onClick={() => setSide((s) => (s === "gold" ? "silver" : "gold"))}
               className="rounded-full transition-transform duration-150 ease-out outline-none focus-visible:ring-4 focus-visible:ring-ring/40 active:scale-[0.97]"
-              aria-label={`Flip the coin. Showing the ${SIDES[side].label.toLowerCase()}.`}
+              aria-label="Flip the coin"
             >
               <CoinFlip
                 side={side}
@@ -95,25 +90,12 @@ function Landing() {
                 className="size-48 drop-shadow-[0_18px_24px_rgb(0_0_0/0.18)] md:size-60"
               />
             </button>
-            <p className="text-center" aria-live="polite">
-              <span
-                className={cn(
-                  "font-medium",
-                  side === "gold"
-                    ? "text-gold-foreground"
-                    : "text-silver-foreground"
-                )}
-              >
-                {SIDES[side].label}.
-              </span>{" "}
-              <span className="text-muted-foreground">{SIDES[side].line}</span>
-            </p>
           </div>
         </section>
 
         <section id="how" className="flex scroll-mt-8 flex-col gap-8">
           <div className="flex flex-col gap-2">
-            <h2 className="font-display text-4xl tracking-tight">
+            <h2 className="text-4xl font-semibold tracking-tight">
               One line in. A whole ledger out.
             </h2>
             <p className="max-w-lg text-muted-foreground">
@@ -143,10 +125,10 @@ function Landing() {
                   </div>
                   <span
                     className={cn(
-                      "figure shrink-0 font-display text-2xl leading-none whitespace-nowrap",
-                      ex.side === "gold"
-                        ? "text-gold-foreground"
-                        : "text-foreground"
+                      "figure shrink-0 text-2xl leading-none font-semibold whitespace-nowrap",
+                      ex.direction === "in"
+                        ? "text-income-foreground"
+                        : "text-expense-foreground"
                     )}
                   >
                     {ex.amount}
@@ -159,7 +141,7 @@ function Landing() {
 
         <section className="grid gap-10 md:grid-cols-2">
           <div className="flex flex-col gap-3">
-            <h2 className="font-display text-4xl tracking-tight">
+            <h2 className="text-4xl font-semibold tracking-tight">
               Your GOAT days, on record.
             </h2>
             <p className="text-muted-foreground">
@@ -169,7 +151,7 @@ function Landing() {
             </p>
           </div>
           <div className="flex flex-col gap-3">
-            <h2 className="font-display text-4xl tracking-tight">
+            <h2 className="text-4xl font-semibold tracking-tight">
               Built for one person: you.
             </h2>
             <p className="text-muted-foreground">

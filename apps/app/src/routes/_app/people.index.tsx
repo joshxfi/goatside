@@ -35,7 +35,7 @@ function People() {
         <dl className="grid grid-cols-2 gap-2 lg:gap-4">
           <div className="rounded-2xl border bg-card px-4 py-3">
             <dt className="text-xs text-muted-foreground">Owed to you</dt>
-            <dd className="figure text-2xl font-semibold tracking-tight text-gold-foreground">
+            <dd className="figure text-2xl font-semibold tracking-tight text-income-foreground">
               {formatPeso(owedToYou)}
             </dd>
           </div>
@@ -78,7 +78,7 @@ function People() {
                     <span
                       className={cn(
                         "figure text-xl font-semibold tracking-tight",
-                        p.owed > 0 && "text-gold-foreground",
+                        p.owed > 0 && "text-income-foreground",
                         p.owed === 0 && "text-muted-foreground"
                       )}
                     >
@@ -103,15 +103,8 @@ function People() {
             <CoinMark className="size-10 text-muted-foreground" />
             <p className="text-2xl font-semibold tracking-tight">No one yet.</p>
             <p className="text-sm text-muted-foreground">
-              Log something like{" "}
-              <code className="rounded bg-muted px-1.5 py-0.5">
-                -500 lent mara
-              </code>{" "}
-              or{" "}
-              <code className="rounded bg-muted px-1.5 py-0.5">
-                +250 paid by ben
-              </code>{" "}
-              and they’ll show up here.
+              When you lend, borrow or split a bill with someone, they’ll show
+              up here with what you owe each other.
             </p>
           </section>
         )}

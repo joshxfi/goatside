@@ -76,13 +76,16 @@ export function KpiRow({ view }: { view: MonthView }) {
       <Kpi
         label="Spent"
         value={formatPeso(totals.out)}
+        tone="expense"
         note={
           previous.hasData ? (
             <>
               <span
                 className={cn(
                   "font-medium",
-                  diff <= 0 ? "text-gold-foreground" : "text-foreground"
+                  diff <= 0
+                    ? "text-income-foreground"
+                    : "text-expense-foreground"
                 )}
               >
                 {formatPeso(Math.abs(diff))} {diff <= 0 ? "less" : "more"}
@@ -99,13 +102,13 @@ export function KpiRow({ view }: { view: MonthView }) {
       <Kpi
         label="Money in"
         value={formatPeso(totals.in)}
-        tone="gold"
+        tone="income"
         note={`${monthName(view.month)} so far`}
       />
       <Kpi
         label="Net"
         value={formatPeso(totals.net, { sign: true })}
-        tone={totals.net >= 0 ? "gold" : undefined}
+        tone={totals.net >= 0 ? "income" : "expense"}
         note={
           totals.net >= 0
             ? "You kept more than you spent"
@@ -137,7 +140,7 @@ function Kpi({
   label: string
   value: string
   note: React.ReactNode
-  tone?: "gold"
+  tone?: "income" | "expense"
   large?: boolean
 }) {
   return (
@@ -147,7 +150,8 @@ function Kpi({
         className={cn(
           "figure truncate leading-tight font-semibold tracking-tight",
           large ? "text-5xl" : "text-4xl",
-          tone === "gold" && "text-gold-foreground"
+          tone === "income" && "text-income-foreground",
+          tone === "expense" && "text-expense-foreground"
         )}
       >
         {value}
@@ -190,14 +194,12 @@ export function Overview({ view }: { view: MonthView }) {
             items={[
               {
                 label: monthName(view.month),
-                swatch: (
-                  <span className="h-0.5 w-4 rounded-full bg-foreground" />
-                ),
+                swatch: <span className="h-0.5 w-4 rounded-full bg-expense" />,
               },
               {
                 label: monthName(view.previous.month),
                 swatch: (
-                  <span className="w-4 border-t-2 border-dashed border-silver" />
+                  <span className="w-4 border-t-2 border-dashed border-muted-foreground/60" />
                 ),
               },
             ]}
@@ -224,7 +226,7 @@ export function Overview({ view }: { view: MonthView }) {
 
       <Card
         title="Day by day"
-        description="Today in ink"
+        description="Spending per day, today in full color"
         className="xl:col-span-2"
       >
         <DailyChart view={view} />

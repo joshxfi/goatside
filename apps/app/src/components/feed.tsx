@@ -97,7 +97,8 @@ function TransactionRow({
       <span
         className={cn(
           "figure shrink-0 text-xl font-semibold tracking-tight",
-          income && "text-gold-foreground",
+          income && "text-income-foreground",
+          txn.amount < 0 && !iou && "text-expense-foreground",
           // IOUs aren't spending or income, so they stay quiet.
           iou && "text-muted-foreground"
         )}
@@ -118,11 +119,7 @@ function EmptyFeed({ isCurrent }: { isCurrent: boolean }) {
             Nothing logged yet.
           </p>
           <p className="text-sm text-muted-foreground">
-            Type something like{" "}
-            <code className="rounded bg-muted px-1.5 py-0.5">
-              -500 lunch at berto's
-            </code>{" "}
-            below.
+            Type what you spent or received below, in your own words.
           </p>
         </>
       ) : (

@@ -31,8 +31,8 @@ export function DailyBars({
               <div
                 className={cn(
                   "w-full rounded-[3px]",
-                  future ? "bg-muted" : d.out ? "bg-silver" : "bg-border",
-                  d.date === today && "bg-foreground"
+                  future ? "bg-muted" : d.out ? "bg-expense/70" : "bg-border",
+                  d.date === today && "bg-expense"
                 )}
                 style={{
                   height: d.out

@@ -110,7 +110,13 @@ function QuestionCard({
           <AnswerButton
             key={option.value}
             guess={option.value === question.guess}
-            gold={question.kind === "direction" && option.value === "in"}
+            tone={
+              question.kind === "direction"
+                ? option.value === "in"
+                  ? "income"
+                  : "expense"
+                : undefined
+            }
             onClick={() => onAnswer(option.value)}
           >
             {question.kind === "direction" ? (
@@ -133,13 +139,13 @@ function QuestionCard({
 
 function AnswerButton({
   guess,
-  gold,
+  tone,
   className,
   ...props
 }: React.ComponentProps<"button"> & {
   /** The value currently saved on the entry. */
   guess?: boolean
-  gold?: boolean
+  tone?: "income" | "expense"
 }) {
   return (
     <button
@@ -148,7 +154,8 @@ function AnswerButton({
       className={cn(
         "flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] [@media(hover:hover)]:hover:bg-muted",
         guess && "border-foreground/40 bg-muted",
-        gold && "text-gold-foreground",
+        tone === "income" && "text-income-foreground",
+        tone === "expense" && "text-expense-foreground",
         className
       )}
       {...props}

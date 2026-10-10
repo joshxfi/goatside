@@ -1,8 +1,8 @@
 # Goatside
 
 Goatside is an open-source, personal, agentic finance tracker that you self-host.
-Type `-500 lunch at berto's` or `+250 paid by x` and it becomes a categorized
-transaction. On your phone it's a quick logger and a chat with the agent; on a
+Type what you spent or received in plain words, like `180 iced coffee`, and it
+becomes a categorized transaction. On your phone it's a quick logger and a chat with the agent; on a
 wide screen it's a dashboard for reviewing your money, with charts and a full
 transactions table.
 
@@ -33,7 +33,7 @@ account, whose username and password you set in its environment.
 - **Asking you.** When Jev isn't sure, the entry is saved with its best guess and a
   quick question appears above the composer ("₱500 for 'lunch': money out or in?").
   One tap confirms or fixes it, and the answer teaches the next guess.
-- **People and IOUs.** "lent mara 500", "paid by x", "dinner w/ mara and ben, i paid"
+- **People and IOUs.** "lent sam 1000", "jo paid me back", "dinner with sam and jo, I paid"
   become loans, repayments and split bills. The home screen shows who owes whom, with
   one-tap settle.
 - **Catching mistakes.** The same payment logged twice gets a "keep both?" check, and

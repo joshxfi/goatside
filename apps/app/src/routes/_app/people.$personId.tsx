@@ -129,7 +129,7 @@ function Balance({ person }: { person: PersonDetail }) {
           <p
             className={cn(
               "figure text-5xl leading-none font-semibold tracking-tight",
-              owesYou && "text-gold-foreground"
+              owesYou && "text-income-foreground"
             )}
           >
             {formatPeso(Math.abs(person.owed))}

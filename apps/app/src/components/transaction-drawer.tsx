@@ -127,7 +127,8 @@ function EditForm({
         <DrawerTitle
           className={cn(
             "figure text-4xl font-semibold tracking-tight",
-            income && "text-gold-foreground"
+            income && "text-income-foreground",
+            txn.amount < 0 && !iou && "text-expense-foreground"
           )}
         >
           {formatPeso(txn.amount, { sign: txn.amount > 0 })}

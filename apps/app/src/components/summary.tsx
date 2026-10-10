@@ -13,7 +13,7 @@ export function Summary({ view }: { view: MonthView }) {
     <section aria-label="Month summary" className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">Spent</span>
-        <span className="figure text-5xl leading-none font-semibold tracking-tight">
+        <span className="figure text-5xl leading-none font-semibold tracking-tight text-expense-foreground">
           {formatPeso(totals.out)}
         </span>
         {showPace && (
@@ -21,7 +21,7 @@ export function Summary({ view }: { view: MonthView }) {
             <span
               className={cn(
                 "font-medium",
-                diff <= 0 ? "text-gold-foreground" : "text-foreground"
+                diff <= 0 ? "text-income-foreground" : "text-expense-foreground"
               )}
             >
               {formatPeso(Math.abs(diff))} {diff <= 0 ? "less" : "more"}
@@ -31,11 +31,11 @@ export function Summary({ view }: { view: MonthView }) {
         )}
       </div>
       <dl className="grid grid-cols-2 gap-2">
-        <Stat label="In" value={formatPeso(totals.in)} tone="gold" />
+        <Stat label="In" value={formatPeso(totals.in)} tone="income" />
         <Stat
           label="Net"
           value={formatPeso(totals.net, { sign: true })}
-          tone={totals.net >= 0 ? "gold" : "plain"}
+          tone={totals.net >= 0 ? "income" : "expense"}
         />
       </dl>
     </section>
@@ -49,7 +49,7 @@ function Stat({
 }: {
   label: string
   value: string
-  tone: "gold" | "plain"
+  tone: "income" | "expense"
 }) {
   return (
     <div className="rounded-2xl border bg-card px-4 py-3">
@@ -57,7 +57,9 @@ function Stat({
       <dd
         className={cn(
           "figure text-2xl leading-tight font-semibold tracking-tight",
-          tone === "gold" && "text-gold-foreground"
+          tone === "income"
+            ? "text-income-foreground"
+            : "text-expense-foreground"
         )}
       >
         {value}

@@ -42,7 +42,7 @@ export function monthName(month: string): string {
   return monthOnly.format(utc(`${month}-01`))
 }
 
-/** "lunch at berto's" → "Lunch at berto's". Display only; stored text is untouched. */
+/** "iced coffee" → "Iced coffee". Display only; stored text is untouched. */
 export function capitalize(text: string): string {
   return text.charAt(0).toLocaleUpperCase() + text.slice(1)
 }

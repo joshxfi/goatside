@@ -75,7 +75,7 @@ export function PeopleList({ people }: { people: MonthView["people"] }) {
               <span
                 className={cn(
                   "figure text-xl font-semibold tracking-tight",
-                  owesYou && "text-gold-foreground"
+                  owesYou && "text-income-foreground"
                 )}
               >
                 {formatPeso(Math.abs(person.owed))}

@@ -61,14 +61,14 @@ export function PaceChart({ view }: { view: MonthView }) {
         lineY(lastMonth, {
           x: "day",
           y: "total",
-          stroke: "var(--silver)",
+          stroke: "var(--muted-foreground)",
           strokeWidth: 2,
           strokeDasharray: "4 4",
         }),
         lineY(thisMonth, {
           x: "day",
           y: "total",
-          stroke: "var(--foreground)",
+          stroke: "var(--expense)",
           strokeWidth: 2.5,
         }),
         crosshair({ x: true, y: false }),
@@ -109,7 +109,7 @@ export function PaceChart({ view }: { view: MonthView }) {
   )
 }
 
-/** Spending per day, with today drawn in ink and the rest in silver. */
+/** Spending per day in red, today at full strength. */
 export function DailyChart({ view }: { view: MonthView }) {
   const definition = useMemo(() => {
     const rows = view.daily.map((d, i) => ({
@@ -123,7 +123,9 @@ export function DailyChart({ view }: { view: MonthView }) {
           x: "day",
           y: "out",
           fill: (d) =>
-            d.date === view.today ? "var(--foreground)" : "var(--silver)",
+            d.date === view.today
+              ? "var(--expense)"
+              : "color-mix(in oklch, var(--expense) 55%, transparent)",
           radius: { end: 3 },
           inset: 1,
         }),

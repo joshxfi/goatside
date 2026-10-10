@@ -140,6 +140,19 @@ export function Composer({
     inputRef.current?.focus()
   }
 
+  // Quick picks while empty; what the parser read once there's text.
+  const hint =
+    parsed.kind === "empty" ? (
+      view.picks.length > 0 ? (
+        <Picks
+          picks={view.picks}
+          onPick={(pick) => log.mutate({ text: pick.text, repeat: true })}
+        />
+      ) : null
+    ) : (
+      <Preview parsed={parsed} today={view.today} />
+    )
+
   return (
     // Phones: pinned to the thumb zone. Desktop: a one-line bar in the header,
     // with the preview and quick picks in a dropdown while it's focused.
@@ -152,16 +165,11 @@ export function Composer({
         }}
       >
         <div className="flex flex-col gap-2 lg:hidden">{children}</div>
-        <div className="lg:absolute lg:inset-x-0 lg:top-full lg:mt-2 lg:hidden lg:rounded-xl lg:border lg:bg-popover lg:p-2.5 lg:shadow-md lg:group-focus-within/composer:block">
-          {parsed.kind === "empty" && view.picks.length > 0 ? (
-            <Picks
-              picks={view.picks}
-              onPick={(pick) => log.mutate({ text: pick.text, repeat: true })}
-            />
-          ) : (
-            <Preview parsed={parsed} today={view.today} />
-          )}
-        </div>
+        {hint && (
+          <div className="lg:absolute lg:inset-x-0 lg:top-full lg:mt-2 lg:hidden lg:rounded-xl lg:border lg:bg-popover lg:p-2.5 lg:shadow-md lg:group-focus-within/composer:block">
+            {hint}
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <label htmlFor="composer" className="sr-only">
             Log money in or out, or ask a question
@@ -174,8 +182,8 @@ export function Composer({
               onChange={(e) => setText(e.target.value)}
               placeholder={
                 desktop
-                  ? "Log -500 lunch, or ask anything"
-                  : "-500 lunch at berto's"
+                  ? "Log an expense, or ask anything"
+                  : "Log an expense or ask a question"
               }
               autoComplete="off"
               autoCorrect="off"
@@ -228,8 +236,10 @@ function Picks({
           <span className="max-w-32 truncate">{pick.description}</span>
           <span
             className={cn(
-              "figure text-muted-foreground",
-              pick.amount > 0 && "text-gold-foreground"
+              "figure",
+              pick.amount > 0
+                ? "text-income-foreground"
+                : "text-expense-foreground"
             )}
           >
             {formatPeso(pick.amount, { sign: pick.amount > 0 })}
@@ -242,12 +252,7 @@ function Picks({
 
 /** What the parser understood, shown as you type. Same code the server runs. */
 function Preview({ parsed, today }: { parsed: Preparsed; today: string }) {
-  let content: React.ReactNode = (
-    <span className="text-muted-foreground">
-      Start with <b className="font-medium text-foreground">−</b> for money out
-      or <b className="font-medium text-foreground">+</b> for money in.
-    </span>
-  )
+  let content: React.ReactNode = null
 
   if (parsed.kind === "log") {
     content = parsed.lines.map((line, i) => (
@@ -255,9 +260,11 @@ function Preview({ parsed, today }: { parsed: Preparsed; today: string }) {
         <span
           className={cn(
             "figure font-medium",
-            line.direction === "in" && !line.signInferred
-              ? "text-gold-foreground"
-              : "text-foreground"
+            line.signInferred
+              ? "text-foreground"
+              : line.direction === "in"
+                ? "text-income-foreground"
+                : "text-expense-foreground"
           )}
         >
           {line.signInferred
