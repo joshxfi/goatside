@@ -2,31 +2,10 @@ import { useId } from "react"
 import { cn } from "cn"
 
 /*
- * The Goatside mark: a coin whose "g" is a goat's head. The horn is the
- * bowl of the "g" (a spiral), the neck is its descender. Drawn as a single
- * stroke on a 64×64 grid so it scales from favicon to hero.
+ * The Goatside mark: a coin struck with a lowercase "g". Drawn as strokes
+ * on a 64×64 grid (a round bowl and a stem with a hooked tail) so it scales
+ * from favicon to hero and renders the same without any font.
  */
-
-function spiralPoints(
-  cx: number,
-  cy: number,
-  r0: number,
-  r1: number,
-  startDeg: number,
-  turns: number,
-  steps = 72
-) {
-  const points: string[] = []
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps
-    const a = ((startDeg + t * turns * 360) * Math.PI) / 180
-    const r = r0 + (r1 - r0) * t
-    points.push(
-      `${(cx + r * Math.cos(a)).toFixed(1)} ${(cy + r * Math.sin(a)).toFixed(1)}`
-    )
-  }
-  return points
-}
 
 function reedingPath(count: number, r0: number, r1: number) {
   let d = ""
@@ -38,13 +17,22 @@ function reedingPath(count: number, r0: number, r1: number) {
   return d
 }
 
-// Neck → jaw → snout → crown of the head → into the horn spiral.
-const GLYPH =
-  "M36 47 L38 39 C39 36 41 34 44 33.5 L49 33 C48.5 30 47.5 27 46 24 C40 12 19 16 17.6 28.6 L" +
-  spiralPoints(27, 32, 10, 1.6, 200, -1.35).join(" L")
-const EYE = { cx: 38.5, cy: 25, r: 2.1 }
+// The bowl, then the stem dropping into the tail. Offset to sit optically
+// centered in the coin (the descender makes the glyph bottom-heavy).
+const G_BOWL = "M38.5 27.5 A8 8 0 1 1 22.5 27.5 A8 8 0 1 1 38.5 27.5"
+const G_STEM =
+  "M38.5 19.5 V37.5 C38.5 44.5 33.5 47.5 28 47.5 C25.5 47.5 23.5 46.8 22 45.5"
 const REEDING = reedingPath(40, 27, 29.4)
-const GLYPH_OFFSET = "translate(-0.6 0.4)"
+const GLYPH_OFFSET = "translate(1.5 -1.5)"
+
+function Glyph({ strokeWidth }: { strokeWidth: number }) {
+  return (
+    <g transform={GLYPH_OFFSET} strokeWidth={strokeWidth}>
+      <path d={G_BOWL} />
+      <path d={G_STEM} />
+    </g>
+  )
+}
 
 type SvgProps = Omit<React.ComponentProps<"svg">, "children"> & {
   /** Accessible name. Omit for decorative use. */
@@ -82,16 +70,7 @@ export function CoinMark({
           <circle cx="32" cy="32" r="25" strokeWidth="1.5" />
         </>
       )}
-      <g transform={GLYPH_OFFSET}>
-        <path d={GLYPH} strokeWidth={rim ? 3 : 4.2} />
-        <circle
-          cx={EYE.cx}
-          cy={EYE.cy}
-          r={EYE.r + (rim ? 0 : 0.6)}
-          fill="currentColor"
-          stroke="none"
-        />
-      </g>
+      <Glyph strokeWidth={rim ? 3.2 : 4.4} />
     </svg>
   )
 }
@@ -115,7 +94,7 @@ const METALS = {
 
 export type Metal = keyof typeof METALS
 
-/** Struck-metal coin. Gold is the save side, silver the spend side. */
+/** Struck-metal coin in gold or silver. */
 export function Coin({
   metal = "gold",
   title,
@@ -161,21 +140,19 @@ export function Coin({
         strokeOpacity=".5"
       />
       <g
-        transform={GLYPH_OFFSET}
         stroke={c.ink}
         fill="none"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d={GLYPH} strokeWidth="3.2" />
-        <circle cx={EYE.cx} cy={EYE.cy} r={EYE.r} fill={c.ink} stroke="none" />
+        <Glyph strokeWidth={3.6} />
       </g>
     </svg>
   )
 }
 
 /**
- * A two-faced coin: gold (save) on the front, silver (spend) on the back.
+ * A two-faced coin: gold on the front, silver on the back.
  * - `spinning`: continuous spin, for loading states.
  * - `side`: which face shows; changing it flips the coin.
  * - `toss`: plays a one-time toss on mount that lands on `side`.

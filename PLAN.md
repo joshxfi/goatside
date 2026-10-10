@@ -122,7 +122,7 @@ One responsive page, split by CSS breakpoints so the server renders the right la
 
 From the founder's sketch: "goat side" means *which side of the coin are you on?*
 
-- **Mark:** a coin whose "g" is a goat's head. The spiral horn is the bowl of the "g", and the neck is its descender. Components live in `packages/ui/src/components/brand.tsx` (`CoinMark`, `Coin`, `CoinFlip`, `Wordmark`).
+- **Mark:** a coin struck with a lowercase "g", drawn as strokes (no font needed) so it works from favicon to hero. Components live in `packages/ui/src/components/brand.tsx` (`CoinMark`, `Coin`, `CoinFlip`, `Wordmark`).
 - **Metals:** gold is the save side (money in), silver is the spend side (money out), bronze is an accent. They're theme tokens (`text-gold-foreground`, `bg-silver`, …) on a warm paper/ink palette, light and dark.
 - **Type:** Instrument Serif for display figures, Geist for UI, tabular numerals (`.figure`) for money.
 - **Motion:** the coin toss and flip are reserved for rare moments (landing, sign-in, loading). The composer is used constantly, so it gets no decorative motion. Reduced motion is respected.
