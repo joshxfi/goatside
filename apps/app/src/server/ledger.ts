@@ -75,5 +75,11 @@ export const answerQuestion = createServerFn({ method: "POST" })
 /** Marks a person as square with the owner (logs the settlement). */
 export const settleUp = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ personId: z.uuid() }))
-  .handler(({ data }) => settleWith(data.personId))
+  .validator(
+    z.object({
+      personId: z.uuid(),
+      /** Centavos; omit to settle the whole balance. */
+      amount: z.number().int().positive().optional(),
+    })
+  )
+  .handler(({ data }) => settleWith(data.personId, data.amount))

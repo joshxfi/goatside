@@ -12,7 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as ApiAskRouteImport } from './routes/api/ask'
+import { Route as AppPeopleIndexRouteImport } from './routes/_app/people.index'
+import { Route as AppPeoplePersonIdRouteImport } from './routes/_app/people.$personId'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -28,35 +31,69 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 const ApiAskRoute = ApiAskRouteImport.update({
   id: '/api/ask',
   path: '/api/ask',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppPeopleIndexRoute = AppPeopleIndexRouteImport.update({
+  id: '/people/',
+  path: '/people/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPeoplePersonIdRoute = AppPeoplePersonIdRouteImport.update({
+  id: '/people/$personId',
+  path: '/people/$personId',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/settings': typeof AppSettingsRoute
   '/api/ask': typeof ApiAskRoute
+  '/people/$personId': typeof AppPeoplePersonIdRoute
+  '/people/': typeof AppPeopleIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/settings': typeof AppSettingsRoute
   '/api/ask': typeof ApiAskRoute
   '/': typeof AppIndexRoute
+  '/people/$personId': typeof AppPeoplePersonIdRoute
+  '/people': typeof AppPeopleIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/settings': typeof AppSettingsRoute
   '/api/ask': typeof ApiAskRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/people/$personId': typeof AppPeoplePersonIdRoute
+  '/_app/people/': typeof AppPeopleIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/api/ask'
+  fullPaths:
+    '/' | '/login' | '/settings' | '/api/ask' | '/people/$personId' | '/people/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/api/ask' | '/'
-  id: '__root__' | '/_app' | '/login' | '/api/ask' | '/_app/'
+  to:
+    '/login' | '/settings' | '/api/ask' | '/' | '/people/$personId' | '/people'
+  id:
+    | '__root__'
+    | '/_app'
+    | '/login'
+    | '/_app/settings'
+    | '/api/ask'
+    | '/_app/'
+    | '/_app/people/$personId'
+    | '/_app/people/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -88,6 +125,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/api/ask': {
       id: '/api/ask'
       path: '/api/ask'
@@ -95,15 +139,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAskRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/people/': {
+      id: '/_app/people/'
+      path: '/people'
+      fullPath: '/people/'
+      preLoaderRoute: typeof AppPeopleIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/people/$personId': {
+      id: '/_app/people/$personId'
+      path: '/people/$personId'
+      fullPath: '/people/$personId'
+      preLoaderRoute: typeof AppPeoplePersonIdRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppPeoplePersonIdRoute: typeof AppPeoplePersonIdRoute
+  AppPeopleIndexRoute: typeof AppPeopleIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppPeoplePersonIdRoute: AppPeoplePersonIdRoute,
+  AppPeopleIndexRoute: AppPeopleIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

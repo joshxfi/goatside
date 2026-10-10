@@ -28,7 +28,7 @@ import { getDb } from "./services"
 const { categories, corrections, entries, people, settings, transactions } =
   schema
 
-async function today(db: Db) {
+export async function today(db: Db) {
   const row = await db.query.settings.findFirst({
     where: eq(settings.id, 1),
     columns: { timeZone: true },
@@ -251,13 +251,18 @@ export async function logText(text: string) {
 }
 
 /** Records that a person and the owner are square. */
-export async function settleWith(personId: string) {
+/**
+ * Records a repayment between the owner and a person: the whole balance,
+ * or `part` centavos of it (capped at the balance).
+ */
+export async function settleWith(personId: string, part?: number) {
   const db = getDb()
   const person = (await peopleWithBalances(db)).find((p) => p.id === personId)
   if (!person) throw new Error("Person not found")
   if (person.owed === 0) return { amount: 0, id: null }
   // They owe you: money comes in. You owe them: money goes out.
-  const amount = person.owed
+  const size = Math.min(Math.abs(person.owed), part ?? Number.POSITIVE_INFINITY)
+  const amount = Math.sign(person.owed) * size
   const [row] = await db
     .insert(transactions)
     .values({
@@ -266,7 +271,8 @@ export async function settleWith(personId: string) {
       personId,
       localDate: await today(db),
       // The row's IOU label already says who paid whom.
-      description: "Settled up",
+      description:
+        size === Math.abs(person.owed) ? "Settled up" : "Partly paid back",
       status: "confirmed",
     })
     .returning({ id: transactions.id })

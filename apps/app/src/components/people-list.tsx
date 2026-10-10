@@ -1,5 +1,6 @@
 import { useId } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import { formatPeso } from "@workspace/core/money"
 import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
@@ -41,6 +42,12 @@ export function PeopleList({ people }: { people: MonthView["people"] }) {
         className="px-1 text-sm font-medium text-muted-foreground"
       >
         People
+        <Link
+          to="/people"
+          className="ml-2 font-normal underline-offset-4 hover:text-foreground hover:underline"
+        >
+          See all
+        </Link>
       </h2>
       <ul className="flex flex-col divide-y rounded-2xl border bg-card">
         {people.map((person) => {
@@ -54,7 +61,13 @@ export function PeopleList({ people }: { people: MonthView["people"] }) {
                 {person.name.slice(0, 1).toUpperCase()}
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate">{person.name}</span>
+                <Link
+                  to="/people/$personId"
+                  params={{ personId: person.id }}
+                  className="truncate underline-offset-4 hover:underline"
+                >
+                  {person.name}
+                </Link>
                 <span className="text-xs text-muted-foreground">
                   {owesYou ? "owes you" : "you owe"}
                 </span>

@@ -1,0 +1,124 @@
+import { useSuspenseQuery } from "@tanstack/react-query"
+import { Link, createFileRoute } from "@tanstack/react-router"
+import { ChevronRightIcon } from "lucide-react"
+import { formatPeso } from "@workspace/core/money"
+import { CoinMark } from "@workspace/ui/components/brand"
+import { cn } from "@workspace/ui/lib/utils"
+import { PageHeader } from "@/components/app-shell"
+import { shortDate } from "@/lib/format"
+import { peopleQuery } from "@/lib/queries"
+
+export const Route = createFileRoute("/_app/people/")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(peopleQuery()),
+  head: () => ({ meta: [{ title: "People · Goatside" }] }),
+  component: People,
+})
+
+function People() {
+  const { viewer } = Route.useRouteContext()
+  const { data: people } = useSuspenseQuery(peopleQuery())
+  const owedToYou = people
+    .filter((p) => p.owed > 0)
+    .reduce((s, p) => s + p.owed, 0)
+  const youOwe = people
+    .filter((p) => p.owed < 0)
+    .reduce((s, p) => s - p.owed, 0)
+
+  return (
+    <div className="mx-auto flex min-h-svh max-w-md flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-[90rem] lg:px-8 lg:pt-6">
+      <PageHeader title="People" viewer={viewer} />
+      <div className="flex flex-col gap-6 lg:mx-auto lg:w-full lg:max-w-3xl">
+        <div className="hidden flex-col gap-1 lg:flex">
+          <h1 className="font-display text-4xl">People</h1>
+          <p className="text-sm text-muted-foreground">
+            Loans, repayments and shared bills, kept apart from your spending.
+          </p>
+        </div>
+
+        <dl className="grid grid-cols-2 gap-2 lg:gap-4">
+          <div className="rounded-2xl border bg-card px-4 py-3">
+            <dt className="text-xs text-muted-foreground">Owed to you</dt>
+            <dd className="figure font-display text-3xl text-gold-foreground">
+              {formatPeso(owedToYou)}
+            </dd>
+          </div>
+          <div className="rounded-2xl border bg-card px-4 py-3">
+            <dt className="text-xs text-muted-foreground">You owe</dt>
+            <dd className="figure font-display text-3xl">
+              {formatPeso(youOwe)}
+            </dd>
+          </div>
+        </dl>
+
+        {people.length ? (
+          <ul className="flex flex-col divide-y rounded-2xl border bg-card">
+            {people.map((p) => (
+              <li key={p.id}>
+                <Link
+                  to="/people/$personId"
+                  params={{ personId: p.id }}
+                  className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/60"
+                >
+                  <span
+                    aria-hidden
+                    className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted font-medium"
+                  >
+                    {p.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate">{p.name}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {p.entries
+                        ? `${p.entries} IOU${p.entries === 1 ? "" : "s"}`
+                        : "No IOUs yet"}
+                      {p.lastActivity
+                        ? ` · last ${shortDate(p.lastActivity)}`
+                        : ""}
+                      {p.aliases.length ? ` · aka ${p.aliases.join(", ")}` : ""}
+                    </span>
+                  </span>
+                  <span className="flex flex-col items-end">
+                    <span
+                      className={cn(
+                        "figure font-display text-xl",
+                        p.owed > 0 && "text-gold-foreground",
+                        p.owed === 0 && "text-muted-foreground"
+                      )}
+                    >
+                      {p.owed === 0 ? "Square" : formatPeso(Math.abs(p.owed))}
+                    </span>
+                    {p.owed !== 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        {p.owed > 0 ? "owes you" : "you owe"}
+                      </span>
+                    )}
+                  </span>
+                  <ChevronRightIcon
+                    aria-hidden
+                    className="size-4 text-muted-foreground"
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <section className="flex flex-col items-center gap-3 rounded-2xl border border-dashed px-6 py-10 text-center">
+            <CoinMark className="size-10 text-muted-foreground" />
+            <p className="font-display text-2xl">No one yet.</p>
+            <p className="text-sm text-muted-foreground">
+              Log something like{" "}
+              <code className="rounded bg-muted px-1.5 py-0.5">
+                -500 lent mara
+              </code>{" "}
+              or{" "}
+              <code className="rounded bg-muted px-1.5 py-0.5">
+                +250 paid by ben
+              </code>{" "}
+              and they’ll show up here.
+            </p>
+          </section>
+        )}
+      </div>
+    </div>
+  )
+}

@@ -1,5 +1,7 @@
 import { queryOptions } from "@tanstack/react-query"
 import { getMonth, getTrend } from "@/server/ledger"
+import { getPeople, getPerson } from "@/server/people"
+import { getCategories } from "@/server/settings"
 
 /** `month` is "YYYY-MM"; omitted means the current month in the owner's timezone. */
 export const monthQuery = (month?: string) =>
@@ -13,4 +15,19 @@ export const trendQuery = (month: string) =>
   queryOptions({
     queryKey: ["trend", month],
     queryFn: () => getTrend({ data: { month } }),
+  })
+
+export const categoriesQuery = () =>
+  queryOptions({
+    queryKey: ["categories"],
+    queryFn: () => getCategories(),
+  })
+
+export const peopleQuery = () =>
+  queryOptions({ queryKey: ["people"], queryFn: () => getPeople() })
+
+export const personQuery = (id: string) =>
+  queryOptions({
+    queryKey: ["people", id],
+    queryFn: () => getPerson({ data: { id } }),
   })

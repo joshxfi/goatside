@@ -37,7 +37,8 @@ import {
   owedBy,
   planRows,
 } from "@workspace/ai/people"
-import { addDays } from "@workspace/core/dates"
+import { suggestRefiles } from "@workspace/ai/refile"
+import { addDays, todayIn } from "@workspace/core/dates"
 import { nameCandidates } from "@workspace/core/people"
 import type { Direction, DraftLine } from "@workspace/core/preparse"
 import { type Db, schema } from "@workspace/db"
@@ -85,7 +86,7 @@ const sameDescription = (description: string) =>
   sql`lower(trim(${transactions.description})) = ${normalize(description)}`
 
 /** Active categories, each with recent descriptions filed under it. */
-async function categoryOptions(db: Db): Promise<CategoryOption[]> {
+export async function categoryOptions(db: Db): Promise<CategoryOption[]> {
   const [active, recent] = await Promise.all([
     db
       .select({
@@ -501,4 +502,84 @@ export async function saveLines(db: Db, entryId: string, lines: DraftLine[]) {
     })
   }
   return { saved, transactionIds, asked }
+}
+
+const REFILE_LOOKBACK_DAYS = 120
+const REFILE_MAX_ENTRIES = 80
+
+/**
+ * Recent entries that now fit `categoryId` better than where they are, per
+ * the decision model. Used right after a category is created.
+ */
+export async function suggestForCategory(db: Db, categoryId: string) {
+  if (!aiEnabled()) return []
+  const target = await db.query.categories.findFirst({
+    where: eq(categories.id, categoryId),
+  })
+  if (!target) return []
+  const prefs = await db.query.settings.findFirst({
+    columns: { timeZone: true },
+  })
+  const since = addDays(
+    todayIn(prefs?.timeZone ?? "Asia/Manila"),
+    -REFILE_LOOKBACK_DAYS
+  )
+
+  const [options, recent] = await Promise.all([
+    categoryOptions(db),
+    db
+      .select({
+        id: transactions.id,
+        description: transactions.description,
+        amount: transactions.amount,
+        localDate: transactions.localDate,
+        categoryName: categories.name,
+        categoryEmoji: categories.emoji,
+      })
+      .from(transactions)
+      .leftJoin(categories, eq(categories.id, transactions.categoryId))
+      .where(
+        and(
+          isNull(transactions.deletedAt),
+          eq(transactions.kind, target.kind),
+          ne(transactions.description, ""),
+          gte(transactions.localDate, since),
+          sql`${transactions.categoryId} is not ${target.id}`
+        )
+      )
+      .orderBy(desc(transactions.localDate))
+      .limit(REFILE_MAX_ENTRIES),
+  ])
+
+  const suggestions = await suggestRefiles(
+    serverEnv().DECISION_MODEL,
+    recent.map((r) => ({
+      id: r.id,
+      description: r.description,
+      amount: Math.abs(r.amount),
+      kind: target.kind,
+    })),
+    options,
+    target.id,
+    { abortSignal: AbortSignal.timeout(20_000) }
+  )
+  const byId = new Map(recent.map((r) => [r.id, r]))
+  const found = suggestions.flatMap((s) => {
+    const row = byId.get(s.id)
+    return row
+      ? [
+          {
+            id: row.id,
+            description: row.description,
+            amount: row.amount,
+            localDate: row.localDate,
+            from: row.categoryName
+              ? `${row.categoryEmoji} ${row.categoryName}`
+              : "Uncategorized",
+            p: s.p,
+          },
+        ]
+      : []
+  })
+  return found.toSorted((a, b) => b.localDate.localeCompare(a.localDate))
 }

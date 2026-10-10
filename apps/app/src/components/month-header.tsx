@@ -1,21 +1,11 @@
-import { Link, useRouter } from "@tanstack/react-router"
-import { ChevronLeftIcon, ChevronRightIcon, LogOutIcon } from "lucide-react"
+import { Link } from "@tanstack/react-router"
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { addMonths } from "@workspace/core/dates"
-import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
-import { CoinMark, Wordmark } from "@workspace/ui/components/brand"
 import { buttonVariants } from "@workspace/ui/components/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu"
 import { cn } from "@workspace/ui/lib/utils"
 import { monthName } from "@/lib/format"
-import { type Viewer, signOut } from "@/server/session"
+import type { Viewer } from "@/server/session"
+import { AccountMenu, AppNav } from "./app-shell"
 
 export function MonthHeader({
   month,
@@ -38,7 +28,7 @@ export function MonthHeader({
   return (
     <header className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-1">
-        <Wordmark className="mr-6 hidden text-xl lg:inline-flex" />
+        <AppNav className="mr-6" />
         <Link
           to="/"
           search={toSearch(prev)}
@@ -77,44 +67,5 @@ export function MonthHeader({
       </div>
       <AccountMenu viewer={viewer} />
     </header>
-  )
-}
-
-function AccountMenu({ viewer }: { viewer: Viewer }) {
-  const router = useRouter()
-  const initial = viewer.username.charAt(0).toUpperCase()
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        className="rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-        aria-label="Account"
-      >
-        <Avatar className="size-9">
-          <AvatarFallback>
-            {initial || <CoinMark rim={false} className="size-4" />}
-          </AvatarFallback>
-        </Avatar>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-56">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel className="flex flex-col">
-            <span className="font-normal">Signed in as</span>
-            <span className="text-foreground">{viewer.username}</span>
-          </DropdownMenuLabel>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={async () => {
-            await signOut()
-            await router.invalidate()
-            await router.navigate({ to: "/login" })
-          }}
-        >
-          <LogOutIcon />
-          Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   )
 }
