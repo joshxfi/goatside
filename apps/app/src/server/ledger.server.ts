@@ -159,6 +159,7 @@ export async function monthView(requested?: string) {
       amount: transactions.amount,
       kind: transactions.kind,
       localDate: transactions.localDate,
+      categoryId: transactions.categoryId,
     })
     .from(transactions)
     .where(
@@ -176,6 +177,15 @@ export async function monthView(requested?: string) {
   const prevOut = prevDaily
     .slice(0, prevCutoff)
     .reduce((sum, out) => sum + out, 0)
+
+  // Per category, last month up to the same day, for "biggest changes".
+  const prevByCategory = new Map<string, number>()
+  for (const r of prevRows) {
+    if (!countsTowardTotals(r.kind) || r.amount >= 0) continue
+    if (Number(r.localDate.slice(8, 10)) > prevCutoff) continue
+    const key = r.categoryId ?? "none"
+    prevByCategory.set(key, (prevByCategory.get(key) ?? 0) - r.amount)
+  }
 
   const activeCategories = await db
     .select({
@@ -208,6 +218,7 @@ export async function monthView(requested?: string) {
     },
     daily,
     byCategory: [...byCategory.values()].toSorted((a, b) => b.out - a.out),
+    changes: categoryChanges(byCategory, prevByCategory, labels),
     transactions: txns,
     categories: activeCategories,
     questions,
@@ -528,3 +539,96 @@ async function quickPicks(
       emoji: (g.categoryId && labels.get(g.categoryId)?.emoji) || null,
     }))
 }
+
+const CHANGES = 4
+
+/**
+ * Categories that moved most against last month (up to the same day), so
+ * the overview can say "Food is ₱1,200 higher than this point in September".
+ */
+function categoryChanges(
+  now: Map<
+    string,
+    { id: string | null; name: string; emoji: string; out: number }
+  >,
+  before: Map<string, number>,
+  labels: Map<string, { name: string; emoji: string }>
+) {
+  const keys = new Set([...now.keys(), ...before.keys()])
+  return [...keys]
+    .map((key) => {
+      const current = now.get(key)
+      const label = current ?? labels.get(key)
+      return {
+        id: key === "none" ? null : key,
+        name: label?.name ?? "Uncategorized",
+        emoji: label?.emoji ?? "·",
+        now: current?.out ?? 0,
+        before: before.get(key) ?? 0,
+      }
+    })
+    .map((c) => ({ ...c, delta: c.now - c.before }))
+    .filter((c) => c.delta !== 0 && c.before > 0)
+    .toSorted((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+    .slice(0, CHANGES)
+}
+
+export const PERIODS = ["month", "last-3-months", "this-year", "all"] as const
+export type Period = (typeof PERIODS)[number]
+
+const MAX_LISTED = 5000
+
+/**
+ * Every transaction in a period, for the Transactions page. `month` picks
+ * the month for the "month" period (defaults to the current one).
+ */
+export async function transactionsView(period: Period, month?: string) {
+  const db = getDb()
+  const todayDate = await today(db)
+  const current = todayDate.slice(0, 7)
+  const range =
+    period === "month"
+      ? monthRange(month ?? current)
+      : period === "last-3-months"
+        ? {
+            start: monthRange(addMonths(current, -2)).start,
+            end: monthRange(current).end,
+          }
+        : period === "this-year"
+          ? {
+              start: `${todayDate.slice(0, 4)}-01-01`,
+              end: `${todayDate.slice(0, 4)}-12-31`,
+            }
+          : { start: "0000-01-01", end: "9999-12-31" }
+
+  const [rows, activeCategories] = await Promise.all([
+    fetchTransactions(
+      db,
+      and(
+        isNull(transactions.deletedAt),
+        between(transactions.localDate, range.start, range.end)
+      )
+    ).limit(MAX_LISTED + 1),
+    db
+      .select({
+        id: categories.id,
+        name: categories.name,
+        emoji: categories.emoji,
+        kind: categories.kind,
+      })
+      .from(categories)
+      .where(eq(categories.archived, false))
+      .orderBy(categories.kind, categories.sort),
+  ])
+  return {
+    period,
+    month: period === "month" ? (month ?? current) : null,
+    today: todayDate,
+    range,
+    transactions: rows.slice(0, MAX_LISTED).map(toLedgerTxn),
+    truncated: rows.length > MAX_LISTED,
+    categories: activeCategories,
+  }
+}
+
+export type TransactionsView = Awaited<ReturnType<typeof transactionsView>>

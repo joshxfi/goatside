@@ -5,7 +5,9 @@ import {
   logText,
   monthView,
   setDeleted,
+  PERIODS,
   settleWith,
+  transactionsView,
   trendView,
 } from "./ledger.server"
 import { restoreCategories } from "./ask-actions.server"
@@ -13,17 +15,29 @@ import { AnswerError, answer } from "./questions.server"
 import { getDb } from "./services"
 import { authMiddleware } from "./session"
 
-export type { LedgerTxn, MonthView, TrendView } from "./ledger.server"
+export type {
+  LedgerTxn,
+  MonthView,
+  Period,
+  TransactionsView,
+  TrendView,
+} from "./ledger.server"
 export type { OpenQuestion } from "./questions.server"
 
 const MONTH = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
-const IDS = z.object({ ids: z.array(z.uuid()).min(1).max(50) })
+const IDS = z.object({ ids: z.array(z.uuid()).min(1).max(500) })
 
 export const getMonth = createServerFn()
   .middleware([authMiddleware])
   .validator(z.object({ month: MONTH.optional() }))
   .handler(({ data }) => monthView(data.month))
+
+/** Every transaction in a period, for the Transactions page. */
+export const getTransactions = createServerFn()
+  .middleware([authMiddleware])
+  .validator(z.object({ period: z.enum(PERIODS), month: MONTH.optional() }))
+  .handler(({ data }) => transactionsView(data.period, data.month))
 
 /** Six months of totals and top categories, ending at `month`. */
 export const getTrend = createServerFn()
@@ -99,7 +113,7 @@ export const undoRecategorize = createServerFn({ method: "POST" })
       changes: z
         .array(z.object({ id: z.uuid(), categoryId: z.uuid().nullable() }))
         .min(1)
-        .max(200),
+        .max(500),
     })
   )
   .handler(({ data }) => restoreCategories(data.changes))

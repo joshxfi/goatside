@@ -71,6 +71,6 @@ export const getRefileSuggestions = createServerFn({ method: "POST" })
 export const applyRefile = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(
-    z.object({ ids: z.array(z.uuid()).min(1).max(100), categoryId: z.uuid() })
+    z.object({ ids: z.array(z.uuid()).min(1).max(500), categoryId: z.uuid() })
   )
   .handler(({ data }) => attempt(() => refile(data.ids, data.categoryId)))

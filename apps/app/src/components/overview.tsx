@@ -3,6 +3,7 @@
  * phone keeps the lighter Summary / DailyBars / Feed stack for logging.
  */
 import { useSuspenseQuery } from "@tanstack/react-query"
+import { Link } from "@tanstack/react-router"
 import { formatPeso } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
 import { CategoryList } from "@/components/category-list"
@@ -12,7 +13,7 @@ import {
   SERIES_COLORS,
   TrendChart,
 } from "@/components/charts"
-import { dayLabel, monthName } from "@/lib/format"
+import { capitalize, dayLabel, monthName } from "@/lib/format"
 import { trendQuery } from "@/lib/queries"
 import type { LedgerTxn, MonthView } from "@/server/ledger"
 
@@ -302,6 +303,181 @@ export function RepeatsCard({
           </li>
         ))}
       </ul>
+    </Card>
+  )
+}
+
+/** Categories that moved most against last month at the same point. */
+export function ChangesCard({ view }: { view: MonthView }) {
+  const isCurrent = view.month === view.today.slice(0, 7)
+  return (
+    <Card
+      title="Biggest changes"
+      description={`Against ${isCurrent ? "this point in " : ""}${monthName(view.previous.month)}`}
+    >
+      {view.changes.length ? (
+        <ul className="flex flex-col gap-3">
+          {view.changes.map((c) => {
+            const up = c.delta > 0
+            return (
+              <li
+                key={c.id ?? "none"}
+                className="flex items-center gap-3 text-sm"
+              >
+                <span aria-hidden className="text-base">
+                  {c.emoji}
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate">{c.name}</span>
+                  <span className="figure text-xs text-muted-foreground">
+                    {formatPeso(c.now)} vs {formatPeso(c.before)}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    "figure font-display text-lg",
+                    // More spending is the red side; less is the green one.
+                    up ? "text-expense-foreground" : "text-income-foreground"
+                  )}
+                >
+                  {up ? "↑" : "↓"} {formatPeso(Math.abs(c.delta))}
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Nothing to compare yet. Changes show up once last month has entries.
+        </p>
+      )}
+    </Card>
+  )
+}
+
+function TxnLine({
+  txn,
+  today,
+  onSelect,
+}: {
+  txn: LedgerTxn
+  today: string
+  onSelect: (t: LedgerTxn) => void
+}) {
+  const income =
+    txn.amount > 0 && (txn.kind === "income" || txn.kind === "expense")
+  const iou = txn.kind === "lend" || txn.kind === "settle"
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onSelect(txn)}
+        className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+      >
+        <span aria-hidden className="text-base">
+          {iou ? "🤝" : (txn.category?.emoji ?? "·")}
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate">
+            {capitalize(txn.description) || txn.category?.name || "Untitled"}
+          </span>
+          <span className="truncate text-xs text-muted-foreground">
+            {dayLabel(txn.localDate, today)}
+            {txn.category ? ` · ${txn.category.name}` : ""}
+          </span>
+        </span>
+        <span
+          className={cn(
+            "figure font-display text-lg",
+            iou
+              ? "text-muted-foreground"
+              : income
+                ? "text-income-foreground"
+                : "text-expense-foreground"
+          )}
+        >
+          {formatPeso(txn.amount, { sign: txn.amount > 0 })}
+        </span>
+      </button>
+    </li>
+  )
+}
+
+/** The month's biggest single expenses. */
+export function LargestCard({
+  view,
+  onSelect,
+}: {
+  view: MonthView
+  onSelect: (t: LedgerTxn) => void
+}) {
+  const largest = view.transactions
+    .filter((t) => t.kind === "expense" && !t.id.startsWith("optimistic:"))
+    .toSorted((a, b) => a.amount - b.amount)
+    .slice(0, 5)
+  return (
+    <Card
+      title="Largest expenses"
+      description="Your biggest single payments this month"
+    >
+      {largest.length ? (
+        <ul className="-mx-2 flex flex-col">
+          {largest.map((t) => (
+            <TxnLine
+              key={t.id}
+              txn={t}
+              today={view.today}
+              onSelect={onSelect}
+            />
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted-foreground">No spending yet.</p>
+      )}
+    </Card>
+  )
+}
+
+/** The latest entries, with a way into the full list. */
+export function RecentCard({
+  view,
+  onSelect,
+}: {
+  view: MonthView
+  onSelect: (t: LedgerTxn) => void
+}) {
+  const recent = view.transactions.slice(0, 6)
+  const isCurrent = view.month === view.today.slice(0, 7)
+  return (
+    <Card
+      title="Recent"
+      description={`${view.transactions.length} ${view.transactions.length === 1 ? "entry" : "entries"} in ${monthName(view.month)}`}
+      action={
+        <Link
+          to="/transactions"
+          search={{ m: isCurrent ? undefined : view.month }}
+          className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        >
+          See all
+        </Link>
+      }
+    >
+      {recent.length ? (
+        <ul className="-mx-2 flex flex-col">
+          {recent.map((t) => (
+            <TxnLine
+              key={t.id}
+              txn={t}
+              today={view.today}
+              onSelect={onSelect}
+            />
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          Nothing logged this month yet.
+        </p>
+      )}
     </Card>
   )
 }

@@ -1,19 +1,29 @@
 import { queryOptions } from "@tanstack/react-query"
-import { getMonth, getTrend } from "@/server/ledger"
+
+/*
+ * Ledger queries (month, trend, transactions) share the "ledger" prefix, so
+ * any change to entries refreshes them all with one invalidation.
+ */
+import {
+  type Period,
+  getMonth,
+  getTransactions,
+  getTrend,
+} from "@/server/ledger"
 import { getPeople, getPerson } from "@/server/people"
 import { getCategories } from "@/server/settings"
 
 /** `month` is "YYYY-MM"; omitted means the current month in the owner's timezone. */
 export const monthQuery = (month?: string) =>
   queryOptions({
-    queryKey: ["month", month ?? "current"],
+    queryKey: ["ledger", "month", month ?? "current"],
     queryFn: () => getMonth({ data: { month } }),
   })
 
 /** Six months ending at `month` ("YYYY-MM"), for the desktop trend chart. */
 export const trendQuery = (month: string) =>
   queryOptions({
-    queryKey: ["trend", month],
+    queryKey: ["ledger", "trend", month],
     queryFn: () => getTrend({ data: { month } }),
   })
 
@@ -30,4 +40,10 @@ export const personQuery = (id: string) =>
   queryOptions({
     queryKey: ["people", id],
     queryFn: () => getPerson({ data: { id } }),
+  })
+
+export const transactionsQuery = (period: Period, month?: string) =>
+  queryOptions({
+    queryKey: ["ledger", "transactions", period, month ?? "current"],
+    queryFn: () => getTransactions({ data: { period, month } }),
   })

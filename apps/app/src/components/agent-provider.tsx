@@ -43,7 +43,7 @@ export function AgentProvider({
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     // The agent may have changed the ledger; refresh what's on screen.
     onFinish: () => {
-      for (const key of ["month", "trend", "people", "categories"]) {
+      for (const key of ["ledger", "people", "categories"]) {
         void queryClient.invalidateQueries({ queryKey: [key] })
       }
     },

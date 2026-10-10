@@ -47,7 +47,7 @@ function useRefresh() {
   return () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: ["people"] }),
-      queryClient.invalidateQueries({ queryKey: ["month"] }),
+      queryClient.invalidateQueries({ queryKey: ["ledger"] }),
     ])
 }
 

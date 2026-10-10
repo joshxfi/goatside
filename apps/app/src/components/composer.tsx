@@ -105,7 +105,7 @@ export function Composer({
             label: "Undo",
             onClick: async () => {
               await deleteTransactions({ data: { ids: result.transactionIds } })
-              await queryClient.invalidateQueries({ queryKey: ["month"] })
+              await queryClient.invalidateQueries({ queryKey: ["ledger"] })
               toast("Removed.", {
                 action: {
                   label: "Redo",
@@ -113,7 +113,9 @@ export function Composer({
                     await restoreTransactions({
                       data: { ids: result.transactionIds },
                     })
-                    await queryClient.invalidateQueries({ queryKey: ["month"] })
+                    await queryClient.invalidateQueries({
+                      queryKey: ["ledger"],
+                    })
                   },
                 },
               })
@@ -124,7 +126,7 @@ export function Composer({
         toast(result.undone ? "Undid your last entry." : "Nothing to undo.")
       }
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["month"] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["ledger"] }),
   })
 
   function submit() {

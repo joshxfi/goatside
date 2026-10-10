@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppTransactionsRouteImport } from './routes/_app/transactions'
 import { Route as ApiAskRouteImport } from './routes/api/ask'
 import { Route as AppPeopleIndexRouteImport } from './routes/_app/people.index'
 import { Route as AppPeoplePersonIdRouteImport } from './routes/_app/people.$personId'
@@ -36,6 +37,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTransactionsRoute = AppTransactionsRouteImport.update({
+  id: '/transactions',
+  path: '/transactions',
+  getParentRoute: () => AppRoute,
+} as any)
 const ApiAskRoute = ApiAskRouteImport.update({
   id: '/api/ask',
   path: '/api/ask',
@@ -56,6 +62,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/settings': typeof AppSettingsRoute
+  '/transactions': typeof AppTransactionsRoute
   '/api/ask': typeof ApiAskRoute
   '/people/$personId': typeof AppPeoplePersonIdRoute
   '/people/': typeof AppPeopleIndexRoute
@@ -63,6 +70,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/settings': typeof AppSettingsRoute
+  '/transactions': typeof AppTransactionsRoute
   '/api/ask': typeof ApiAskRoute
   '/': typeof AppIndexRoute
   '/people/$personId': typeof AppPeoplePersonIdRoute
@@ -73,6 +81,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/transactions': typeof AppTransactionsRoute
   '/api/ask': typeof ApiAskRoute
   '/_app/': typeof AppIndexRoute
   '/_app/people/$personId': typeof AppPeoplePersonIdRoute
@@ -81,15 +90,28 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/login' | '/settings' | '/api/ask' | '/people/$personId' | '/people/'
+    | '/'
+    | '/login'
+    | '/settings'
+    | '/transactions'
+    | '/api/ask'
+    | '/people/$personId'
+    | '/people/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/login' | '/settings' | '/api/ask' | '/' | '/people/$personId' | '/people'
+    | '/login'
+    | '/settings'
+    | '/transactions'
+    | '/api/ask'
+    | '/'
+    | '/people/$personId'
+    | '/people'
   id:
     | '__root__'
     | '/_app'
     | '/login'
     | '/_app/settings'
+    | '/_app/transactions'
     | '/api/ask'
     | '/_app/'
     | '/_app/people/$personId'
@@ -132,6 +154,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/transactions': {
+      id: '/_app/transactions'
+      path: '/transactions'
+      fullPath: '/transactions'
+      preLoaderRoute: typeof AppTransactionsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/api/ask': {
       id: '/api/ask'
       path: '/api/ask'
@@ -158,6 +187,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppSettingsRoute: typeof AppSettingsRoute
+  AppTransactionsRoute: typeof AppTransactionsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppPeoplePersonIdRoute: typeof AppPeoplePersonIdRoute
   AppPeopleIndexRoute: typeof AppPeopleIndexRoute
@@ -165,6 +195,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppSettingsRoute: AppSettingsRoute,
+  AppTransactionsRoute: AppTransactionsRoute,
   AppIndexRoute: AppIndexRoute,
   AppPeoplePersonIdRoute: AppPeoplePersonIdRoute,
   AppPeopleIndexRoute: AppPeopleIndexRoute,

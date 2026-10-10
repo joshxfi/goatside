@@ -106,7 +106,7 @@ Amounts accept `500`, `1.5k`, `1,250.50` and an optional `₱` or `php` prefix. 
 One responsive page, split by CSS breakpoints so the server renders the right layout (no flash):
 
 - **Phone: log and chat.** Summary, daily bars, categories, people and the day-grouped feed, with the composer pinned in the thumb zone and the agent's question cards above it.
-- **Desktop (`lg`, 1024px+): review.** A main column with four headline numbers (spent with pace, money in, net, daily average), a **pace** chart (this month's running total against last month's, dashed), **where it went**, **day by day**, a **six-month** stacked trend by top category, and a **transactions table** (search, category and type filters, sortable columns, pagination, net of the filtered rows). A sticky side column holds the composer and questions, people balances and repeating charges. Drawers (edit, ask) open from the right.
+- **Desktop (`lg`, 1024px+): review.** A sidebar (Overview, Transactions, People, Settings, Ask Goatside ⌘J) and a one-line composer in the header (⌘K). **Overview** is the summary: headline numbers, pace vs last month, where it went, day by day, six months by category, then *biggest changes* (per category against the same point last month), *largest expenses* and *recent* (linking to Transactions), then people and repeats. **Transactions** is the full ledger: a period picker (any month, 3 months, this year, all time), totals for the period, and a TanStack Table with search, category and type filters, sorting, Shift-range multi-select for bulk re-file (recorded as corrections) or delete with Undo, and CSV export of what's filtered.
 - Between 1024 and 1280px the headline numbers go two-up and charts stack, so nothing truncates.
 
 ### 2.5 Small touches

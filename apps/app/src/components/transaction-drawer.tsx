@@ -80,7 +80,7 @@ function EditForm({
     (c) => c.kind === (income ? "income" : "expense")
   )
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["month"] })
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["ledger"] })
 
   const update = useMutation({
     mutationFn: (changes: {

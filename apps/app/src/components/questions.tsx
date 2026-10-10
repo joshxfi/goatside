@@ -49,7 +49,7 @@ export function Questions({
     onSuccess: (result) => {
       if (!result.ok) toast(result.message)
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["month"] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["ledger"] }),
   })
 
   const [question] = view.questions

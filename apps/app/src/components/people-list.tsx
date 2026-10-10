@@ -10,7 +10,7 @@ import { type MonthView, deleteTransactions, settleUp } from "@/server/ledger"
 export function PeopleList({ people }: { people: MonthView["people"] }) {
   const headingId = useId()
   const queryClient = useQueryClient()
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ["month"] })
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["ledger"] })
 
   const settle = useMutation({
     mutationFn: (person: MonthView["people"][number]) =>

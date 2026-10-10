@@ -9,12 +9,18 @@ import { Composer } from "@/components/composer"
 import { DailyBars } from "@/components/daily-bars"
 import { Feed } from "@/components/feed"
 import { MonthHeader } from "@/components/month-header"
-import { KpiRow, Overview, RepeatsCard } from "@/components/overview"
+import {
+  ChangesCard,
+  KpiRow,
+  LargestCard,
+  Overview,
+  RecentCard,
+  RepeatsCard,
+} from "@/components/overview"
 import { PeopleList } from "@/components/people-list"
 import { Questions } from "@/components/questions"
 import { Summary } from "@/components/summary"
 import { TransactionDrawer } from "@/components/transaction-drawer"
-import { TransactionsTable } from "@/components/transactions-table"
 import { monthQuery, trendQuery } from "@/lib/queries"
 import type { LedgerTxn } from "@/server/ledger"
 
@@ -79,6 +85,11 @@ function Home() {
           )}
           <KpiRow view={data} />
           <Overview view={data} />
+          <div className="grid gap-4 xl:grid-cols-3">
+            <ChangesCard view={data} />
+            <LargestCard view={data} onSelect={setSelected} />
+            <RecentCard view={data} onSelect={setSelected} />
+          </div>
           {(hasPeople || hasRepeats) && (
             <div
               className={cn(
@@ -90,7 +101,6 @@ function Home() {
               <RepeatsCard view={data} onSelect={setSelected} />
             </div>
           )}
-          <TransactionsTable view={data} onSelect={setSelected} />
         </div>
       </main>
       <TransactionDrawer

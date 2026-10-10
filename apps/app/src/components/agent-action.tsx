@@ -61,7 +61,7 @@ export function AgentAction({
 
   const refresh = () =>
     Promise.all(
-      ["month", "trend", "people", "categories"].map((key) =>
+      ["ledger", "people", "categories"].map((key) =>
         queryClient.invalidateQueries({ queryKey: [key] })
       )
     )

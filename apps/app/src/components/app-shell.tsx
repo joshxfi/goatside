@@ -4,6 +4,7 @@ import {
   ChevronsUpDownIcon,
   LayoutDashboardIcon,
   LogOutIcon,
+  ReceiptTextIcon,
   SettingsIcon,
   SparklesIcon,
   UsersIcon,
@@ -41,6 +42,7 @@ import { type Viewer, signOut } from "@/server/session"
 
 const PAGES = [
   { to: "/", label: "Overview", icon: LayoutDashboardIcon },
+  { to: "/transactions", label: "Transactions", icon: ReceiptTextIcon },
   { to: "/people", label: "People", icon: UsersIcon },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const

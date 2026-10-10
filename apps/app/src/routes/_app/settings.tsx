@@ -67,8 +67,8 @@ function useRefresh() {
   return () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: ["categories"] }),
-      queryClient.invalidateQueries({ queryKey: ["month"] }),
-      queryClient.invalidateQueries({ queryKey: ["trend"] }),
+      queryClient.invalidateQueries({ queryKey: ["ledger"] }),
+      queryClient.invalidateQueries({ queryKey: ["ledger"] }),
     ])
 }
 
