@@ -88,11 +88,22 @@ function toBase64Url(bytes: Uint8Array): string {
     .replace(/=+$/, "")
 }
 
-function sign(config: AuthConfig, expiresAt: number): Promise<Uint8Array> {
+/**
+ * HMAC over a JSON array, so fields can't run into each other (a ":" in a
+ * username can't make two different credential pairs sign the same).
+ */
+function signFields(
+  config: AuthConfig,
+  ...fields: (string | number)[]
+): Promise<Uint8Array> {
   return hmac(
     config.secret,
-    `goatside-session:v1:${expiresAt}:${config.username}:${config.password}`
+    JSON.stringify([...fields, config.username, config.password])
   )
+}
+
+function sign(config: AuthConfig, expiresAt: number): Promise<Uint8Array> {
+  return signFields(config, "goatside-session", 2, expiresAt)
 }
 
 /** A new session token valid until `now + ttl`. */
@@ -126,35 +137,36 @@ export async function verifySessionToken(
  * Trusted devices. A browser that has signed in successfully keeps a signed
  * device id. Sign-in throttling is keyed to that id instead of the shared
  * per-IP / global caps, so someone hammering the login page can't lock the
- * owner out of their own instance.
+ * owner out of their own instance. Like sessions, device tokens are bound to
+ * the current credentials: changing the password revokes every device.
  */
 
 export const DEVICE_COOKIE = "goatside_device"
 export const DEVICE_TTL_MS = 365 * 24 * 60 * 60 * 1000
 
-function deviceSignature(secret: string, id: string): Promise<Uint8Array> {
-  return hmac(secret, `goatside-device:v1:${id}`)
+function deviceSignature(config: AuthConfig, id: string): Promise<Uint8Array> {
+  return signFields(config, "goatside-device", 2, id)
 }
 
 /** A new random device id and its signed token. */
 export async function createDeviceToken(
-  secret: string
+  config: AuthConfig
 ): Promise<{ id: string; token: string }> {
   const id = toBase64Url(crypto.getRandomValues(new Uint8Array(16)))
-  const signature = toBase64Url(await deviceSignature(secret, id))
+  const signature = toBase64Url(await deviceSignature(config, id))
   return { id, token: `${id}.${signature}` }
 }
 
-/** The device id if the token was issued with this secret, otherwise null. */
+/** The device id if the token was issued under the current config, otherwise null. */
 export async function verifyDeviceToken(
   token: string | undefined,
-  secret: string
+  config: AuthConfig
 ): Promise<string | null> {
   if (!token) return null
   const [id, signature, ...rest] = token.split(".")
   if (!id || !signature || rest.length || !/^[\w-]{22}$/.test(id)) return null
   const expected = encoder.encode(
-    toBase64Url(await deviceSignature(secret, id))
+    toBase64Url(await deviceSignature(config, id))
   )
   return bytesEqual(encoder.encode(signature), expected) ? id : null
 }

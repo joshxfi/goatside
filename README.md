@@ -68,5 +68,6 @@ pnpm dlx shadcn@latest add drawer -c apps/app
 
 Changing the username, password or session secret signs out every device.
 Failed sign-ins are throttled (5 per IP and 25 overall per 15 minutes). Browsers
-that have signed in before are trusted devices with their own limit, so a flood
-of bad attempts can't lock you out of them.
+that have signed in before are trusted and skip those limits, so a flood of bad
+attempts can't lock you out of them; a trusted browser that fails more than 10
+times in a day loses that status. Changing the password untrusts every browser.

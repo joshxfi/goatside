@@ -90,21 +90,43 @@ describe("session tokens", () => {
 
 describe("device tokens", () => {
   it("round-trips and is unique", async () => {
-    const a = await createDeviceToken(config.secret)
-    const b = await createDeviceToken(config.secret)
+    const a = await createDeviceToken(config)
+    const b = await createDeviceToken(config)
     expect(a.id).not.toBe(b.id)
-    expect(await verifyDeviceToken(a.token, config.secret)).toBe(a.id)
+    expect(await verifyDeviceToken(a.token, config)).toBe(a.id)
   })
 
-  it("rejects forged, foreign or malformed tokens", async () => {
-    const { id, token } = await createDeviceToken(config.secret)
+  it("is revoked by changing the password, username or secret", async () => {
+    const { token } = await createDeviceToken(config)
+    for (const change of [
+      { password: "new password!!" },
+      { username: "other" },
+      { secret: "b".repeat(32) },
+    ]) {
+      expect(
+        await verifyDeviceToken(token, { ...config, ...change })
+      ).toBeNull()
+    }
+  })
+
+  it("rejects forged or malformed tokens", async () => {
+    const { id, token } = await createDeviceToken(config)
     const [, signature] = token.split(".")
-    expect(await verifyDeviceToken(token, "b".repeat(32))).toBeNull()
     expect(
-      await verifyDeviceToken(`${"A".repeat(22)}.${signature}`, config.secret)
+      await verifyDeviceToken(`${"A".repeat(22)}.${signature}`, config)
     ).toBeNull()
     for (const bad of [undefined, "", id, `${id}.`, `${token}.x`]) {
-      expect(await verifyDeviceToken(bad, config.secret)).toBeNull()
+      expect(await verifyDeviceToken(bad, config)).toBeNull()
     }
+  })
+})
+
+describe("signing", () => {
+  it("keeps fields apart: a colon can't shift the username/password boundary", async () => {
+    const a = { ...config, username: "a:b", password: "c-long-enough" }
+    const b = { ...config, username: "a", password: "b:c-long-enough" }
+    const { token } = await createSessionToken(a, { now })
+    expect(await verifySessionToken(token, a, { now })).not.toBeNull()
+    expect(await verifySessionToken(token, b, { now })).toBeNull()
   })
 })

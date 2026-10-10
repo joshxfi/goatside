@@ -9,7 +9,7 @@ import {
   getRequestIP,
   setCookie,
 } from "@tanstack/react-start/server"
-import { type SQL, and, count, eq, gte, isNull, lt } from "drizzle-orm"
+import { type SQL, and, count, eq, gte, lt } from "drizzle-orm"
 import {
   DEVICE_COOKIE,
   DEVICE_TTL_MS,
@@ -25,14 +25,21 @@ import { authConfig, getDb } from "./services"
 
 const RENEW_WHEN_LEFT_MS = 15 * 24 * 60 * 60 * 1000
 const THROTTLE_WINDOW_MS = 15 * 60 * 1000
+const DAY_MS = 24 * 60 * 60 * 1000
 /**
- * Failed attempts allowed per window. Unknown browsers share per-IP and
- * global caps; a trusted device (one that has signed in before) only has
- * its own cap, so an attacker filling the global cap can't lock the owner out.
+ * Failed attempts allowed per 15-minute window, per IP and overall. These
+ * count every failure, trusted device or not.
  */
 const MAX_FAILURES_PER_IP = 5
 const MAX_FAILURES_TOTAL = 25
-const MAX_FAILURES_PER_DEVICE = 10
+/**
+ * A trusted device (one that signed in under the current credentials)
+ * bypasses the caps above, so an attacker filling them can't lock the owner
+ * out. That privilege only lasts while the device has at most this many
+ * failures in 24 hours; past it, the device is treated like any browser.
+ * A stolen device cookie is therefore worth 10 extra guesses a day, at most.
+ */
+const MAX_TRUSTED_DEVICE_FAILURES_PER_DAY = 10
 
 async function writeSessionCookie() {
   const { token, expiresAt } = await createSessionToken(authConfig())
@@ -107,10 +114,7 @@ export const attemptSignIn = createServerOnlyFn(async function (
   const { loginAttempts } = schema
   const db = getDb()
   const config = authConfig()
-  const deviceId = await verifyDeviceToken(
-    getCookie(DEVICE_COOKIE),
-    config.secret
-  )
+  const deviceId = await verifyDeviceToken(getCookie(DEVICE_COOKIE), config)
 
   // Record the attempt before counting, so concurrent requests can't all
   // pass the check: the Nth parallel attempt always sees at least N rows.
@@ -120,39 +124,37 @@ export const attemptSignIn = createServerOnlyFn(async function (
     .returning({ id: loginAttempts.id })
   if (!attempt) throw new Error("Could not record sign-in attempt")
 
-  const since = new Date(Date.now() - THROTTLE_WINDOW_MS)
-  const failures = (where: SQL | undefined) =>
+  const failures = (where: SQL | undefined, windowMs = THROTTLE_WINDOW_MS) =>
     db
       .select({ n: count() })
       .from(loginAttempts)
       .where(
         and(
           eq(loginAttempts.succeeded, false),
-          gte(loginAttempts.createdAt, since),
+          gte(loginAttempts.createdAt, new Date(Date.now() - windowMs)),
           where
         )
       )
       .then(([row]) => row?.n ?? 0)
 
-  let throttled: boolean
-  if (deviceId) {
-    throttled =
-      (await failures(eq(loginAttempts.deviceId, deviceId))) >
-      MAX_FAILURES_PER_DEVICE
-  } else {
+  const trusted =
+    deviceId !== null &&
+    (await failures(eq(loginAttempts.deviceId, deviceId), DAY_MS)) <=
+      MAX_TRUSTED_DEVICE_FAILURES_PER_DAY
+
+  let throttled = false
+  if (!trusted) {
     const [byIp, total] = await Promise.all([
-      failures(and(eq(loginAttempts.ip, ip), isNull(loginAttempts.deviceId))),
-      failures(isNull(loginAttempts.deviceId)),
+      failures(eq(loginAttempts.ip, ip)),
+      failures(undefined),
     ])
     throttled = byIp > MAX_FAILURES_PER_IP || total > MAX_FAILURES_TOTAL
   }
 
-  // Rows only matter within the throttle window; keep a day for context.
+  // The longest window is a day (trusted-device failures); older rows are dead.
   await db
     .delete(loginAttempts)
-    .where(
-      lt(loginAttempts.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000))
-    )
+    .where(lt(loginAttempts.createdAt, new Date(Date.now() - DAY_MS)))
 
   if (throttled) return { ok: false, error: "throttled" }
   if (!(await verifyCredentials(input, config))) {
@@ -170,7 +172,7 @@ export const attemptSignIn = createServerOnlyFn(async function (
     serializeCookie(SESSION_COOKIE, session.token, session.expiresAt),
   ]
   if (!deviceId) {
-    const device = await createDeviceToken(config.secret)
+    const device = await createDeviceToken(config)
     cookies.push(
       serializeCookie(DEVICE_COOKIE, device.token, Date.now() + DEVICE_TTL_MS)
     )
