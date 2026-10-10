@@ -63,6 +63,7 @@ function Transactions() {
         <TransactionsTable
           transactions={data.transactions}
           categories={data.categories}
+          accounts={data.accounts}
           onSelect={setSelected}
           exportName={`goatside-${data.month ?? period}.csv`}
           empty="No entries in this period."
@@ -71,6 +72,7 @@ function Transactions() {
       <TransactionDrawer
         txn={selected}
         categories={data.categories}
+        accounts={data.accounts}
         onClose={() => setSelected(null)}
       />
     </div>

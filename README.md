@@ -18,7 +18,7 @@ account, whose username and password you set in its environment.
 | --------------- | ------------------------------------------------------------- |
 | `apps/app`      | The app you self-host (TanStack Start, deployed to Vercel)    |
 | `apps/web`      | The project's landing site (TanStack Start, prerendered)      |
-| `packages/core` | Pure TS: the entry parser, money (PHP centavos), dates        |
+| `packages/core` | Pure TS: the entry parser, account matching, money, dates     |
 | `packages/db`   | Drizzle schema and migrations for Turso (libSQL)              |
 | `packages/auth` | Single-account auth: env credentials, signed session cookie   |
 | `packages/ai`   | The agent: Jev categorization policy, ask-mode instructions   |
@@ -36,10 +36,18 @@ account, whose username and password you set in its environment.
 - **People and IOUs.** "lent nini 1000", "daniel paid me back", "dinner with nini and daniel, I paid"
   become loans, repayments and split bills. The home screen shows who owes whom, with
   one-tap settle.
+- **Accounts.** Banks, e-wallets, credit cards and cash, each with its balance.
+  Say which one you used ("200 taxi via GCash") and it's filed there; entries that
+  name none go to a default account. Moving money between your own accounts ("cash
+  in GCash from BPI", "pay BPI Card", "atm") is a transfer, not spending. A name
+  it doesn't know ("using UnionBank") becomes a question: add it as a bank,
+  e-wallet or card, or not an account. Bills and subscriptions go on the card
+  they were charged to last time.
 - **Catching mistakes.** The same payment logged twice gets a "keep both?" check, and
   charges that recur month to month are marked as repeating.
 - **Doing things for you.** Ask it to "move all grab rides this month to Transport",
-  "delete the duplicate lunch", "log 350 lunch yesterday" or "Ben paid me back".
+  "delete the duplicate lunch", "log 350 lunch yesterday", "Daniel paid me back",
+  "add my Security Bank savings with ₱15,000" or "my Maya actually has ₱2,000".
   Every change shows a confirmation listing exactly what will change, and can be
   undone.
 - **Small assists.** Add a category and it offers to move past entries that belong

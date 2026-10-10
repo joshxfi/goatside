@@ -3,7 +3,11 @@
  * applying answers (which can re-file, re-sign, split or remove a line).
  * Server-only.
  */
-import { and, desc, eq, inArray, isNull, ne } from "drizzle-orm"
+import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm"
+import {
+  NEW_ACCOUNT_ANSWERS,
+  type NewAccountAnswer,
+} from "@workspace/ai/accounts"
 import {
   type QuestionDraft,
   type Ranked,
@@ -16,6 +20,7 @@ import {
   type Relation,
   planRows,
 } from "@workspace/ai/people"
+import { ACCOUNT_KIND_LABELS, withoutPhrase } from "@workspace/core/accounts"
 import type { Direction } from "@workspace/core/preparse"
 import { type Db, schema } from "@workspace/db"
 import {
@@ -26,7 +31,7 @@ import {
   rowValues,
 } from "./agent.server"
 
-const { categories, corrections, questions, transactions } = schema
+const { accounts, categories, corrections, questions, transactions } = schema
 
 export interface AnswerOption {
   value: string
@@ -65,7 +70,8 @@ export function relationLabel(
 /** Open questions, newest first, with labels for each option. */
 export async function openQuestions(
   db: Db,
-  labels: Map<string, { name: string; emoji: string }>
+  labels: Map<string, { name: string; emoji: string }>,
+  accountNames: Map<string, string> = new Map()
 ) {
   const rows = await db
     .select({
@@ -106,6 +112,27 @@ export async function openQuestions(
           return RELATIONS.includes(option.value as Relation)
             ? plain(relationLabel(option.value as Relation, names, direction))
             : []
+        case "transfer": {
+          const t = context?.transfer
+          const from = (t && accountNames.get(t.from)) ?? "one account"
+          const to = (t && accountNames.get(t.to)) ?? "another"
+          return plain(
+            option.value === "transfer"
+              ? `Moved from ${from} to ${to}`
+              : direction === "in"
+                ? "Money I received"
+                : "Money I spent"
+          )
+        }
+        case "account": {
+          const choice = option.value as NewAccountAnswer
+          if (!NEW_ACCOUNT_ANSWERS.includes(choice)) return []
+          return plain(
+            choice === "none"
+              ? "Not an account"
+              : `Add as ${ACCOUNT_KIND_LABELS[choice].toLowerCase()}`
+          )
+        }
         case "category": {
           // Skip categories that were deleted or archived since.
           const label = labels.get(option.value)
@@ -139,6 +166,8 @@ export async function openQuestions(
             localDate: context.earlier.localDate,
           }
         : null,
+      /** The name an "account" question is about. */
+      accountName: context?.newAccount?.name ?? null,
       options,
     }
   })
@@ -187,6 +216,45 @@ export async function resolveQuestionsFor(
 
 export class AnswerError extends Error {}
 
+/** The account with this name, created (with the next color) if new. */
+export async function ensureAccount(
+  db: Db,
+  name: string,
+  kind: (typeof schema.ACCOUNT_KINDS)[number]
+) {
+  const existing = await db.query.accounts.findFirst({
+    where: sql`lower(${accounts.name}) = ${name.toLowerCase()}`,
+    columns: { id: true, archived: true },
+  })
+  if (existing) {
+    if (existing.archived) {
+      await db
+        .update(accounts)
+        .set({ archived: false })
+        .where(eq(accounts.id, existing.id))
+    }
+    return existing.id
+  }
+  const [{ count }] = (await db
+    .select({ count: sql<number>`count(*)` })
+    .from(accounts)) as [{ count: number }]
+  const color =
+    schema.ACCOUNT_COLORS[Number(count) % schema.ACCOUNT_COLORS.length] ??
+    "slate"
+  const [created] = await db
+    .insert(accounts)
+    .values({ name, kind, color, sort: Number(count) })
+    .onConflictDoNothing()
+    .returning({ id: accounts.id })
+  if (created) return created.id
+  const raced = await db.query.accounts.findFirst({
+    where: sql`lower(${accounts.name}) = ${name.toLowerCase()}`,
+    columns: { id: true },
+  })
+  if (!raced) throw new AnswerError("Couldn’t add that account.")
+  return raced.id
+}
+
 type Txn = typeof transactions.$inferSelect
 
 const emptyContext = (txn: Txn): LineContext => ({
@@ -232,6 +300,7 @@ async function refile(
       entryId: txn.entryId,
       localDate: txn.localDate,
       description: txn.description,
+      accountId: txn.accountId,
     },
     personIds,
     {
@@ -258,6 +327,7 @@ async function refile(
                 entryId: txn.entryId,
                 localDate: txn.localDate,
                 description: txn.description,
+                accountId: txn.accountId,
               },
               personIds,
               {
@@ -346,6 +416,82 @@ export async function answer(db: Db, questionId: string, value: string) {
         }
       } else {
         followUp = categoryQuestion(context.rankings[directionOf(txn.amount)])
+      }
+      break
+    }
+    case "transfer": {
+      if (value !== "transfer" && value !== "spend") {
+        throw new AnswerError("Transfer or spending?")
+      }
+      const sides = context.transfer
+      if (!sides) throw new AnswerError("That entry changed since.")
+      if (value === "transfer" && txn.kind !== "transfer") {
+        await db
+          .update(transactions)
+          .set({
+            kind: "transfer",
+            amount: -Math.abs(txn.amount),
+            accountId: sides.from,
+            toAccountId: sides.to,
+            categoryId: null,
+            aiConfidence: null,
+            recurring: false,
+          })
+          .where(eq(transactions.id, txn.id))
+        // A transfer has no category to ask about.
+        await db
+          .update(questions)
+          .set({ resolvedAt: new Date() })
+          .where(
+            and(
+              eq(questions.transactionId, txn.id),
+              eq(questions.kind, "category"),
+              isNull(questions.resolvedAt)
+            )
+          )
+      }
+      if (value === "spend" && txn.kind === "transfer") {
+        // The typed sign is gone on a transfer; spending is the usual case.
+        const ranking = context.rankings.out
+        await db
+          .update(transactions)
+          .set({
+            kind: "expense",
+            amount: -Math.abs(txn.amount),
+            accountId: sides.own ?? sides.from,
+            toAccountId: null,
+            categoryId: ranking[0]?.id ?? null,
+            aiConfidence: ranking[0]?.p ?? null,
+          })
+          .where(eq(transactions.id, txn.id))
+        followUp = categoryQuestion(ranking)
+      }
+      break
+    }
+    case "account": {
+      if (!NEW_ACCOUNT_ANSWERS.includes(value as NewAccountAnswer)) {
+        throw new AnswerError("That isn't one of the options.")
+      }
+      const named = context.newAccount
+      if (value !== "none" && named) {
+        const accountId = await ensureAccount(
+          db,
+          named.name,
+          value as Exclude<NewAccountAnswer, "none">
+        )
+        const rows = await db.query.transactions.findMany({
+          where: inArray(transactions.id, context.transactionIds),
+          columns: { id: true, description: true },
+        })
+        for (const row of rows) {
+          await db
+            .update(transactions)
+            .set({
+              accountId,
+              description: withoutPhrase(row.description, named.phrase),
+            })
+            .where(eq(transactions.id, row.id))
+        }
       }
       break
     }

@@ -1,6 +1,6 @@
 # Goatside: plan
 
-> Status: **M0–M3 built; M5's ask mode and IOUs built** (see §9).
+> Status: **M0–M3 built; M5's ask mode, IOUs and accounts built** (see §9).
 
 Goatside is an open-source, personal, agentic finance tracker that you self-host. You type a
 line like `-500 lunch at berto's` or `+250 paid by x`, and it becomes a categorized
@@ -106,7 +106,7 @@ Amounts accept `500`, `1.5k`, `1,250.50` and an optional `₱` or `php` prefix. 
 One responsive page, split by CSS breakpoints so the server renders the right layout (no flash):
 
 - **Phone: log and chat.** Summary, daily bars, categories, people and the day-grouped feed, with the composer pinned in the thumb zone and the agent's question cards above it.
-- **Desktop (`lg`, 1024px+): review.** A sidebar (Overview, Transactions, People, Settings, Ask Goatside ⌘J) and a one-line composer in the header (⌘K). **Overview** is the summary: headline numbers; pace vs last month with a projection to month end (recurring bills counted once, the rest at the everyday daily rate); *where it went*, a donut of the top categories plus Other with the total in its center, over a list of each slice and what Other folds in; day by day beside a calendar heatmap (one red hue, stronger on bigger days); six months stacked by category beside money in and out per month; then *biggest changes* (per category against the same point last month), *largest expenses* and *recent* (linking to Transactions), then people and repeats. **Transactions** is the full ledger: a period picker (any month, 3 months, this year, all time), totals for the period, and a TanStack Table with search, category and type filters, sorting, Shift-range multi-select for bulk re-file (recorded as corrections) or delete with Undo, and CSV export of what's filtered.
+- **Desktop (`lg`, 1024px+): review.** A sidebar (Overview, Transactions, Accounts, People, Settings, Ask Goatside ⌘J) and a one-line composer in the header (⌘K). **Overview** is the summary: headline numbers; a row of account cards with their balances; pace vs last month with a projection to month end (recurring bills counted once, the rest at the everyday daily rate); *where it went*, a donut of the top categories plus Other with the total in its center, over a list of each slice and what Other folds in; day by day beside a calendar heatmap (one red hue, stronger on bigger days); six months stacked by category beside money in and out per month; then *biggest changes* (per category against the same point last month), *largest expenses* and *recent* (linking to Transactions), then people and repeats. **Transactions** is the full ledger: a period picker (any month, 3 months, this year, all time), totals for the period, and a TanStack Table with search, category, account and type filters (out, in, IOUs, transfers), sorting, Shift-range multi-select for bulk re-file to a category or account (recorded as corrections) or delete with Undo, and CSV export of what's filtered. **Accounts** groups banks, e-wallets, credit cards and cash as colored cards (balance, or what's owed and the credit left on a card), with totals, the default account, and per account a history with the running balance, "correct the balance", edit, and archive.
 - Between 1024 and 1280px the headline numbers go two-up and charts stack, so nothing truncates.
 
 ### 2.5 Small touches
@@ -252,6 +252,15 @@ Answering a relation question re-files the line in place (the primary row keeps 
 - **Payment reminders.** On a person's page, DeepSeek drafts a two-to-three sentence reminder from their actual open IOUs; the owner edits, copies or shares it. Nothing is sent automatically.
 - **Quick picks.** Up to four chips above the empty composer: entries typed at least twice in 60 days, weighted toward ones usually logged around this hour. A pick skips the duplicate check, since repeating it is the point.
 
+### 5.2.4.1 Accounts and transfers (`packages/core/src/accounts.ts`, `packages/ai/src/accounts.ts`)
+
+1. `scanAccounts()` finds the owner's accounts in a line by name or nickname, longest first ("bpi card" before "bpi"), with the cue before it: "from" and "to"/"into" say which side of a transfer. "cash", "credit card" and a cued "card" mean the only account of that kind. It also spots a name that isn't set up: a known Philippine bank or e-wallet anywhere ("gcash", "bdo"; ones that double as first names, like "maya", need "via" or "app"), or a name after "using"/"via"/"thru" ("using tala"). It strips the account words, so categories, people and memory see "lunch", not "lunch via gcash".
+2. Transfer words: cash in, top up, ATM, withdraw, cash out, card payment, transfer, deposit. A fee ("atm fee") is spending, so it never makes a transfer. `guessTransfer()` reads the sides from the words: from/to, then the card being paid, the wallet being topped up or the cash withdrawn, filling one missing side with the default account (or the cash account for ATM).
+3. When the words could make a transfer, Jev answers one boolean, "moving their own money between two of their own accounts?", with the owner's accounts in state. ≥ 0.75 files a transfer; 0.3–0.75 asks "Moved from X to Y / Money I spent"; below that it's spending. An unknown name that isn't on the provider list gets a Jev choice (bank, e-wallet, credit card, cash, not an account); "not an account" at ≥ 0.7 drops it silently ("via grab").
+4. `resolveAccounts()`: a transfer, else the account the line names, else, for a recurring charge, the account the same description used last, else the default (not for "borrowed": when someone paid for the owner, none of their accounts moved). An unknown name saves the line unfiled and asks; answering creates the account with the next color and files the line.
+
+A transfer is one row: `kind = 'transfer'`, `amount < 0` out of `account_id`, into `to_account_id`, no category or person. Totals, charts and the ask tools' sums skip transfers. A balance is `opening + Σ amount` filed to the account `− Σ amount` of transfers into it; "correct the balance" moves `opening` so every entry stays. Credit cards hold a negative balance while something's owed.
+
 ### 5.2.5 Evals (`pnpm --filter @workspace/ai eval`)
 
 Live runs against the real model, with results as of 2026-10-10:
@@ -262,6 +271,7 @@ Live runs against the real model, with results as of 2026-10-10:
 | Direction without a sign | 43 | 98%; 93–95% applied without asking, all correct |
 | People + relation | 22 | 100% people found; 91–95% applied, the rest asked, 0 wrong without asking |
 | Duplicates | 15 (6 held out) | 15/15 at 0.7 |
+| Accounts (2026-10-11) | 19 | Transfers 10/11, 1 asked; new names 8/8 (4 from the provider list); 0 wrong without asking |
 
 Ranges are across runs (borderline cases like "gas shell" at 0.51 move a little). Every miss so far fell below its threshold and became a question. Rerun after changing criteria, hints or models.
 
@@ -269,13 +279,17 @@ Ranges are across runs (borderline cases like "gas shell" at 0.51 move a little)
 
 | Tool | What it does |
 |---|---|
-| `summarize(from, to, groupBy, direction, category?)` | Totals for a range, grouped by category, day or month |
-| `findTransactions(from, to, direction, category?, text?, sort, limit)` | Matching entries, newest or largest first, with their count and sum |
+| `summarize(from, to, groupBy, direction, category?, account?)` | Totals for a range, grouped by category, day or month |
+| `findTransactions(from, to, direction, category?, text?, account?, sort, limit)` | Matching entries, newest or largest first, with their count and sum |
 | `balances(person?)` | Who owes the owner and whom they owe, with recent IOU entries |
+| `accounts()` | Each account's balance (a card: owed and available), and which is the default |
 | `moveToCategory(filter, newCategory)` | **Write, approval.** Re-files matching entries; records corrections |
 | `deleteEntries(filter)` | **Write, approval.** Soft-deletes matching entries (≤ 50) |
 | `logEntries(text)` | **Write, approval.** Logs composer-syntax text through the full pipeline |
 | `settleUp(person, amount?)` | **Write, approval.** Records a full or partial repayment |
+| `addAccount(name, kind, balance?, creditLimit?, last4?, aliases?)` | **Write, approval.** Sets up an account; for a card, `balance` is what's owed |
+| `setAccountBalance(account, balance)` | **Write, approval.** Corrects what an account holds now, keeping its entries |
+| `moveToAccount(filter, account)` | **Write, approval.** Files matching entries under an account |
 
 Write tools use AI SDK `toolApproval`. The approval function runs on the server: it finds exactly what would change and writes the confirmation text itself ("Move 3 entries to 🎟️ Going out: grabfood dinner (10-05, ₱510); …"), so the card shows real entries rather than the model's description. Nothing matching, or too much, is an automatic denial with a reason the model can act on. Approvals are HMAC-signed (`experimental_toolApprovalSecret`, derived from `SESSION_SECRET`), so a modified client can't forge one. Results carry undo data (restore, delete, or put categories back), and the chat auto-continues after a decision (`lastAssistantMessageIsCompleteWithApprovalResponses`).
 
@@ -341,14 +355,18 @@ streamText({ model: "deepseek/deepseek-v4.1-flash", system, messages, tools,
 
 ## 7. Data model
 
-> As built in `packages/db/src/schema` (migrations `0000`–`0002`). Embedding columns may arrive later; retrieval currently uses exact-description memory and recent examples.
+> As built in `packages/db/src/schema` (migrations `0000`–`0003`). Embedding columns may arrive later; retrieval currently uses exact-description memory and recent examples.
 
 All money is stored as **integer centavos**, always PHP, and formatted with `Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })`. The day a transaction belongs to is `local_date` (`YYYY-MM-DD` in the owner's timezone), so month grouping is a string prefix with no timezone math. `created_at` orders entries within a day. There's no separate `occurred_at`: a backdated entry only knows its day anyway.
 
 There are no user ids: one deploy is one person's ledger.
 
 ```
-settings       id = 1 (single row), time_zone ('Asia/Manila'), created_at
+settings       id = 1 (single row), time_zone ('Asia/Manila'), default_account_id?, created_at
+
+accounts       id, name, kind ('bank'|'ewallet'|'credit_card'|'cash'), color,
+               aliases (json), last4?, credit_limit?, opening, sort, archived
+               unique lower(name)
 
 categories     id, name, emoji, kind ('expense'|'income'),
                sort, archived            unique (kind, lower(name))
@@ -359,16 +377,16 @@ people         id, name, aliases (json)
 entries        id, raw_text, mode ('log'|'ask'), created_at
                -- one line typed; can yield N transactions
 
-transactions   id, entry_id?, kind ('expense'|'income'|'lend'|'settle'),
+transactions   id, entry_id?, kind ('expense'|'income'|'lend'|'settle'|'transfer'),
                amount (signed; for splits, your share), local_date,
                description, note, category_id?, merchant_id?, person_id?,
-               split?, recurring, status ('pending'|'parsed'|'needs_review'|'confirmed'),
+               split?, account_id?, to_account_id? (transfers), recurring, status ('pending'|'parsed'|'needs_review'|'confirmed'),
                ai_confidence, created_at, updated_at, deleted_at (soft delete → undo)
                + embedding F32_BLOB(512), embedding_model   (M3)
 
 corrections    id, transaction_id, field, from_value, to_value, created_at
 
-questions      id, transaction_id, kind ('direction'|'category'|'relation'|'duplicate'), guess,
+questions      id, transaction_id, kind ('direction'|'category'|'relation'|'duplicate'|'account'|'transfer'), guess,
                options (json: value + model probability), context (json),
                answer?, resolved_at?, created_at        -- the agent asking the owner
 
@@ -377,9 +395,9 @@ login_attempts id, ip, device_id?, succeeded, created_at   (sign-in throttling, 
 budgets (later) id, category_id?, month?, amount
 ```
 
-Indexes: `(local_date)`, `(category_id, local_date)`, `(person_id)`.
+Indexes: `(local_date)`, `(category_id, local_date)`, `(person_id)`, `(account_id)`, `(to_account_id)`.
 
-People balances are derived: `SUM` over `lend` and `settle` transactions per person. There is no stored balance to drift.
+People balances are derived: `SUM` over `lend` and `settle` transactions per person. Account balances are derived the same way, from `opening` plus what's filed to the account (§5.2.4.1). There is no stored balance to drift.
 
 Default categories are seeded on first sign-in. Expense: Food, Groceries, Transport, Bills, Subscriptions, Shopping, Health, Fun, Others. Income: Salary, Freelance, Gifts, Others.
 
@@ -442,9 +460,9 @@ Later: a **Deploy to Vercel** button (`vercel.com/new/clone?repository-url=…&r
 | M2 | **Manual logging (no AI)** | `core.preparse` with tests; composer saves rows; feed grouped by day; month totals. Usable on its own. **Status: done (composer with live preview, optimistic save, undo, edit drawer, month switcher, interim daily bars + category breakdown)** |
 | M3 | **AI parsing** | Jev categorization through AI Gateway, memory and examples from confirmed rows, questions for uncertain fields, corrections, undo, eval suite. **Status: done; tested live, evals in §5.2.5** |
 | M4 | **Dashboard** | Month switcher, daily bars, category breakdown, Insights page, category management. **Status: desktop review view built (KPIs, pace with projection, spending donut, day-by-day, calendar heatmap, six-month trend by category, money in and out, sortable/searchable table, people and repeats rail); category management built (rename, emoji, add, hide, merge, agent re-file suggestions)** |
-| M5 | **Ask mode + People** | Tool-calling agent with streamed answers and inline charts; IOUs, splits, settle-up. **Status: ask mode with read tools and approved write actions; IOUs, splits, People pages (history, nicknames, merge, partial settle, drafted reminders) built; inline charts pending** |
+| M5 | **Ask mode + People** | Tool-calling agent with streamed answers and inline charts; IOUs, splits, settle-up. **Status: ask mode with read tools and approved write actions; IOUs, splits, People pages (history, nicknames, merge, partial settle, drafted reminders) built; accounts (banks, e-wallets, credit cards, cash) with balances, transfers and agent setup built; inline charts pending** |
 | M6 | **Polish + ship** | PWA + offline queue, quick-repeat chips, monthly recap, CSV export, `docs/self-hosting.md`, landing page |
-| Later | | "Of all time" records (lowest-spend day/week/month, streaks), budgets and pace line, recurring detection, receipt photo (vision model), bank/e-wallet CSV import, wallets and balances |
+| Later | | "Of all time" records (lowest-spend day/week/month, streaks), budgets and pace line, recurring detection, receipt photo (vision model), bank/e-wallet CSV import |
 
 ---
 

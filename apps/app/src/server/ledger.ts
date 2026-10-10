@@ -74,6 +74,8 @@ export const updateTransaction = createServerFn({ method: "POST" })
       categoryId: z.uuid().nullable().optional(),
       description: z.string().max(200).optional(),
       localDate: DATE.optional(),
+      accountId: z.uuid().nullable().optional(),
+      toAccountId: z.uuid().optional(),
     })
   )
   .handler(({ data }) => editTransaction(data))

@@ -91,8 +91,8 @@ function QuestionCard({
     >
       <div className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
         <span>Quick check{remaining > 1 ? ` · ${remaining} waiting` : ""}</span>
-        {/* A duplicate's options already say "keep". */}
-        {question.kind !== "duplicate" && (
+        {/* These options already include leaving it as it is. */}
+        {question.kind !== "duplicate" && question.kind !== "account" && (
           <button
             type="button"
             onClick={() => onAnswer(question.guess)}
@@ -196,6 +196,22 @@ function Prompt({
             ? `“${capitalize(question.earlier.description)}”`
             : "an entry"}{" "}
           you already logged.
+        </>
+      )
+    case "transfer":
+      return (
+        <>
+          {figure} for {what}: did you move it between your accounts, or spend
+          it?
+        </>
+      )
+    case "account":
+      return (
+        <>
+          Is <span className="font-medium">{question.accountName}</span> one of
+          your accounts?{" "}
+          {question.transaction.amount > 0 ? "It got" : "It paid"} {figure} for{" "}
+          {what}.
         </>
       )
     case "category":

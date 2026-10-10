@@ -10,6 +10,7 @@ import {
   getTransactions,
   getTrend,
 } from "@/server/ledger"
+import { getAccount, getAccounts } from "@/server/accounts"
 import { getPeople, getPerson } from "@/server/people"
 import { getCategories } from "@/server/settings"
 
@@ -46,4 +47,17 @@ export const transactionsQuery = (period: Period, month?: string) =>
   queryOptions({
     queryKey: ["ledger", "transactions", period, month ?? "current"],
     queryFn: () => getTransactions({ data: { period, month } }),
+  })
+
+/** Balances move with every entry, so accounts live under "ledger" too. */
+export const accountsQuery = (month: string) =>
+  queryOptions({
+    queryKey: ["ledger", "accounts", month],
+    queryFn: () => getAccounts({ data: { month } }),
+  })
+
+export const accountQuery = (id: string) =>
+  queryOptions({
+    queryKey: ["ledger", "account", id],
+    queryFn: () => getAccount({ data: { id } }),
   })

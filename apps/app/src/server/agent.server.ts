@@ -10,10 +10,19 @@ import {
   eq,
   gte,
   inArray,
+  isNotNull,
   isNull,
   ne,
   sql,
 } from "drizzle-orm"
+import {
+  type AccountSignals,
+  askAccounts,
+  couldBeTransfer,
+  needsAccountModel,
+  resolveAccounts,
+  unknownToAsk,
+} from "@workspace/ai/accounts"
 import {
   type CategoryOption,
   type Memory,
@@ -38,6 +47,7 @@ import {
   planRows,
 } from "@workspace/ai/people"
 import { suggestRefiles } from "@workspace/ai/refile"
+import { type KnownAccount, scanAccounts } from "@workspace/core/accounts"
 import { addDays, todayIn } from "@workspace/core/dates"
 import { nameCandidates } from "@workspace/core/people"
 import type { Direction, DraftLine } from "@workspace/core/preparse"
@@ -45,7 +55,8 @@ import { type Db, schema } from "@workspace/db"
 import { serverEnv } from "./env"
 import { aiEnabled } from "./services"
 
-const { categories, people, questions, transactions } = schema
+const { accounts, categories, people, questions, settings, transactions } =
+  schema
 
 const MODEL_TIMEOUT_MS = 6000
 const EXAMPLE_POOL = 400
@@ -70,6 +81,10 @@ export interface LineContext {
   /** The line's rows; the first is the one questions hang off. */
   transactionIds: string[]
   earlier?: EarlierEntry
+  /** A "transfer" question: both sides, and the account if it's spending. */
+  transfer?: { from: string; to: string; own: string | null }
+  /** An "account" question: the name, and the words to drop once it's added. */
+  newAccount?: { name: string; phrase: string }
 }
 
 function withTimeout<T>(
@@ -154,6 +169,50 @@ export async function peopleWithBalances(db: Db) {
   ])
   const totals = new Map(sums.map((s) => [s.personId, Number(s.total)]))
   return rows.map((p) => ({ ...p, owed: owedBy([totals.get(p.id) ?? 0]) }))
+}
+
+/** Open accounts, and the one that unnamed entries go to. */
+export async function accountBook(db: Db) {
+  const [list, prefs] = await Promise.all([
+    db
+      .select({
+        id: accounts.id,
+        name: accounts.name,
+        kind: accounts.kind,
+        aliases: accounts.aliases,
+      })
+      .from(accounts)
+      .where(eq(accounts.archived, false))
+      .orderBy(accounts.sort, accounts.name),
+    db.query.settings.findFirst({
+      where: eq(settings.id, 1),
+      columns: { defaultAccountId: true },
+    }),
+  ])
+  const defaultId = prefs?.defaultAccountId ?? null
+  return {
+    known: list as KnownAccount[],
+    defaultAccountId: list.some((a) => a.id === defaultId) ? defaultId : null,
+  }
+}
+
+/** The account the last entry with this description was filed under. */
+async function accountMemory(db: Db, description: string) {
+  if (!description) return null
+  const [row] = await db
+    .select({ accountId: transactions.accountId })
+    .from(transactions)
+    .where(
+      and(
+        isNull(transactions.deletedAt),
+        inArray(transactions.kind, ["expense", "income"]),
+        isNotNull(transactions.accountId),
+        sameDescription(description)
+      )
+    )
+    .orderBy(desc(transactions.createdAt))
+    .limit(1)
+  return row?.accountId ?? null
 }
 
 /** The newest owner-confirmed transaction with the same description. */
@@ -255,6 +314,13 @@ interface Decision {
   resolved: Resolved
   candidates: PersonInput[]
   rankings: Record<Direction, Ranked[]>
+  /** The description to save: account phrases removed, unless a transfer. */
+  description: string
+  account: {
+    accountId: string | null
+    toAccountId: string | null
+    transfer: boolean
+  }
 }
 
 /**
@@ -266,14 +332,24 @@ async function decide(
   lines: DraftLine[],
   { checkDuplicates }: { checkDuplicates: boolean }
 ): Promise<Decision[]> {
-  const [options, known] = await Promise.all([
+  const [options, known, book] = await Promise.all([
     categoryOptions(db),
     peopleWithBalances(db),
+    accountBook(db),
   ])
   const model = aiEnabled() ? serverEnv().DECISION_MODEL : null
 
   return Promise.all(
-    lines.map(async (draft): Promise<Decision> => {
+    lines.map(async (original): Promise<Decision> => {
+      // Accounts first: "using gcash" says how it was paid, not what for,
+      // so the category, people and memory only see the rest.
+      const scan = scanAccounts(original.description, book.known)
+      const draft = { ...original, description: scan.rest }
+      const transferable = couldBeTransfer(
+        scan,
+        book.known,
+        book.defaultAccountId
+      )
       const line = {
         description: draft.description,
         amount: draft.share,
@@ -287,10 +363,11 @@ async function decide(
         ...c,
         balance: known.find((k) => k.id === c.personId)?.owed ?? null,
       }))
-      const [memory, months, earlier] = await Promise.all([
+      const [memory, months, earlier, lastAccount] = await Promise.all([
         memoryFor(db, draft.description),
         priorMonths(db, draft),
         checkDuplicates ? earlierSameAmount(db, draft) : null,
+        accountMemory(db, draft.description),
       ])
       // Duplicates compare like with like: the earlier row's signed amount.
       const asEarlier = earlier && { ...draft, amount: earlier.amount }
@@ -298,27 +375,44 @@ async function decide(
         earlier && asEarlier && obviousDuplicate(asEarlier, earlier)
       )
 
-      const [signals, peopleSignals, pDuplicate] = await Promise.all([
-        model && needsModel(line, memory)
-          ? withTimeout("categorization", (abortSignal) =>
-              askModel(model, line, options, { abortSignal })
-            )
-          : null,
-        model && candidates.length
-          ? withTimeout("people", (abortSignal) =>
-              askPeople(
-                model,
-                { ...line, amount: draft.amount, people: candidates },
-                { abortSignal }
+      const [signals, peopleSignals, pDuplicate, accountSignals] =
+        await Promise.all([
+          model && needsModel(line, memory)
+            ? withTimeout("categorization", (abortSignal) =>
+                askModel(model, line, options, { abortSignal })
               )
-            )
-          : null,
-        model && earlier && asEarlier && !obvious
-          ? withTimeout("duplicate check", (abortSignal) =>
-              askDuplicate(model, asEarlier, earlier, { abortSignal })
-            )
-          : null,
-      ])
+            : null,
+          model && candidates.length
+            ? withTimeout("people", (abortSignal) =>
+                askPeople(
+                  model,
+                  { ...line, amount: draft.amount, people: candidates },
+                  { abortSignal }
+                )
+              )
+            : null,
+          model && earlier && asEarlier && !obvious
+            ? withTimeout("duplicate check", (abortSignal) =>
+                askDuplicate(model, asEarlier, earlier, { abortSignal })
+              )
+            : null,
+          model && needsAccountModel(scan, transferable)
+            ? withTimeout("accounts", (abortSignal) =>
+                askAccounts(
+                  model,
+                  {
+                    description: original.description,
+                    amount: draft.amount,
+                    direction: line.direction,
+                    accounts: book.known,
+                    unknown: unknownToAsk(scan),
+                    transfer: transferable,
+                  },
+                  { abortSignal }
+                )
+              )
+            : (null as AccountSignals | null),
+        ])
 
       const resolved = resolveLine(
         { ...line, priorMonths: months },
@@ -326,6 +420,28 @@ async function decide(
         memory,
         { candidates, signals: peopleSignals }
       )
+      const filed = resolveAccounts(scan, book.known, {
+        defaultAccountId: book.defaultAccountId,
+        // Bills and subscriptions go on the same card each time.
+        memoryAccountId: resolved.recurring ? lastAccount : null,
+        borrowed: resolved.relation === "borrowed",
+        signals: accountSignals,
+      })
+      if (filed.transfer) {
+        // Moving money between accounts isn't spending: no category or IOUs.
+        Object.assign(resolved, {
+          categoryId: null,
+          confidence: null,
+          recurring: false,
+          relation: "own",
+          people: [],
+          questions: filed.questions,
+          status: filed.questions.length ? "needs_review" : "parsed",
+        })
+      } else if (filed.questions.length) {
+        resolved.questions.push(...filed.questions)
+        resolved.status = "needs_review"
+      }
 
       // A likely repeat in the same direction replaces the other questions:
       // if it's a repeat, the rest doesn't matter.
@@ -354,6 +470,8 @@ async function decide(
         resolved,
         candidates,
         rankings: { in: signals?.income ?? [], out: signals?.expense ?? [] },
+        description: filed.transfer ? original.description : draft.description,
+        account: filed,
       }
     })
   )
@@ -397,7 +515,12 @@ type Primary = Pick<Resolved, "categoryId" | "confidence" | "recurring"> & {
 /** Column values for a planned row; the primary row carries the decision. */
 export function rowValues(
   row: PlannedRow,
-  base: { entryId: string | null; localDate: string; description: string },
+  base: {
+    entryId: string | null
+    localDate: string
+    description: string
+    accountId: string | null
+  },
   personIds: Map<number, string>,
   primary?: Primary
 ) {
@@ -407,6 +530,7 @@ export function rowValues(
     kind: row.kind,
     amount: row.amount,
     split: row.split,
+    toAccountId: null,
     personId: row.person === null ? null : (personIds.get(row.person) ?? null),
     categoryId: own ? (primary?.categoryId ?? null) : null,
     aiConfidence: own ? (primary?.confidence ?? null) : null,
@@ -428,7 +552,14 @@ export function questionRow(
     context:
       draft.kind === "duplicate"
         ? { ...context, earlier: draft.earlier }
-        : context,
+        : draft.kind === "transfer"
+          ? { ...context, transfer: { ...draft.transfer, own: draft.own } }
+          : draft.kind === "account"
+            ? {
+                ...context,
+                newAccount: { name: draft.name, phrase: draft.phrase },
+              }
+            : context,
   }
 }
 
@@ -439,6 +570,9 @@ export interface SavedLine {
   categoryId: string | null
   relation: Resolved["relation"]
   people: string[]
+  /** Account names: where it was filed, or both sides of a transfer. */
+  account: string | null
+  transfer: { from: string; to: string } | null
 }
 
 /** Decides and saves every line of an entry, with any questions. */
@@ -449,7 +583,10 @@ export async function saveLines(
   /** False for a deliberate repeat (a quick pick): don't ask "again?". */
   { checkDuplicates = true }: { checkDuplicates?: boolean } = {}
 ) {
-  const decisions = await decide(db, lines, { checkDuplicates })
+  const [decisions, book] = await Promise.all([
+    decide(db, lines, { checkDuplicates }),
+    accountBook(db),
+  ])
   const saved: SavedLine[] = []
   const transactionIds: string[] = []
   let asked = false
@@ -457,13 +594,10 @@ export async function saveLines(
   for (const [i, draft] of lines.entries()) {
     const decision = decisions[i]
     if (!decision) continue
-    const { resolved, candidates } = decision
-    const rows = planRows(
-      draft,
-      resolved.direction,
-      resolved.relation,
-      resolved.people
-    )
+    const { resolved, candidates, account } = decision
+    const rows = account.transfer
+      ? []
+      : planRows(draft, resolved.direction, resolved.relation, resolved.people)
     const personIds = await ensurePeople(
       db,
       candidates,
@@ -472,14 +606,26 @@ export async function saveLines(
     const base = {
       entryId,
       localDate: draft.localDate,
-      description: draft.description,
+      description: decision.description,
+      accountId: account.accountId,
     }
     const inserted = await db
       .insert(transactions)
       .values(
-        rows.map((row, j) =>
-          rowValues(row, base, personIds, j === 0 ? resolved : undefined)
-        )
+        account.transfer
+          ? [
+              {
+                ...base,
+                kind: "transfer" as const,
+                // Always out of `accountId`, whatever sign was typed.
+                amount: -draft.amount,
+                toAccountId: account.toAccountId,
+                status: resolved.status,
+              },
+            ]
+          : rows.map((row, j) =>
+              rowValues(row, base, personIds, j === 0 ? resolved : undefined)
+            )
       )
       .returning({ id: transactions.id })
     const ids = inserted.map((t) => t.id)
@@ -503,12 +649,18 @@ export async function saveLines(
         .insert(questions)
         .values(resolved.questions.map((q) => questionRow(primary, q, context)))
     }
+    const nameOf = (id: string | null) =>
+      book.known.find((a) => a.id === id)?.name ?? null
+    const from = nameOf(account.accountId)
+    const to = nameOf(account.toAccountId)
     saved.push({
-      amount: rows[0]?.amount ?? 0,
-      description: draft.description,
+      amount: account.transfer ? -draft.amount : (rows[0]?.amount ?? 0),
+      description: decision.description,
       categoryId: resolved.categoryId,
       relation: resolved.relation,
       people: resolved.people.flatMap((p) => candidates[p]?.name ?? []),
+      account: from,
+      transfer: account.transfer && from && to ? { from, to } : null,
     })
   }
   return { saved, transactionIds, asked }

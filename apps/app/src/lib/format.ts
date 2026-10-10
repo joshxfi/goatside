@@ -47,9 +47,9 @@ export function capitalize(text: string): string {
   return text.charAt(0).toLocaleUpperCase() + text.slice(1)
 }
 
-/** How an IOU row reads: "Lent to Mara", "Ben paid you back". */
+/** How an IOU row reads: "Lent to Nini", "Daniel paid you back". */
 export function iouLabel(
-  kind: "expense" | "income" | "lend" | "settle",
+  kind: "expense" | "income" | "lend" | "settle" | "transfer",
   amount: number,
   name: string
 ): string | null {
@@ -58,4 +58,12 @@ export function iouLabel(
   if (kind === "settle")
     return amount > 0 ? `${name} paid you back` : `Paid ${name} back`
   return null
+}
+
+/** How a transfer reads: "BPI → GCash". */
+export function transferLabel(txn: {
+  account: { name: string } | null
+  toAccount: { name: string } | null
+}): string {
+  return `${txn.account?.name ?? "Somewhere"} → ${txn.toAccount?.name ?? "somewhere"}`
 }

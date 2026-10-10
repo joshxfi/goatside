@@ -3,6 +3,7 @@ import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { z } from "zod"
 import { cn } from "@workspace/ui/lib/utils"
+import { AccountsStrip } from "@/components/accounts-strip"
 import { useAgent } from "@/components/agent-provider"
 import { Composer } from "@/components/composer"
 import { DailyBars } from "@/components/daily-bars"
@@ -72,6 +73,7 @@ function Home() {
         {/* Phone: the lighter stack, mostly for logging. */}
         <div className="flex flex-col gap-8 lg:hidden">
           <Summary view={data} />
+          <AccountsStrip view={data} />
           <DailyBars daily={data.daily} today={data.today} />
           <section
             aria-labelledby="phone-categories"
@@ -96,6 +98,7 @@ function Home() {
             </div>
           )}
           <KpiRow view={data} />
+          <AccountsStrip view={data} />
           <Overview view={data} />
           <div className="grid gap-4 xl:grid-cols-3">
             <ChangesCard view={data} />
@@ -118,6 +121,7 @@ function Home() {
       <TransactionDrawer
         txn={selected}
         categories={data.categories}
+        accounts={data.accounts}
         onClose={() => setSelected(null)}
       />
     </div>

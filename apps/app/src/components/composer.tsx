@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { ArrowUpIcon } from "lucide-react"
 import { toast } from "@workspace/ui/components/sonner"
+import { guessTransfer, scanAccounts } from "@workspace/core/accounts"
 import { type Preparsed, preparse } from "@workspace/core/preparse"
 import { formatPeso } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
+import { swatch } from "@/lib/accounts"
 import { dayLabel } from "@/lib/format"
 import { useDesktop } from "@/lib/use-desktop"
 import { useShortcut } from "@/lib/use-shortcut"
@@ -63,19 +65,24 @@ export function Composer({
       const now = Date.now()
       const optimistic: LedgerTxn[] = preview.lines
         .filter((line) => line.localDate.startsWith(view.month))
-        .map((line, i) => ({
-          id: `optimistic:${now}:${i}`,
-          kind: line.direction === "in" ? "income" : "expense",
-          amount: line.direction === "in" ? line.share : -line.share,
-          localDate: line.localDate,
-          description: line.description,
-          split: line.split,
-          recurring: false,
-          status: "pending",
-          createdAt: now,
-          category: null,
-          person: null,
-        }))
+        .map((line, i) => {
+          const filed = fileLine(line.description, view)
+          return {
+            id: `optimistic:${now}:${i}`,
+            kind: line.direction === "in" ? "income" : "expense",
+            amount: line.direction === "in" ? line.share : -line.share,
+            localDate: line.localDate,
+            description: filed.description,
+            split: line.split,
+            recurring: false,
+            status: "pending",
+            createdAt: now,
+            category: null,
+            person: null,
+            account: filed.account,
+            toAccount: null,
+          }
+        })
       if (previous && optimistic.length) {
         queryClient.setQueryData(queryKey, {
           ...previous,
@@ -152,7 +159,7 @@ export function Composer({
         />
       ) : null
     ) : (
-      <Preview parsed={parsed} today={view.today} />
+      <Preview parsed={parsed} view={view} />
     )
 
   return (
@@ -213,6 +220,78 @@ export function Composer({
   )
 }
 
+/**
+ * Where a line will be filed, read the same way the server reads it. The
+ * server also asks the model about transfers, so this is a best guess.
+ */
+function fileLine(description: string, view: MonthView) {
+  const scan = scanAccounts(description, view.accounts)
+  const byId = (id: string | null | undefined) =>
+    view.accounts.find((a) => a.id === id) ?? null
+  const transfer = scan.transferWord
+    ? guessTransfer(scan, view.accounts, view.defaultAccountId)
+    : null
+  const named = byId(
+    scan.mentions.find((m) => m.cued)?.accountId ?? scan.mentions[0]?.accountId
+  )
+  const account = named ?? byId(view.defaultAccountId)
+  return {
+    description: scan.rest,
+    transfer: transfer && {
+      from: byId(transfer.from),
+      to: byId(transfer.to),
+    },
+    account: account && {
+      id: account.id,
+      name: account.name,
+      color: account.color,
+    },
+    named: Boolean(named),
+    unknown: scan.mentions.length ? null : scan.unknown,
+  }
+}
+
+const dot = (color: string) => (
+  <span
+    aria-hidden
+    className="size-2 shrink-0 rounded-full"
+    style={{ background: swatch(color) }}
+  />
+)
+
+function AccountHint({
+  description,
+  view,
+}: {
+  description: string
+  view: MonthView
+}) {
+  const filed = fileLine(description, view)
+  if (filed.transfer?.from && filed.transfer.to) {
+    return (
+      <span className="flex items-center gap-1 text-muted-foreground">
+        · {dot(filed.transfer.from.color)}
+        {filed.transfer.from.name} → {dot(filed.transfer.to.color)}
+        {filed.transfer.to.name}
+      </span>
+    )
+  }
+  if (filed.unknown && !filed.named) {
+    return (
+      <span className="text-muted-foreground">
+        · {filed.unknown.name}? I’ll ask
+      </span>
+    )
+  }
+  if (!filed.account) return null
+  return (
+    <span className="flex items-center gap-1 text-muted-foreground">
+      · {dot(filed.account.color)}
+      {filed.account.name}
+    </span>
+  )
+}
+
 const textOf = (input: string | { text: string }) =>
   typeof input === "string" ? input : input.text
 
@@ -253,7 +332,8 @@ function Picks({
 }
 
 /** What the parser understood, shown as you type. Same code the server runs. */
-function Preview({ parsed, today }: { parsed: Preparsed; today: string }) {
+function Preview({ parsed, view }: { parsed: Preparsed; view: MonthView }) {
+  const today = view.today
   let content: React.ReactNode = null
 
   if (parsed.kind === "log") {
@@ -286,6 +366,7 @@ function Preview({ parsed, today }: { parsed: Preparsed; today: string }) {
         <span className="text-muted-foreground">
           · {dayLabel(line.localDate, today)}
         </span>
+        <AccountHint description={line.description} view={view} />
       </span>
     ))
   } else if (parsed.kind === "undo") {
@@ -317,12 +398,17 @@ function describe(
     categoryId: string | null
     relation: string
     people: string[]
+    account: string | null
+    transfer: { from: string; to: string } | null
   }[],
   categories: MonthView["categories"]
 ): string {
   const [first, ...rest] = saved
   if (!first) return "Logged."
   if (rest.length) return `Logged ${saved.length} entries.`
+  if (first.transfer) {
+    return `Moved ${formatPeso(Math.abs(first.amount))} · ${first.transfer.from} → ${first.transfer.to}`
+  }
   const amount = formatPeso(first.amount, { sign: first.amount > 0 })
   const who = first.people.join(" and ")
   const between: Record<string, string> = {
@@ -341,6 +427,7 @@ function describe(
       : null,
     between[first.relation] ??
       (category && `${category.emoji} ${category.name}`),
+    first.account,
   ]
     .filter(Boolean)
     .join(" · ")

@@ -56,7 +56,8 @@ import {
   ToggleGroupItem,
 } from "@workspace/ui/components/toggle-group"
 import { cn } from "@workspace/ui/lib/utils"
-import { capitalize, iouLabel, shortDate } from "@/lib/format"
+import { swatch } from "@/lib/accounts"
+import { capitalize, iouLabel, shortDate, transferLabel } from "@/lib/format"
 import {
   type LedgerTxn,
   type MonthView,
@@ -64,7 +65,9 @@ import {
   restoreTransactions,
   undoRecategorize,
 } from "@/server/ledger"
+import { moveToAccount, undoMoveToAccount } from "@/server/accounts"
 import { applyRefile } from "@/server/settings"
+import type { AccountChoice } from "@/components/transaction-drawer"
 
 const features = tableFeatures({
   rowSortingFeature,
@@ -85,22 +88,35 @@ interface Row {
   date: string
   description: string
   category: string
+  account: string
   amount: number
 }
 
 const helper = createColumnHelper<typeof features, Row>()
 
-type Kind = "all" | "out" | "in" | "iou"
+type Kind = "all" | "out" | "in" | "iou" | "transfer"
 const KINDS: { value: Kind; label: string }[] = [
   { value: "all", label: "All" },
   { value: "out", label: "Out" },
   { value: "in", label: "In" },
   { value: "iou", label: "IOUs" },
+  { value: "transfer", label: "Transfers" },
 ]
 
 const isIou = (t: LedgerTxn) => t.kind === "lend" || t.kind === "settle"
+const isTransfer = (t: LedgerTxn) => t.kind === "transfer"
+/** Neither spending nor income: no category, no green or red. */
+const isQuiet = (t: LedgerTxn) => isIou(t) || isTransfer(t)
+
+const NO_ACCOUNT = "No account"
+
+function accountOf(t: LedgerTxn) {
+  if (isTransfer(t)) return transferLabel(t)
+  return t.account?.name ?? NO_ACCOUNT
+}
 
 function categoryOf(t: LedgerTxn) {
+  if (isTransfer(t)) return "Transfer"
   if (t.person) return iouLabel(t.kind, t.amount, t.person.name) ?? ""
   return t.category?.name ?? "Uncategorized"
 }
@@ -197,10 +213,40 @@ const columns = helper.columns([
       return (
         <span className="flex items-center gap-2 text-muted-foreground">
           <span aria-hidden>
-            {txn.person ? "🤝" : (txn.category?.emoji ?? "·")}
+            {isTransfer(txn)
+              ? "↔"
+              : txn.person
+                ? "🤝"
+                : (txn.category?.emoji ?? "·")}
           </span>
           <span className="truncate">{info.getValue()}</span>
           {txn.split ? ` · ⅟${txn.split}` : ""}
+        </span>
+      )
+    },
+  }),
+  helper.accessor("account", {
+    header: "Account",
+    sortFn: "alphanumeric",
+    cell: (info) => {
+      const txn = info.row.original.txn
+      const dots = isTransfer(txn)
+        ? [txn.account, txn.toAccount]
+        : [txn.account]
+      return (
+        <span className="flex items-center gap-2 text-muted-foreground">
+          <span aria-hidden className="flex -space-x-1">
+            {dots.map((a, i) =>
+              a ? (
+                <span
+                  key={i}
+                  className="size-2.5 rounded-full ring-2 ring-card"
+                  style={{ background: swatch(a.color) }}
+                />
+              ) : null
+            )}
+          </span>
+          <span className="truncate">{info.getValue()}</span>
         </span>
       )
     },
@@ -216,12 +262,14 @@ const columns = helper.columns([
         <span
           className={cn(
             "figure block text-right font-display text-lg",
-            amount > 0 && !isIou(txn) && "text-income-foreground",
-            amount < 0 && !isIou(txn) && "text-expense-foreground",
-            isIou(txn) && "text-muted-foreground"
+            amount > 0 && !isQuiet(txn) && "text-income-foreground",
+            amount < 0 && !isQuiet(txn) && "text-expense-foreground",
+            isQuiet(txn) && "text-muted-foreground"
           )}
         >
-          {formatPeso(amount, { sign: amount > 0 })}
+          {isTransfer(txn)
+            ? formatPeso(Math.abs(amount))
+            : formatPeso(amount, { sign: amount > 0 })}
         </span>
       )
     },
@@ -235,7 +283,16 @@ const csvCell = (value: string | number) => {
 
 /** Downloads rows as a CSV the owner can open in a spreadsheet. */
 function exportCsv(rows: Row[], filename: string) {
-  const header = ["date", "description", "category", "amount", "type", "person"]
+  const header = [
+    "date",
+    "description",
+    "category",
+    "amount",
+    "type",
+    "person",
+    "account",
+    "to_account",
+  ]
   const lines = rows.map(({ txn }) =>
     [
       txn.localDate,
@@ -244,6 +301,8 @@ function exportCsv(rows: Row[], filename: string) {
       (txn.amount / 100).toFixed(2),
       txn.kind,
       txn.person?.name ?? "",
+      txn.account?.name ?? "",
+      txn.toAccount?.name ?? "",
     ]
       .map(csvCell)
       .join(",")
@@ -266,6 +325,7 @@ function exportCsv(rows: Row[], filename: string) {
 export function TransactionsTable({
   transactions,
   categories,
+  accounts = [],
   onSelect,
   exportName = "goatside-transactions.csv",
   pageSize = 25,
@@ -273,6 +333,8 @@ export function TransactionsTable({
 }: {
   transactions: LedgerTxn[]
   categories: MonthView["categories"]
+  /** Open accounts, for the filter and "file under account". */
+  accounts?: AccountChoice[]
   onSelect: (txn: LedgerTxn) => void
   exportName?: string
   pageSize?: number
@@ -281,12 +343,16 @@ export function TransactionsTable({
   const queryClient = useQueryClient()
   const [kind, setKind] = useState<Kind>("all")
   const [category, setCategory] = useState<string>("all")
+  const [account, setAccount] = useState<string>("all")
   const [search, setSearch] = useState("")
 
   const usedCategories = useMemo(() => {
-    const names = new Set(transactions.filter((t) => !isIou(t)).map(categoryOf))
+    const names = new Set(
+      transactions.filter((t) => !isQuiet(t)).map(categoryOf)
+    )
     return [...names].toSorted()
   }, [transactions])
+  const hasUnfiled = transactions.some((t) => !t.account && !isTransfer(t))
 
   // Kind and category are app-level slices; search, sort, paging and
   // selection are the table's.
@@ -299,17 +365,27 @@ export function TransactionsTable({
             ? true
             : kind === "iou"
               ? isIou(t)
-              : !isIou(t) && (kind === "in" ? t.amount > 0 : t.amount < 0)
+              : kind === "transfer"
+                ? isTransfer(t)
+                : !isQuiet(t) && (kind === "in" ? t.amount > 0 : t.amount < 0)
         )
         .filter((t) => category === "all" || categoryOf(t) === category)
+        .filter((t) =>
+          account === "all"
+            ? true
+            : account === "none"
+              ? !t.account && !isTransfer(t)
+              : t.account?.id === account || t.toAccount?.id === account
+        )
         .map((t) => ({
           txn: t,
           date: t.localDate,
           description: t.description,
           category: categoryOf(t),
+          account: accountOf(t),
           amount: t.amount,
         })),
-    [transactions, kind, category]
+    [transactions, kind, category, account]
   )
 
   const table = useTable({
@@ -326,7 +402,9 @@ export function TransactionsTable({
       ),
     globalFilterFn: "includesString",
     getColumnCanGlobalFilter: (column) =>
-      column.id === "description" || column.id === "category",
+      column.id === "description" ||
+      column.id === "category" ||
+      column.id === "account",
     initialState: {
       sorting: [{ id: "date", desc: true }],
       pagination: { pageIndex: 0, pageSize },
@@ -345,21 +423,21 @@ export function TransactionsTable({
   const filtered = filteredRows.length
   const selected = table.getSelectedRowModel().rows.map((r) => r.original.txn)
   const { pageIndex } = table.state.pagination
-  const net = filteredRows
-    .filter((r) => !isIou(r.original.txn))
-    .reduce((sum, r) => sum + r.original.amount, 0)
+  const counted = filteredRows.filter((r) => !isQuiet(r.original.txn))
+  const net = counted.reduce((sum, r) => sum + r.original.amount, 0)
 
   // Bulk moves apply to the selected entries whose side fits the category.
   const selectedKinds = new Set(
     selected
-      .filter((t) => !isIou(t))
+      .filter((t) => !isQuiet(t))
       .map((t) => (t.amount > 0 ? "income" : "expense"))
   )
   const movable = categories.filter((c) => selectedKinds.has(c.kind))
 
   async function moveSelected(target: MonthView["categories"][number]) {
     const fits = selected.filter(
-      (t) => !isIou(t) && (t.amount > 0 ? "income" : "expense") === target.kind
+      (t) =>
+        !isQuiet(t) && (t.amount > 0 ? "income" : "expense") === target.kind
     )
     if (!fits.length) return
     const result = await applyRefile({
@@ -381,6 +459,37 @@ export function TransactionsTable({
         },
       },
     })
+  }
+
+  // Transfers keep their two sides; everything else can be filed anywhere.
+  const fileable = selected.filter((t) => !isTransfer(t))
+
+  async function fileSelected(target: AccountChoice | null) {
+    if (!fileable.length) return
+    const result = await moveToAccount({
+      data: { ids: fileable.map((t) => t.id), accountId: target?.id ?? null },
+    })
+    if (!result.ok) return toast(result.message)
+    table.resetRowSelection()
+    await refresh()
+    const changes = result.value.moved
+    const count = changes.length
+    toast(
+      target
+        ? `Filed ${count} under ${target.name}.`
+        : `Took ${count} out of their account.`,
+      changes.length
+        ? {
+            action: {
+              label: "Undo",
+              onClick: async () => {
+                await undoMoveToAccount({ data: { changes } })
+                await refresh()
+              },
+            },
+          }
+        : undefined
+    )
   }
 
   async function deleteSelected() {
@@ -429,6 +538,39 @@ export function TransactionsTable({
                         {c.name}
                       </DropdownMenuItem>
                     ))}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            {accounts.length > 0 && fileable.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button size="sm" variant="outline" className="bg-card" />
+                  }
+                >
+                  Account…
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="max-h-80 min-w-52">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>File under account</DropdownMenuLabel>
+                    {accounts.map((a) => (
+                      <DropdownMenuItem
+                        key={a.id}
+                        onClick={() => void fileSelected(a)}
+                      >
+                        <span
+                          aria-hidden
+                          className="size-2.5 rounded-full"
+                          style={{ background: swatch(a.color) }}
+                        />
+                        {a.name}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuItem onClick={() => void fileSelected(null)}>
+                      <span aria-hidden className="size-2.5" />
+                      {NO_ACCOUNT}
+                    </DropdownMenuItem>
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -489,6 +631,32 @@ export function TransactionsTable({
                 ))}
               </SelectContent>
             </Select>
+            {accounts.length > 0 && (
+              <Select
+                value={account}
+                onValueChange={(value) => setAccount(String(value ?? "all"))}
+                items={[
+                  { value: "all", label: "All accounts" },
+                  ...accounts.map((a) => ({ value: a.id, label: a.name })),
+                  ...(hasUnfiled ? [{ value: "none", label: NO_ACCOUNT }] : []),
+                ]}
+              >
+                <SelectTrigger className="h-9 w-40" aria-label="Account">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All accounts</SelectItem>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                  {hasUnfiled && (
+                    <SelectItem value="none">{NO_ACCOUNT}</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            )}
             <ToggleGroup
               value={[kind]}
               onValueChange={(value) => {
@@ -549,7 +717,9 @@ export function TransactionsTable({
                         header.column.id === "date" &&
                           "w-[5.5rem] pr-0 md:w-32 md:pr-4",
                         header.column.id === "category" &&
-                          "hidden w-56 md:table-cell",
+                          "hidden w-52 md:table-cell",
+                        header.column.id === "account" &&
+                          "hidden w-64 lg:table-cell",
                         header.column.id === "amount" &&
                           "w-28 text-right md:w-36"
                       )}
@@ -603,7 +773,8 @@ export function TransactionsTable({
                         "max-w-0 px-4 py-2.5",
                         cell.column.id === "select" &&
                           "hidden pr-0 md:table-cell",
-                        cell.column.id === "category" && "hidden md:table-cell"
+                        cell.column.id === "category" && "hidden md:table-cell",
+                        cell.column.id === "account" && "hidden lg:table-cell"
                       )}
                     >
                       <table.FlexRender cell={cell} />
@@ -614,7 +785,7 @@ export function TransactionsTable({
             ) : (
               <TableRow className="hover:bg-transparent">
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="h-24 text-center text-muted-foreground"
                 >
                   {transactions.length ? "Nothing matches." : empty}
@@ -630,7 +801,7 @@ export function TransactionsTable({
           {filtered
             ? `${pageIndex * pageSize + 1}–${Math.min((pageIndex + 1) * pageSize, filtered)} of ${filtered}`
             : "0 results"}
-          {filtered > 0 && ` · net ${formatPeso(net, { sign: net > 0 })}`}
+          {counted.length > 0 && ` · net ${formatPeso(net, { sign: net > 0 })}`}
         </span>
         <span className="ml-auto flex gap-1">
           <Button

@@ -30,6 +30,8 @@ export const settings = sqliteTable(
   {
     id: integer("id").primaryKey().default(1),
     timeZone: text("time_zone").notNull().default("Asia/Manila"),
+    /** Where entries that name no account are filed; null leaves them unfiled. */
+    defaultAccountId: text("default_account_id"),
     createdAt: createdAt(),
   },
   (t) => [check("settings_single_row", sql`${t.id} = 1`)]
@@ -79,6 +81,50 @@ export const people = sqliteTable(
   (t) => [uniqueIndex("people_name_idx").on(sql`lower(${t.name})`)]
 )
 
+export const ACCOUNT_KINDS = ["bank", "ewallet", "credit_card", "cash"] as const
+
+export const ACCOUNT_COLORS = [
+  "slate",
+  "blue",
+  "indigo",
+  "violet",
+  "rose",
+  "orange",
+  "amber",
+  "emerald",
+  "teal",
+] as const
+
+/**
+ * Where money sits: banks, e-wallets, credit cards, cash. A balance is
+ * `opening` plus every transaction filed to the account (transfers count on
+ * both ends). Setting a balance by hand moves `opening`, so history stays.
+ * Credit cards hold a negative balance while there's something owed.
+ */
+export const accounts = sqliteTable(
+  "accounts",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    kind: text("kind", { enum: ACCOUNT_KINDS }).notNull(),
+    color: text("color", { enum: ACCOUNT_COLORS }).notNull().default("slate"),
+    /** Other names it goes by in entries: "mb" for Metrobank. */
+    aliases: text("aliases", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'`),
+    /** Last four digits, shown on the card. */
+    last4: text("last4"),
+    /** Credit cards only, centavos. */
+    creditLimit: integer("credit_limit"),
+    opening: integer("opening").notNull().default(0),
+    sort: integer("sort").notNull().default(0),
+    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("accounts_name_idx").on(sql`lower(${t.name})`)]
+)
+
 /** One line typed into the composer. A log line can yield several transactions. */
 export const entries = sqliteTable(
   "entries",
@@ -96,6 +142,8 @@ export const TRANSACTION_KINDS = [
   "income",
   "lend",
   "settle",
+  /** Money moving between two of the owner's accounts: not spending. */
+  "transfer",
 ] as const
 export const TRANSACTION_STATUSES = [
   "pending",
@@ -127,6 +175,14 @@ export const transactions = sqliteTable(
       onDelete: "set null",
     }),
     split: integer("split"),
+    /** The account the money left (amount < 0) or arrived in (amount > 0). */
+    accountId: text("account_id").references(() => accounts.id, {
+      onDelete: "set null",
+    }),
+    /** Transfers only: where the money went. `amount` is negative (it left `accountId`). */
+    toAccountId: text("to_account_id").references(() => accounts.id, {
+      onDelete: "set null",
+    }),
     recurring: integer("recurring", { mode: "boolean" })
       .notNull()
       .default(false),
@@ -145,6 +201,8 @@ export const transactions = sqliteTable(
     index("transactions_date_idx").on(t.localDate),
     index("transactions_category_date_idx").on(t.categoryId, t.localDate),
     index("transactions_person_idx").on(t.personId),
+    index("transactions_account_idx").on(t.accountId),
+    index("transactions_to_account_idx").on(t.toAccountId),
   ]
 )
 
@@ -169,6 +227,10 @@ export const QUESTION_KINDS = [
   "category",
   "relation",
   "duplicate",
+  /** A name after "using", "via"… that isn't one of the owner's accounts yet. */
+  "account",
+  /** Two accounts named: a transfer between them, or spending from one? */
+  "transfer",
 ] as const
 
 /**
@@ -222,3 +284,6 @@ export type Category = typeof categories.$inferSelect
 export type Transaction = typeof transactions.$inferSelect
 export type TransactionKind = (typeof TRANSACTION_KINDS)[number]
 export type Question = typeof questions.$inferSelect
+export type Account = typeof accounts.$inferSelect
+export type AccountKind = (typeof ACCOUNT_KINDS)[number]
+export type AccountColor = (typeof ACCOUNT_COLORS)[number]

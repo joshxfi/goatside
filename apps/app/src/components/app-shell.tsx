@@ -8,6 +8,7 @@ import {
   SettingsIcon,
   SparklesIcon,
   UsersIcon,
+  WalletCardsIcon,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
 import { CoinMark, Wordmark } from "@workspace/ui/components/brand"
@@ -43,6 +44,7 @@ import { type Viewer, signOut } from "@/server/session"
 const PAGES = [
   { to: "/", label: "Overview", icon: LayoutDashboardIcon },
   { to: "/transactions", label: "Transactions", icon: ReceiptTextIcon },
+  { to: "/accounts", label: "Accounts", icon: WalletCardsIcon },
   { to: "/people", label: "People", icon: UsersIcon },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const
@@ -170,10 +172,13 @@ export function PageHeader({
   title,
   viewer,
   back = "/",
+  action,
 }: {
   title: string
   viewer: Viewer
   back?: string
+  /** A page-level button, e.g. "Add account". */
+  action?: React.ReactNode
 }) {
   return (
     <header className="flex items-center justify-between gap-3">
@@ -191,7 +196,10 @@ export function PageHeader({
         </Link>
         <h1 className="font-display text-3xl leading-none">{title}</h1>
       </div>
-      <AccountMenu viewer={viewer} className="lg:hidden" />
+      <div className="flex items-center gap-2">
+        {action}
+        <AccountMenu viewer={viewer} className="lg:hidden" />
+      </div>
     </header>
   )
 }

@@ -15,7 +15,8 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { useDesktop } from "@/lib/use-desktop"
 import { cn } from "@workspace/ui/lib/utils"
-import { iouLabel } from "@/lib/format"
+import { swatch } from "@/lib/accounts"
+import { iouLabel, transferLabel } from "@/lib/format"
 import {
   type LedgerTxn,
   type MonthView,
@@ -24,13 +25,22 @@ import {
   updateTransaction,
 } from "@/server/ledger"
 
+export interface AccountChoice {
+  id: string
+  name: string
+  color: string
+}
+
 export function TransactionDrawer({
   txn,
   categories,
+  accounts = [],
   onClose,
 }: {
   txn: LedgerTxn | null
   categories: MonthView["categories"]
+  /** Open accounts to file under; the picker hides when there are none. */
+  accounts?: AccountChoice[]
   onClose: () => void
 }) {
   const desktop = useDesktop()
@@ -52,6 +62,7 @@ export function TransactionDrawer({
             key={shown.id}
             txn={shown}
             categories={categories}
+            accounts={accounts}
             onDone={onClose}
           />
         )}
@@ -63,10 +74,12 @@ export function TransactionDrawer({
 function EditForm({
   txn,
   categories,
+  accounts,
   onDone,
 }: {
   txn: LedgerTxn
   categories: MonthView["categories"]
+  accounts: AccountChoice[]
   onDone: () => void
 }) {
   const queryClient = useQueryClient()
@@ -75,7 +88,8 @@ function EditForm({
   const iou = txn.person
     ? iouLabel(txn.kind, txn.amount, txn.person.name)
     : null
-  const income = txn.amount > 0 && !iou
+  const transfer = txn.kind === "transfer"
+  const income = txn.amount > 0 && !iou && !transfer
   const options = categories.filter(
     (c) => c.kind === (income ? "income" : "expense")
   )
@@ -87,6 +101,8 @@ function EditForm({
       categoryId?: string | null
       description?: string
       localDate?: string
+      accountId?: string | null
+      toAccountId?: string
     }) => updateTransaction({ data: { id: txn.id, ...changes } }),
     onSuccess: () => {
       onDone()
@@ -128,19 +144,41 @@ function EditForm({
           className={cn(
             "figure font-display text-5xl font-normal",
             income && "text-income-foreground",
-            txn.amount < 0 && !iou && "text-expense-foreground"
+            txn.amount < 0 && !iou && !transfer && "text-expense-foreground"
           )}
         >
-          {formatPeso(txn.amount, { sign: txn.amount > 0 })}
+          {transfer
+            ? formatPeso(Math.abs(txn.amount))
+            : formatPeso(txn.amount, { sign: txn.amount > 0 })}
         </DrawerTitle>
         <DrawerDescription>
-          {txn.split ? `Your share of a ${txn.split}-way split. ` : ""}
-          Amounts stay exactly as typed.
+          {transfer
+            ? `${transferLabel(txn)}. Transfers don’t count as spending.`
+            : `${txn.split ? `Your share of a ${txn.split}-way split. ` : ""}Amounts stay exactly as typed.`}
         </DrawerDescription>
       </DrawerHeader>
 
       <div className="flex flex-col gap-5 px-4">
-        {iou ? (
+        {transfer ? (
+          accounts.length > 0 && (
+            <>
+              <AccountPicker
+                legend="From"
+                accounts={accounts}
+                value={txn.account?.id ?? null}
+                disabled={update.isPending}
+                onChange={(id) => id && update.mutate({ accountId: id })}
+              />
+              <AccountPicker
+                legend="To"
+                accounts={accounts}
+                value={txn.toAccount?.id ?? null}
+                disabled={update.isPending}
+                onChange={(id) => id && update.mutate({ toAccountId: id })}
+              />
+            </>
+          )
+        ) : iou ? (
           <p className="rounded-xl bg-muted px-3.5 py-3 text-sm">
             🤝 {iou}. IOUs don’t count toward your spending.
           </p>
@@ -173,6 +211,17 @@ function EditForm({
               })}
             </div>
           </fieldset>
+        )}
+
+        {!transfer && accounts.length > 0 && (
+          <AccountPicker
+            legend={income ? "Received in" : "Paid with"}
+            accounts={accounts}
+            value={txn.account?.id ?? null}
+            disabled={update.isPending}
+            onChange={(id) => update.mutate({ accountId: id })}
+            allowNone
+          />
         )}
 
         <div className="flex flex-col gap-2">
@@ -224,5 +273,57 @@ function EditForm({
         </Button>
       </DrawerFooter>
     </form>
+  )
+}
+
+function AccountPicker({
+  legend,
+  accounts,
+  value,
+  disabled,
+  onChange,
+  allowNone = false,
+}: {
+  legend: string
+  accounts: AccountChoice[]
+  value: string | null
+  disabled: boolean
+  onChange: (id: string | null) => void
+  allowNone?: boolean
+}) {
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="mb-2 text-sm font-medium">{legend}</legend>
+      <div className="flex flex-wrap gap-2">
+        {accounts.map((a) => {
+          const active = a.id === value
+          return (
+            <button
+              key={a.id}
+              type="button"
+              aria-pressed={active}
+              disabled={disabled}
+              // Tapping the chosen one again clears it (when that's allowed).
+              onClick={() =>
+                onChange(active ? (allowNone ? null : a.id) : a.id)
+              }
+              className={cn(
+                "flex h-10 items-center gap-2 rounded-full border px-3.5 text-sm transition-[background-color,transform] duration-150 ease-out active:scale-[0.97]",
+                active
+                  ? "border-foreground bg-foreground text-background"
+                  : "bg-card [@media(hover:hover)]:hover:bg-muted"
+              )}
+            >
+              <span
+                aria-hidden
+                className="size-2.5 rounded-full"
+                style={{ background: swatch(a.color) }}
+              />
+              {a.name}
+            </button>
+          )
+        })}
+      </div>
+    </fieldset>
   )
 }

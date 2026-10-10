@@ -21,13 +21,24 @@ import {
   todayIn,
 } from "@workspace/core/dates"
 import { preparse } from "@workspace/core/preparse"
+import { alias } from "drizzle-orm/sqlite-core"
 import { type Db, schema } from "@workspace/db"
-import { peopleWithBalances, saveLines } from "./agent.server"
+import { accountBook, peopleWithBalances, saveLines } from "./agent.server"
+import { accountBalances } from "./accounts.server"
 import { openQuestions, resolveQuestionsFor } from "./questions.server"
 import { getDb } from "./services"
 
-const { categories, corrections, entries, people, settings, transactions } =
-  schema
+const {
+  accounts,
+  categories,
+  corrections,
+  entries,
+  people,
+  settings,
+  transactions,
+} = schema
+
+const toAccounts = alias(accounts, "to_accounts")
 
 export async function today(db: Db) {
   const row = await db.query.settings.findFirst({
@@ -52,6 +63,12 @@ const txnColumns = {
   categoryEmoji: categories.emoji,
   personId: transactions.personId,
   personName: people.name,
+  accountId: transactions.accountId,
+  accountName: accounts.name,
+  accountColor: accounts.color,
+  toAccountId: transactions.toAccountId,
+  toAccountName: toAccounts.name,
+  toAccountColor: toAccounts.color,
 }
 
 function fetchTransactions(db: Db, where: SQL | undefined) {
@@ -60,6 +77,8 @@ function fetchTransactions(db: Db, where: SQL | undefined) {
     .from(transactions)
     .leftJoin(categories, eq(categories.id, transactions.categoryId))
     .leftJoin(people, eq(people.id, transactions.personId))
+    .leftJoin(accounts, eq(accounts.id, transactions.accountId))
+    .leftJoin(toAccounts, eq(toAccounts.id, transactions.toAccountId))
     .where(where)
     .orderBy(desc(transactions.localDate), desc(transactions.createdAt))
 }
@@ -89,12 +108,32 @@ function toLedgerTxn(row: TxnRow) {
       row.personId && row.personName
         ? { id: row.personId, name: row.personName }
         : null,
+    account:
+      row.accountId && row.accountName
+        ? {
+            id: row.accountId,
+            name: row.accountName,
+            color: row.accountColor ?? "slate",
+          }
+        : null,
+    /** Transfers only: where the money went. */
+    toAccount:
+      row.toAccountId && row.toAccountName
+        ? {
+            id: row.toAccountId,
+            name: row.toAccountName,
+            color: row.toAccountColor ?? "slate",
+          }
+        : null,
   }
 }
 
 export type LedgerTxn = ReturnType<typeof toLedgerTxn>
 
-/** Only spending and income count toward totals; IOUs live on the People page. */
+/**
+ * Only spending and income count toward totals; IOUs live on the People
+ * page, and transfers just move money between the owner's accounts.
+ */
 const countsTowardTotals = (kind: LedgerTxn["kind"]) =>
   kind === "expense" || kind === "income"
 
@@ -199,10 +238,15 @@ export async function monthView(requested?: string) {
     .orderBy(categories.kind, categories.sort)
   const labels = new Map(activeCategories.map((c) => [c.id, c]))
   // Independent lookups; run them together.
-  const [questions, picks, balances] = await Promise.all([
-    openQuestions(db, labels),
-    quickPicks(db, labels),
+  const [book, balances, wallet] = await Promise.all([
+    accountBook(db),
     peopleWithBalances(db),
+    accountBalances(db),
+  ])
+  const accountNames = new Map(book.known.map((a) => [a.id, a.name]))
+  const [questions, picks] = await Promise.all([
+    openQuestions(db, labels, accountNames),
+    quickPicks(db, labels, accountNames),
   ])
 
   return {
@@ -227,6 +271,9 @@ export async function monthView(requested?: string) {
       .filter((p) => p.owed !== 0)
       .map(({ id, name, owed }) => ({ id, name, owed }))
       .toSorted((a, b) => Math.abs(b.owed) - Math.abs(a.owed)),
+    /** Open accounts with balances; the composer also reads names from these. */
+    accounts: wallet.filter((a) => !a.archived),
+    defaultAccountId: book.defaultAccountId,
   }
 }
 
@@ -280,6 +327,7 @@ export async function logText(
  */
 export async function settleWith(personId: string, part?: number) {
   const db = getDb()
+  const { defaultAccountId } = await accountBook(db)
   const person = (await peopleWithBalances(db)).find((p) => p.id === personId)
   if (!person) throw new Error("Person not found")
   if (person.owed === 0) return { amount: 0, id: null }
@@ -292,6 +340,7 @@ export async function settleWith(personId: string, part?: number) {
       kind: "settle",
       amount,
       personId,
+      accountId: defaultAccountId,
       localDate: await today(db),
       // The row's IOU label already says who paid whom.
       description:
@@ -338,6 +387,8 @@ export async function editTransaction(data: {
   categoryId?: string | null
   description?: string
   localDate?: string
+  accountId?: string | null
+  toAccountId?: string | null
 }) {
   const db = getDb()
   const current = await db.query.transactions.findFirst({
@@ -345,6 +396,17 @@ export async function editTransaction(data: {
   })
   if (!current) throw new Error("Transaction not found")
 
+  for (const id of [data.accountId, data.toAccountId]) {
+    if (!id) continue
+    const exists = await db.query.accounts.findFirst({
+      where: eq(accounts.id, id),
+      columns: { id: true },
+    })
+    if (!exists) throw new Error("Account not found")
+  }
+  if (data.toAccountId !== undefined && current.kind !== "transfer") {
+    throw new Error("Only a transfer has a second account")
+  }
   if (data.categoryId) {
     const exists = await db.query.categories.findFirst({
       where: eq(categories.id, data.categoryId),
@@ -356,7 +418,13 @@ export async function editTransaction(data: {
   const changes: Partial<typeof transactions.$inferInsert> = {}
   const changed: { field: string; from: string | null; to: string | null }[] =
     []
-  for (const field of ["categoryId", "description", "localDate"] as const) {
+  for (const field of [
+    "categoryId",
+    "description",
+    "localDate",
+    "accountId",
+    "toAccountId",
+  ] as const) {
     const next = data[field]
     if (next === undefined || next === current[field]) continue
     changes[field] = next as never
@@ -366,11 +434,10 @@ export async function editTransaction(data: {
 
   await db.update(transactions).set(changes).where(eq(transactions.id, data.id))
   // Picking a category by hand answers any open category question.
-  await resolveQuestionsFor(
-    db,
-    data.id,
-    changes.categoryId !== undefined ? ["category"] : []
-  )
+  await resolveQuestionsFor(db, data.id, [
+    ...(changes.categoryId !== undefined ? (["category"] as const) : []),
+    ...(changes.accountId !== undefined ? (["account"] as const) : []),
+  ])
   // Confirmed rows teach the categorizer; corrections keep the history.
   await db.insert(corrections).values(
     changed.map((c) => ({
@@ -466,7 +533,8 @@ const PICKS = 4
  */
 async function quickPicks(
   db: Db,
-  labels: Map<string, { name: string; emoji: string }>
+  labels: Map<string, { name: string; emoji: string }>,
+  accountNames: Map<string, string>
 ) {
   const prefs = await db.query.settings.findFirst({
     columns: { timeZone: true },
@@ -478,6 +546,7 @@ async function quickPicks(
       description: transactions.description,
       amount: transactions.amount,
       categoryId: transactions.categoryId,
+      accountId: transactions.accountId,
       createdAt: transactions.createdAt,
     })
     .from(transactions)
@@ -508,6 +577,7 @@ async function quickPicks(
       description: string
       amount: number
       categoryId: string | null
+      accountId: string | null
       count: number
       nearNow: number
     }
@@ -515,11 +585,13 @@ async function quickPicks(
   for (const r of rows) {
     const description = r.description.trim().toLowerCase()
     if (!description) continue
-    const key = `${description}|${r.amount}`
+    // Same text, amount and account: "kape via gcash" and "kape cash" differ.
+    const key = `${description}|${r.amount}|${r.accountId ?? ""}`
     const group = groups.get(key) ?? {
       description,
       amount: r.amount,
       categoryId: r.categoryId,
+      accountId: r.accountId,
       count: 0,
       nearNow: 0,
     }
@@ -533,7 +605,15 @@ async function quickPicks(
     .toSorted((a, b) => b.count + 2 * b.nearNow - (a.count + 2 * a.nearNow))
     .slice(0, PICKS)
     .map((g) => ({
-      text: `${g.amount > 0 ? "+" : "-"}${Math.abs(g.amount) / 100} ${g.description}`,
+      text: [
+        `${g.amount > 0 ? "+" : "-"}${Math.abs(g.amount) / 100}`,
+        g.description,
+        g.accountId && accountNames.has(g.accountId)
+          ? `using ${accountNames.get(g.accountId)}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" "),
       description: g.description,
       amount: g.amount,
       emoji: (g.categoryId && labels.get(g.categoryId)?.emoji) || null,
@@ -628,6 +708,7 @@ export async function transactionsView(period: Period, month?: string) {
     transactions: rows.slice(0, MAX_LISTED).map(toLedgerTxn),
     truncated: rows.length > MAX_LISTED,
     categories: activeCategories,
+    accounts: (await accountBalances(db)).filter((a) => !a.archived),
   }
 }
 

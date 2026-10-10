@@ -25,7 +25,7 @@ function People() {
     .reduce((s, p) => s - p.owed, 0)
 
   return (
-    <div className="mx-auto flex min-h-svh max-w-md flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-none lg:px-8 lg:pt-6">
+    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-none lg:px-8 lg:pt-6">
       <PageHeader title="People" viewer={viewer} />
       <div className="flex flex-col gap-6 lg:mx-auto lg:w-full lg:max-w-3xl">
         <p className="text-sm text-muted-foreground">

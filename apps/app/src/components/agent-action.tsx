@@ -15,6 +15,11 @@ import {
   restoreTransactions,
   undoRecategorize,
 } from "@/server/ledger"
+import {
+  deleteAccount,
+  setAccountBalance,
+  undoMoveToAccount,
+} from "@/server/accounts"
 
 /** Tools that change the ledger, and how their confirm card is titled. */
 export const ACTION_TITLES: Record<string, string> = {
@@ -22,6 +27,9 @@ export const ACTION_TITLES: Record<string, string> = {
   deleteEntries: "Delete entries",
   logEntries: "Log entries",
   settleUp: "Settle up",
+  addAccount: "Add an account",
+  setAccountBalance: "Correct a balance",
+  moveToAccount: "File under an account",
 }
 
 type Undo =
@@ -30,6 +38,12 @@ type Undo =
   | {
       kind: "recategorize"
       changes: { id: string; categoryId: string | null }[]
+    }
+  | { kind: "removeAccount"; id: string }
+  | { kind: "setBalance"; id: string; balance: number }
+  | {
+      kind: "refileAccounts"
+      changes: { id: string; accountId: string | null }[]
     }
 
 interface Output {
@@ -74,6 +88,14 @@ export function AgentAction({
         await deleteTransactions({ data: { ids: action.ids } })
       if (action.kind === "recategorize")
         await undoRecategorize({ data: { changes: action.changes } })
+      if (action.kind === "removeAccount")
+        await deleteAccount({ data: { id: action.id } })
+      if (action.kind === "setBalance")
+        await setAccountBalance({
+          data: { id: action.id, balance: action.balance },
+        })
+      if (action.kind === "refileAccounts")
+        await undoMoveToAccount({ data: { changes: action.changes } })
       setUndone(true)
       await refresh()
       toast("Undone.")

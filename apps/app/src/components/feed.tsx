@@ -1,7 +1,8 @@
+import { ArrowLeftRightIcon } from "lucide-react"
 import { formatPeso } from "@workspace/core/money"
 import { CoinMark } from "@workspace/ui/components/brand"
 import { cn } from "@workspace/ui/lib/utils"
-import { capitalize, dayLabel, iouLabel } from "@/lib/format"
+import { capitalize, dayLabel, iouLabel, transferLabel } from "@/lib/format"
 import type { LedgerTxn, MonthView } from "@/server/ledger"
 
 export function Feed({
@@ -58,8 +59,13 @@ function TransactionRow({
   const iou = txn.person
     ? iouLabel(txn.kind, txn.amount, txn.person.name)
     : null
-  const income = txn.amount > 0 && !iou
-  const title = capitalize(txn.description) || txn.category?.name || "Untitled"
+  const transfer = txn.kind === "transfer"
+  const quiet = Boolean(iou) || transfer
+  const income = txn.amount > 0 && !quiet
+  const title =
+    capitalize(txn.description) ||
+    txn.category?.name ||
+    (transfer ? "Transfer" : "Untitled")
 
   return (
     <button
@@ -72,11 +78,15 @@ function TransactionRow({
         aria-hidden
         className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-lg"
       >
-        {iou
-          ? "🤝"
-          : (txn.category?.emoji ?? (
-              <CoinMark rim={false} className="size-5 text-muted-foreground" />
-            ))}
+        {transfer ? (
+          <ArrowLeftRightIcon className="size-4 text-muted-foreground" />
+        ) : iou ? (
+          "🤝"
+        ) : (
+          (txn.category?.emoji ?? (
+            <CoinMark rim={false} className="size-5 text-muted-foreground" />
+          ))
+        )}
       </span>
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate">{title}</span>
@@ -88,9 +98,12 @@ function TransactionRow({
             </span>
           )}
           <span className="truncate">
-            {iou ?? txn.category?.name ?? "Uncategorized"}
+            {transfer
+              ? transferLabel(txn)
+              : (iou ?? txn.category?.name ?? "Uncategorized")}
             {txn.split ? ` · split ${txn.split} ways` : ""}
             {txn.recurring ? " · repeats" : ""}
+            {!transfer && txn.account ? ` · ${txn.account.name}` : ""}
           </span>
         </span>
       </span>
@@ -98,12 +111,14 @@ function TransactionRow({
         className={cn(
           "figure shrink-0 font-display text-xl",
           income && "text-income-foreground",
-          txn.amount < 0 && !iou && "text-expense-foreground",
-          // IOUs aren't spending or income, so they stay quiet.
-          iou && "text-muted-foreground"
+          txn.amount < 0 && !quiet && "text-expense-foreground",
+          // IOUs and transfers aren't spending or income, so they stay quiet.
+          quiet && "text-muted-foreground"
         )}
       >
-        {formatPeso(txn.amount, { sign: txn.amount > 0 })}
+        {transfer
+          ? formatPeso(Math.abs(txn.amount))
+          : formatPeso(txn.amount, { sign: txn.amount > 0 })}
       </span>
     </button>
   )

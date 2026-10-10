@@ -19,7 +19,9 @@ import { askInstructions } from "@workspace/ai/ask"
 import { DEFAULT_TIME_ZONE, todayIn } from "@workspace/core/dates"
 import { formatPeso } from "@workspace/core/money"
 import { type Db, schema } from "@workspace/db"
-import { peopleWithBalances } from "./agent.server"
+import { ACCOUNT_KIND_LABELS } from "@workspace/core/accounts"
+import { accountBook, peopleWithBalances } from "./agent.server"
+import { accountBalances } from "./accounts.server"
 import {
   actionApprovals,
   actionTools,
@@ -28,7 +30,7 @@ import {
 import { serverEnv } from "./env"
 import { getDb } from "./services"
 
-const { categories, settings, transactions } = schema
+const { accounts, categories, settings, transactions } = schema
 
 /** Keep requests small: the agent only needs the recent conversation. */
 const MAX_MESSAGES = 12
@@ -57,12 +59,14 @@ async function ledgerRows(
     direction,
     category,
     text,
+    account,
   }: {
     from: string
     to: string
     direction: "out" | "in" | "both"
     category?: string
     text?: string
+    account?: string
   }
 ) {
   return db
@@ -71,9 +75,11 @@ async function ledgerRows(
       localDate: transactions.localDate,
       description: transactions.description,
       categoryName: categories.name,
+      accountName: accounts.name,
     })
     .from(transactions)
     .leftJoin(categories, eq(categories.id, transactions.categoryId))
+    .leftJoin(accounts, eq(accounts.id, transactions.accountId))
     .where(
       and(
         isNull(transactions.deletedAt),
@@ -89,14 +95,55 @@ async function ledgerRows(
           : undefined,
         text
           ? sql`lower(${transactions.description}) like ${`%${text.trim().toLowerCase()}%`}`
+          : undefined,
+        account
+          ? sql`lower(${accounts.name}) = ${account.trim().toLowerCase()}`
           : undefined
       )
     )
     .orderBy(desc(transactions.localDate), desc(transactions.createdAt))
 }
 
+const ACCOUNT = z
+  .string()
+  .optional()
+  .describe("Only entries paid from or received in this account, by name")
+
 function ledgerTools(db: Db) {
   return {
+    accounts: tool({
+      description:
+        "The owner's banks, e-wallets, credit cards and cash, with what each holds now (for a credit card, what's owed and the credit left). Use it for 'how much is in my GCash', 'how much do I owe on my card', 'how much money do I have'.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const [list, book] = await Promise.all([
+          accountBalances(db),
+          accountBook(db),
+        ])
+        return list
+          .filter((a) => !a.archived)
+          .map((a) => {
+            const card = a.kind === "credit_card"
+            return {
+              name: a.name,
+              type: ACCOUNT_KIND_LABELS[a.kind].toLowerCase(),
+              ...(card
+                ? {
+                    owed: money(Math.max(0, -a.balance)),
+                    ...(a.creditLimit && {
+                      available: money(
+                        Math.max(0, a.creditLimit + Math.min(0, a.balance))
+                      ),
+                    }),
+                  }
+                : { balance: money(a.balance) }),
+              ...(a.id === book.defaultAccountId && {
+                default: "entries that name no account are filed here",
+              }),
+            }
+          })
+      },
+    }),
     balances: tool({
       description:
         "Who owes the owner money and whom the owner owes (IOUs, loans, shared bills), with each person's recent IOU entries. Use it for 'who owes me', 'how much does X owe me', 'do I owe anyone'.",
@@ -157,9 +204,16 @@ function ledgerTools(db: Db) {
         groupBy: z.enum(["total", "category", "day", "month"]).default("total"),
         direction: DIRECTION,
         category: z.string().optional().describe("Only this category, by name"),
+        account: ACCOUNT,
       }),
-      execute: async ({ from, to, groupBy, direction, category }) => {
-        const rows = await ledgerRows(db, { from, to, direction, category })
+      execute: async ({ from, to, groupBy, direction, category, account }) => {
+        const rows = await ledgerRows(db, {
+          from,
+          to,
+          direction,
+          category,
+          account,
+        })
         let out = 0
         let income = 0
         const groups = new Map<
@@ -219,16 +273,27 @@ function ledgerTools(db: Db) {
           .string()
           .optional()
           .describe("Words to find in the description, e.g. a shop or person"),
+        account: ACCOUNT,
         sort: z.enum(["newest", "largest"]).default("newest"),
         limit: z.number().int().min(1).max(MAX_ROWS).default(10),
       }),
-      execute: async ({ from, to, direction, category, text, sort, limit }) => {
+      execute: async ({
+        from,
+        to,
+        direction,
+        category,
+        text,
+        account,
+        sort,
+        limit,
+      }) => {
         const rows = await ledgerRows(db, {
           from,
           to,
           direction,
           category,
           text,
+          account,
         })
         const sorted =
           sort === "largest"
@@ -242,6 +307,7 @@ function ledgerTools(db: Db) {
             description: r.description,
             amount: money(r.amount),
             category: r.categoryName ?? "Uncategorized",
+            ...(r.accountName && { account: r.accountName }),
           })),
         }
       },
@@ -272,7 +338,7 @@ export async function answerAsk(body: unknown) {
     tools,
   })
 
-  const [timeZone, active] = await Promise.all([
+  const [timeZone, active, book] = await Promise.all([
     db.query.settings
       .findFirst({ where: eq(settings.id, 1), columns: { timeZone: true } })
       .then((row) => row?.timeZone ?? DEFAULT_TIME_ZONE),
@@ -281,6 +347,7 @@ export async function answerAsk(body: unknown) {
       .from(categories)
       .where(eq(categories.archived, false))
       .orderBy(categories.kind, categories.sort),
+    accountBook(db),
   ])
 
   const result = streamText({
@@ -289,6 +356,11 @@ export async function answerAsk(body: unknown) {
       today: todayIn(timeZone),
       timeZone,
       categories: active,
+      accounts: book.known.map((a) => ({
+        name: a.name,
+        kind: a.kind,
+        isDefault: a.id === book.defaultAccountId,
+      })),
     }),
     messages: await convertToModelMessages(validated),
     tools,

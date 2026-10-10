@@ -16,6 +16,7 @@ import {
 } from "ai"
 import { formatPeso } from "@workspace/core/money"
 import type { Direction } from "@workspace/core/preparse"
+import type { AccountQuestionDraft } from "./accounts"
 import {
   type PeopleSignals,
   type PersonInput,
@@ -252,6 +253,7 @@ export type QuestionDraft =
       options: { value: Relation; p: number }[]
       rankings: { in: Ranked[]; out: Ranked[] }
     }
+  | AccountQuestionDraft
 
 export interface Resolved {
   direction: Direction
