@@ -20,6 +20,11 @@ const monthOnly = new Intl.DateTimeFormat("en-PH", {
 
 const utc = (date: string) => new Date(`${date}T00:00:00Z`)
 
+/** "Thu, Oct 8". */
+export function shortDate(date: string): string {
+  return weekdayDate.format(utc(date))
+}
+
 /** "Today", "Yesterday", or "Thu, Oct 8". */
 export function dayLabel(date: string, today: string): string {
   if (date === today) return "Today"

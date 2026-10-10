@@ -13,6 +13,7 @@ import {
   DrawerTitle,
 } from "@workspace/ui/components/drawer"
 import { Input } from "@workspace/ui/components/input"
+import { useDesktop } from "@/lib/use-desktop"
 import { cn } from "@workspace/ui/lib/utils"
 import { iouLabel } from "@/lib/format"
 import {
@@ -32,13 +33,20 @@ export function TransactionDrawer({
   categories: MonthView["categories"]
   onClose: () => void
 }) {
+  const desktop = useDesktop()
   // Keep the last transaction around so content doesn't vanish mid-close.
   const [shown, setShown] = useState(txn)
   if (txn && txn !== shown) setShown(txn)
 
   return (
-    <Drawer open={Boolean(txn)} onOpenChange={(open) => !open && onClose()}>
-      <DrawerContent>
+    <Drawer
+      open={Boolean(txn)}
+      onOpenChange={(open) => !open && onClose()}
+      swipeDirection={desktop ? "right" : "down"}
+    >
+      <DrawerContent
+        className={desktop ? "w-[26rem] justify-center" : undefined}
+      >
         {shown && (
           <EditForm
             key={shown.id}

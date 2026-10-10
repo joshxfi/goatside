@@ -101,6 +101,14 @@ Amounts accept `500`, `1.5k`, `1,250.50` and an optional `₱` or `php` prefix. 
 - **People**: running balance per person ("X owes you ₱800"), settle-up history, and one-tap settle.
 - **Settings**: categories (emoji, color, rename, merge), timezone, CSV export, account.
 
+### 2.4.1 Phone vs desktop (as built)
+
+One responsive page, split by CSS breakpoints so the server renders the right layout (no flash):
+
+- **Phone: log and chat.** Summary, daily bars, categories, people and the day-grouped feed, with the composer pinned in the thumb zone and the agent's question cards above it.
+- **Desktop (`lg`, 1024px+): review.** A main column with four headline numbers (spent with pace, money in, net, daily average), a **pace** chart (this month's running total against last month's, dashed), **where it went**, **day by day**, a **six-month** stacked trend by top category, and a **transactions table** (search, category and type filters, sortable columns, pagination, net of the filtered rows). A sticky side column holds the composer and questions, people balances and repeating charges. Drawers (edit, ask) open from the right.
+- Between 1024 and 1280px the headline numbers go two-up and charts stack, so nothing truncates.
+
 ### 2.5 Small touches
 
 - **Quick-repeat chips** above the composer show your top 3–5 most frequent entries for the current time of day.
@@ -130,9 +138,9 @@ From the founder's sketch: "goat side" means *which side of the coin are you on?
 | Apps | **TanStack Start** × 2 (`apps/web` landing, `apps/app` core) | Both build with the `nitro/vite` plugin: Vercel Build Output on Vercel, a Node server elsewhere |
 | UI | **shadcn/ui on Base UI** + Tailwind v4 | Base UI has been shadcn's default since July 2026. Scaffold with `shadcn init --monorepo -t start -b base` |
 | Data fetching | **TanStack Query** + Start server functions | Optimistic inserts for the composer |
-| Tables | **TanStack Table** + **TanStack Virtual** | Table drives sort and filter state; mobile renders cards |
+| Tables | **TanStack Table v9** on shadcn's table markup | Desktop transactions table: explicit features (sorting, global filter, pagination); phones keep the card feed |
 | Forms | **TanStack Form** + Zod | Edit drawer, settings |
-| Charts | **TanStack Charts** (`@tanstack/react-charts`) | Just reached 1.0. Fallback is shadcn charts (Recharts) if the React adapter turns out rough. Theme either through our CSS variables |
+| Charts | **TanStack Charts** (`@tanstack/charts`, React adapter at `@tanstack/charts/react`) | A typed chart grammar; SSR-rendered SVG. Palette maps `--ts-chart-*` to our `--chart-*` tokens, so dark mode is free |
 | DB | **Turso** (libSQL) + **Drizzle ORM** | `drizzle-orm/libsql`. Native vectors via `F32_BLOB`. Local dev uses `turso dev` |
 | Auth | **`packages/auth`** (~100 lines, Web Crypto) | Single account from env; see §6 |
 | Categorizing | **AI SDK `experimental_decide`** → `typesafe-ai/jev` | Decision model with probabilities (§5.1). Through Vercel AI Gateway |
@@ -421,7 +429,7 @@ Later: a **Deploy to Vercel** button (`vercel.com/new/clone?repository-url=…&r
 | M1 | **Auth + DB** | Zod env validation; single-account sign-in from env with throttling; Drizzle schema migrated to Turso; default categories seeded. **Status: done, tested locally** |
 | M2 | **Manual logging (no AI)** | `core.preparse` with tests; composer saves rows; feed grouped by day; month totals. Usable on its own. **Status: done (composer with live preview, optimistic save, undo, edit drawer, month switcher, interim daily bars + category breakdown)** |
 | M3 | **AI parsing** | Jev categorization through AI Gateway, memory and examples from confirmed rows, questions for uncertain fields, corrections, undo, eval suite. **Status: done; tested live, evals in §5.2.4** |
-| M4 | **Dashboard** | Month switcher, daily bars, category breakdown, Insights page, category management |
+| M4 | **Dashboard** | Month switcher, daily bars, category breakdown, Insights page, category management. **Status: desktop review view built (KPIs, pace vs last month, day-by-day, six-month trend by category, sortable/searchable table, people and repeats rail); category management pending** |
 | M5 | **Ask mode + People** | Tool-calling agent with streamed answers and inline charts; IOUs, splits, settle-up. **Status: ask mode (DeepSeek, three read-only tools), IOUs, splits, balances and settle-up built; inline charts and a full People page pending** |
 | M6 | **Polish + ship** | PWA + offline queue, quick-repeat chips, monthly recap, CSV export, `docs/self-hosting.md`, landing page |
 | Later | | "Of all time" records (lowest-spend day/week/month, streaks), budgets and pace line, recurring detection, receipt photo (vision model), bank/e-wallet CSV import, wallets and balances |

@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm"
 import {
   DEFAULT_TIME_ZONE,
+  addMonths,
   daysInMonth,
   monthRange,
   todayIn,
@@ -146,29 +147,34 @@ export async function monthView(requested?: string) {
     }
   }
 
-  // Pace check: last month's spending up to the same day of the month.
+  // Pace check: last month's spending, by day and up to the same day.
   const isCurrentMonth = month === todayDate.slice(0, 7)
   const dayOfMonth = isCurrentMonth ? Number(todayDate.slice(8, 10)) : days
-  const [py = 0, pm = 1] = month.split("-").map(Number)
-  const prevMonth =
-    pm === 1 ? `${py - 1}-12` : `${py}-${String(pm - 1).padStart(2, "0")}`
+  const prevMonth = addMonths(month, -1)
   const prevCutoff = Math.min(dayOfMonth, daysInMonth(prevMonth))
+  const prevRange = monthRange(prevMonth)
   const prevRows = await db
-    .select({ amount: transactions.amount, kind: transactions.kind })
+    .select({
+      amount: transactions.amount,
+      kind: transactions.kind,
+      localDate: transactions.localDate,
+    })
     .from(transactions)
     .where(
       and(
         isNull(transactions.deletedAt),
-        between(
-          transactions.localDate,
-          `${prevMonth}-01`,
-          `${prevMonth}-${String(prevCutoff).padStart(2, "0")}`
-        )
+        between(transactions.localDate, prevRange.start, prevRange.end)
       )
     )
-  const prevOut = prevRows
-    .filter((r) => countsTowardTotals(r.kind) && r.amount < 0)
-    .reduce((sum, r) => sum - r.amount, 0)
+  const prevDaily = Array.from({ length: daysInMonth(prevMonth) }, () => 0)
+  for (const r of prevRows) {
+    if (!countsTowardTotals(r.kind) || r.amount >= 0) continue
+    const i = Number(r.localDate.slice(8, 10)) - 1
+    prevDaily[i] = (prevDaily[i] ?? 0) - r.amount
+  }
+  const prevOut = prevDaily
+    .slice(0, prevCutoff)
+    .reduce((sum, out) => sum + out, 0)
 
   const activeCategories = await db
     .select({
@@ -190,6 +196,8 @@ export async function monthView(requested?: string) {
       month: prevMonth,
       outToDate: prevOut,
       hasData: prevRows.length > 0,
+      /** Spending per day of last month, for the pace chart. */
+      daily: prevDaily,
     },
     daily,
     byCategory: [...byCategory.values()].toSorted((a, b) => b.out - a.out),
@@ -344,3 +352,77 @@ export async function editTransaction(data: {
     }))
   )
 }
+
+const TREND_CATEGORIES = 5
+
+/**
+ * Spending and income for the `months` months ending at `month`, with
+ * spending split into the top categories (the rest grouped as "Other").
+ */
+export async function trendView(month: string, months: number) {
+  const db = getDb()
+  const list = Array.from({ length: months }, (_, i) =>
+    addMonths(month, i - months + 1)
+  )
+  const rows = await db
+    .select({
+      amount: transactions.amount,
+      kind: transactions.kind,
+      localDate: transactions.localDate,
+      category: categories.name,
+    })
+    .from(transactions)
+    .leftJoin(categories, eq(categories.id, transactions.categoryId))
+    .where(
+      and(
+        isNull(transactions.deletedAt),
+        inArray(transactions.kind, ["expense", "income"]),
+        between(
+          transactions.localDate,
+          monthRange(list[0] ?? month).start,
+          monthRange(month).end
+        )
+      )
+    )
+
+  const totals = new Map(list.map((m) => [m, { out: 0, in: 0 }]))
+  const byCategory = new Map<string, number>()
+  for (const r of rows) {
+    const total = totals.get(r.localDate.slice(0, 7))
+    if (!total) continue
+    if (r.amount > 0) {
+      total.in += r.amount
+      continue
+    }
+    total.out -= r.amount
+    const name = r.category ?? "Uncategorized"
+    byCategory.set(name, (byCategory.get(name) ?? 0) - r.amount)
+  }
+  const top = [...byCategory]
+    .toSorted((a, b) => b[1] - a[1])
+    .slice(0, TREND_CATEGORIES)
+    .map(([name]) => name)
+  const keyOf = (name: string) => (top.includes(name) ? name : "Other")
+
+  const stacks = new Map<string, number>()
+  for (const r of rows) {
+    if (r.amount >= 0) continue
+    const key = `${r.localDate.slice(0, 7)}|${keyOf(r.category ?? "Uncategorized")}`
+    stacks.set(key, (stacks.get(key) ?? 0) - r.amount)
+  }
+  const series = top.length < byCategory.size ? [...top, "Other"] : top
+
+  return {
+    months: list.map((m) => ({ month: m, ...totals.get(m)! })),
+    series,
+    stacks: list.flatMap((m) =>
+      series.map((category) => ({
+        month: m,
+        category,
+        out: stacks.get(`${m}|${category}`) ?? 0,
+      }))
+    ),
+  }
+}
+
+export type TrendView = Awaited<ReturnType<typeof trendView>>

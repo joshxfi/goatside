@@ -267,3 +267,27 @@
     }
   }
 }
+
+@layer components {
+  /* TanStack Charts: axes and grid follow muted ink; palette follows the theme. */
+  .goat-chart {
+    color: var(--muted-foreground);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    --ts-chart-1: var(--chart-1);
+    --ts-chart-2: var(--chart-2);
+    --ts-chart-3: var(--chart-3);
+    --ts-chart-4: var(--chart-4);
+    --ts-chart-5: var(--chart-5);
+    --ts-chart-6: var(--muted-foreground);
+    --ts-chart-tooltip-background: var(--popover);
+    --ts-chart-tooltip-color: var(--popover-foreground);
+    --ts-chart-tooltip-border: 1px solid var(--border);
+    --ts-chart-tooltip-border-radius: 0.75rem;
+    --ts-chart-tooltip-padding: 0.5rem 0.75rem;
+    --ts-chart-tooltip-shadow: 0 8px 24px oklch(0 0 0 / 10%);
+    --ts-chart-tooltip-font: 500 12px / 1.5 var(--font-sans);
+    --ts-chart-focus-fill: var(--foreground);
+  }
+}

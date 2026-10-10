@@ -1,3 +1,4 @@
+import { useId } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { formatPeso } from "@workspace/core/money"
 import { toast } from "@workspace/ui/components/sonner"
@@ -6,6 +7,7 @@ import { type MonthView, deleteTransactions, settleUp } from "@/server/ledger"
 
 /** Open IOUs: who owes you, and whom you owe. Hidden when everyone's square. */
 export function PeopleList({ people }: { people: MonthView["people"] }) {
+  const headingId = useId()
   const queryClient = useQueryClient()
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["month"] })
 
@@ -33,9 +35,9 @@ export function PeopleList({ people }: { people: MonthView["people"] }) {
   if (!people.length) return null
 
   return (
-    <section aria-labelledby="people-heading" className="flex flex-col gap-2">
+    <section aria-labelledby={headingId} className="flex flex-col gap-2">
       <h2
-        id="people-heading"
+        id={headingId}
         className="px-1 text-sm font-medium text-muted-foreground"
       >
         People

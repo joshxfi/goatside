@@ -2,7 +2,7 @@ import { Link, useRouter } from "@tanstack/react-router"
 import { ChevronLeftIcon, ChevronRightIcon, LogOutIcon } from "lucide-react"
 import { addMonths } from "@workspace/core/dates"
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
-import { CoinMark } from "@workspace/ui/components/brand"
+import { CoinMark, Wordmark } from "@workspace/ui/components/brand"
 import { buttonVariants } from "@workspace/ui/components/button"
 import {
   DropdownMenu,
@@ -38,6 +38,7 @@ export function MonthHeader({
   return (
     <header className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-1">
+        <Wordmark className="mr-6 hidden text-xl lg:inline-flex" />
         <Link
           to="/"
           search={toSearch(prev)}

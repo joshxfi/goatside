@@ -13,10 +13,12 @@
   },
   "dependencies": {
     "@ai-sdk/react": "catalog:",
+    "@tanstack/charts": "^1.1.0",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
     "@tanstack/react-router-ssr-query": "catalog:",
     "@tanstack/react-start": "catalog:",
+    "@tanstack/react-table": "^9.2.8",
     "@workspace/ai": "workspace:*",
     "@workspace/auth": "workspace:*",
     "@workspace/core": "workspace:*",

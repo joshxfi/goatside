@@ -6,12 +6,13 @@ import {
   monthView,
   setDeleted,
   settleWith,
+  trendView,
 } from "./ledger.server"
 import { AnswerError, answer } from "./questions.server"
 import { getDb } from "./services"
 import { authMiddleware } from "./session"
 
-export type { LedgerTxn, MonthView } from "./ledger.server"
+export type { LedgerTxn, MonthView, TrendView } from "./ledger.server"
 export type { OpenQuestion } from "./questions.server"
 
 const MONTH = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)
@@ -22,6 +23,12 @@ export const getMonth = createServerFn()
   .middleware([authMiddleware])
   .validator(z.object({ month: MONTH.optional() }))
   .handler(({ data }) => monthView(data.month))
+
+/** Six months of totals and top categories, ending at `month`. */
+export const getTrend = createServerFn()
+  .middleware([authMiddleware])
+  .validator(z.object({ month: MONTH }))
+  .handler(({ data }) => trendView(data.month, 6))
 
 export const logEntry = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

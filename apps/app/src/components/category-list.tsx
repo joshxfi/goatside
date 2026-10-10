@@ -1,26 +1,34 @@
+import { useId } from "react"
 import { formatPeso } from "@workspace/core/money"
 import type { MonthView } from "@/server/ledger"
 
 export function CategoryList({
   categories,
   total,
+  bare,
 }: {
   categories: MonthView["byCategory"]
   total: number
+  /** Inside a card that already has a title. */
+  bare?: boolean
 }) {
+  const headingId = useId()
   if (!categories.length) return null
 
   return (
     <section
-      aria-labelledby="categories-heading"
+      aria-labelledby={bare ? undefined : headingId}
+      aria-label={bare ? "Spending by category" : undefined}
       className="flex flex-col gap-3"
     >
-      <h2
-        id="categories-heading"
-        className="text-sm font-medium text-muted-foreground"
-      >
-        Where it went
-      </h2>
+      {!bare && (
+        <h2
+          id={headingId}
+          className="text-sm font-medium text-muted-foreground"
+        >
+          Where it went
+        </h2>
+      )}
       <ul className="flex flex-col gap-3">
         {categories.map((c) => {
           const share = total ? c.out / total : 0

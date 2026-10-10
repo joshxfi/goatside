@@ -2,7 +2,9 @@
 
 Goatside is an open-source, personal, agentic finance tracker that you self-host.
 Type `-500 lunch at berto's` or `+250 paid by x` and it becomes a categorized
-transaction on a mobile-first dashboard.
+transaction. On your phone it's a quick logger and a chat with the agent; on a
+wide screen it's a dashboard for reviewing your money, with charts and a full
+transactions table.
 
 It's built for one person. There's no hosted service: you deploy your own copy
 to Vercel, with your own Turso database and AI Gateway key. It has exactly one
@@ -68,6 +70,8 @@ pnpm lint         # oxlint
 pnpm format       # oxfmt
 pnpm db:generate  # new migration after editing packages/db/src/schema
 pnpm db:studio    # browse the local DB
+TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter @workspace/db demo
+                  # 3 months of sample data into a separate local DB (local URLs only)
 pnpm --filter @workspace/ai eval   # live accuracy evals (needs AI_GATEWAY_API_KEY)
 ```
 

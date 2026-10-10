@@ -123,9 +123,10 @@ export function Composer({
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
+    // Pinned to the thumb zone on phones; the top of the side column on desktop.
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 lg:static lg:z-auto lg:rounded-2xl lg:border lg:bg-card lg:backdrop-blur-none lg:supports-[backdrop-filter]:bg-card">
       <form
-        className="mx-auto flex max-w-md flex-col gap-2 px-4 pt-2 pb-[max(env(safe-area-inset-bottom),0.75rem)]"
+        className="mx-auto flex max-w-md flex-col gap-2 px-4 pt-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] lg:max-w-none lg:p-3"
         onSubmit={(e) => {
           e.preventDefault()
           submit()

@@ -2,6 +2,7 @@ import { useState } from "react"
 import type { UseChatHelpers } from "@ai-sdk/react"
 import type { UIMessage } from "ai"
 import { ArrowUpIcon, SquareIcon } from "lucide-react"
+import { useDesktop } from "@/lib/use-desktop"
 import {
   Drawer,
   DrawerContent,
@@ -36,6 +37,7 @@ export function AskSheet({
   onOpenChange: (open: boolean) => void
 }) {
   const [text, setText] = useState("")
+  const desktop = useDesktop()
   const busy = chat.status === "submitted" || chat.status === "streaming"
   const last = chat.messages.at(-1)
 
@@ -50,8 +52,14 @@ export function AskSheet({
   }
 
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="mx-auto h-[85dvh] max-w-md">
+    <Drawer
+      open={open}
+      onOpenChange={onOpenChange}
+      swipeDirection={desktop ? "right" : "down"}
+    >
+      <DrawerContent
+        className={desktop ? "w-[28rem]" : "mx-auto h-[85dvh] max-w-md"}
+      >
         <DrawerHeader className="flex-row items-start justify-between gap-3 group-data-[swipe-axis=y]/drawer-popup:text-left">
           <div className="flex flex-col gap-0.5">
             <DrawerTitle className="font-display text-2xl font-normal">
