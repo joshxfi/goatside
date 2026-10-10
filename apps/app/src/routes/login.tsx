@@ -66,7 +66,7 @@ function Login() {
           spinning={pending}
           className="size-32 drop-shadow-[0_14px_20px_rgb(0_0_0/0.16)]"
         />
-        <h1 className="text-3xl font-semibold tracking-tight">
+        <h1 className="font-display text-4xl tracking-tight">
           Steady climbing starts here.
         </h1>
       </div>

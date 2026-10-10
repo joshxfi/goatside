@@ -64,7 +64,7 @@ export function AskSheet({
       >
         <DrawerHeader className="flex-row items-start justify-between gap-3 group-data-[swipe-axis=y]/drawer-popup:text-left">
           <div className="flex flex-col gap-0.5">
-            <DrawerTitle className="text-2xl font-semibold tracking-tight">
+            <DrawerTitle className="font-display text-2xl font-normal">
               Ask Goatside
             </DrawerTitle>
             <DrawerDescription>

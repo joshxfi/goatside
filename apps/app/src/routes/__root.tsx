@@ -42,7 +42,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     }),
     notFoundComponent: () => (
       <main className="mx-auto max-w-md p-4 pt-16">
-        <h1 className="text-3xl font-semibold tracking-tight">Off the edge.</h1>
+        <h1 className="font-display text-4xl">Off the edge.</h1>
         <p className="mt-2 text-muted-foreground">
           That page doesn’t exist. <a href="/">Go home</a>.
         </p>
@@ -50,9 +50,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ),
     errorComponent: ({ error, reset }) => (
       <main className="mx-auto flex max-w-md flex-col gap-3 p-4 pt-16">
-        <h1 className="text-3xl font-semibold tracking-tight">
-          Something slipped.
-        </h1>
+        <h1 className="font-display text-4xl">Something slipped.</h1>
         <p className="text-muted-foreground">
           {error instanceof Error
             ? error.message

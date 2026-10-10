@@ -148,7 +148,7 @@ function Kpi({
       <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd
         className={cn(
-          "figure truncate leading-tight font-semibold tracking-tight",
+          "figure truncate font-display leading-tight tracking-tight",
           large ? "text-5xl" : "text-4xl",
           tone === "income" && "text-income-foreground",
           tone === "expense" && "text-expense-foreground"

@@ -41,7 +41,7 @@ export function MonthHeader({
           <ChevronLeftIcon />
         </Link>
         <h1 className="min-w-0 text-center">
-          <span className="text-2xl leading-none font-semibold tracking-tight">
+          <span className="font-display text-3xl leading-none">
             {monthName(month)}
           </span>
           {month.slice(0, 4) !== today.slice(0, 4) && (

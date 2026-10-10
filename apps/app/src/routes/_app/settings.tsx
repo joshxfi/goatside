@@ -424,7 +424,7 @@ function MergeDrawer({
   return (
     <SideDrawer open={Boolean(from)} onClose={onClose}>
       <DrawerHeader className="text-left group-data-[swipe-axis=y]/drawer-popup:text-left">
-        <DrawerTitle className="text-2xl font-semibold tracking-tight">
+        <DrawerTitle className="font-display text-2xl font-normal">
           Merge {from?.emoji} {from?.name} into…
         </DrawerTitle>
         <DrawerDescription>
@@ -508,7 +508,7 @@ function Suggestions({
   return (
     <>
       <DrawerHeader className="text-left group-data-[swipe-axis=y]/drawer-popup:text-left">
-        <DrawerTitle className="text-2xl font-semibold tracking-tight">
+        <DrawerTitle className="font-display text-2xl font-normal">
           {category.emoji} {category.name}
         </DrawerTitle>
         <DrawerDescription>

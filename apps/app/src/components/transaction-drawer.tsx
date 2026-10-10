@@ -126,7 +126,7 @@ function EditForm({
       <DrawerHeader className="items-center gap-1 text-center">
         <DrawerTitle
           className={cn(
-            "figure text-4xl font-semibold tracking-tight",
+            "figure font-display text-5xl font-normal",
             income && "text-income-foreground",
             txn.amount < 0 && !iou && "text-expense-foreground"
           )}

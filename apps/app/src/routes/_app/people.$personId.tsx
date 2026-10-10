@@ -119,16 +119,14 @@ function Balance({ person }: { person: PersonDetail }) {
   return (
     <section className="flex flex-col gap-4 rounded-2xl border bg-card p-5">
       <div className="flex flex-col gap-1">
-        <h1 className="text-3xl leading-none font-semibold tracking-tight">
-          {person.name}
-        </h1>
+        <h1 className="font-display text-4xl leading-none">{person.name}</h1>
         <p className="text-sm text-muted-foreground">
           {square ? "You’re square." : owesYou ? "owes you" : "you owe"}
         </p>
         {!square && (
           <p
             className={cn(
-              "figure text-5xl leading-none font-semibold tracking-tight",
+              "figure font-display text-6xl leading-none tracking-tight",
               owesYou && "text-income-foreground"
             )}
           >
@@ -260,7 +258,7 @@ function History({ person }: { person: PersonDetail }) {
                 </span>
               </span>
               <span className="flex flex-col items-end">
-                <span className="figure text-lg font-semibold tracking-tight">
+                <span className="figure font-display text-lg">
                   {formatPeso(h.amount, { sign: h.amount > 0 })}
                 </span>
                 <span className="figure text-xs text-muted-foreground">

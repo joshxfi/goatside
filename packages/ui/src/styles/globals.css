@@ -11,7 +11,7 @@
 @theme inline {
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-sans);
-  /* Serif is for the brand only (wordmark, landing headlines), never for content. */
+  /* Serif display face: wordmark, headlines and big figures. Body text is Geist. */
   --font-display: "Instrument Serif", ui-serif, Georgia, serif;
   --font-brand: "Instrument Serif", ui-serif, Georgia, serif;
 

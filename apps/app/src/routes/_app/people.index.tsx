@@ -35,13 +35,13 @@ function People() {
         <dl className="grid grid-cols-2 gap-2 lg:gap-4">
           <div className="rounded-2xl border bg-card px-4 py-3">
             <dt className="text-xs text-muted-foreground">Owed to you</dt>
-            <dd className="figure text-2xl font-semibold tracking-tight text-income-foreground">
+            <dd className="figure font-display text-3xl text-income-foreground">
               {formatPeso(owedToYou)}
             </dd>
           </div>
           <div className="rounded-2xl border bg-card px-4 py-3">
             <dt className="text-xs text-muted-foreground">You owe</dt>
-            <dd className="figure text-2xl font-semibold tracking-tight">
+            <dd className="figure font-display text-3xl">
               {formatPeso(youOwe)}
             </dd>
           </div>
@@ -77,7 +77,7 @@ function People() {
                   <span className="flex flex-col items-end">
                     <span
                       className={cn(
-                        "figure text-xl font-semibold tracking-tight",
+                        "figure font-display text-xl",
                         p.owed > 0 && "text-income-foreground",
                         p.owed === 0 && "text-muted-foreground"
                       )}
@@ -101,7 +101,7 @@ function People() {
         ) : (
           <section className="flex flex-col items-center gap-3 rounded-2xl border border-dashed px-6 py-10 text-center">
             <CoinMark className="size-10 text-muted-foreground" />
-            <p className="text-2xl font-semibold tracking-tight">No one yet.</p>
+            <p className="font-display text-2xl">No one yet.</p>
             <p className="text-sm text-muted-foreground">
               When you lend, borrow or split a bill with someone, they’ll show
               up here with what you owe each other.

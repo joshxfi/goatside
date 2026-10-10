@@ -13,7 +13,7 @@ export function Summary({ view }: { view: MonthView }) {
     <section aria-label="Month summary" className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">Spent</span>
-        <span className="figure text-5xl leading-none font-semibold tracking-tight text-expense-foreground">
+        <span className="figure font-display text-6xl leading-none tracking-tight text-expense-foreground">
           {formatPeso(totals.out)}
         </span>
         {showPace && (
@@ -56,7 +56,7 @@ function Stat({
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd
         className={cn(
-          "figure text-2xl leading-tight font-semibold tracking-tight",
+          "figure font-display text-2xl leading-tight",
           tone === "income"
             ? "text-income-foreground"
             : "text-expense-foreground"
