@@ -16,12 +16,12 @@
     "node_modules/",
     ".turbo/",
     ".tanstack/",
-    ".wrangler/",
+    ".output/",
+    ".vercel/",
     ".playwright-mcp/",
     "coverage/",
     "pnpm-lock.yaml",
     "routeTree.gen.ts",
-    "worker-configuration.d.ts",
     "PLAN.md"
   ]
 }

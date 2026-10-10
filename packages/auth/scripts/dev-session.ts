@@ -4,7 +4,7 @@
  *
  *   pnpm --filter @workspace/auth dev-session
  *
- * Prints the session cookie as JSON. Reads apps/app/.dev.vars and refuses
+ * Prints the session cookie as JSON. Reads apps/app/.env.local and refuses
  * to run against anything but a local database.
  */
 import { readFileSync } from "node:fs"
@@ -18,7 +18,7 @@ import {
   seedUser,
 } from "../src/index"
 
-const varsPath = resolve(import.meta.dirname, "../../../apps/app/.dev.vars")
+const varsPath = resolve(import.meta.dirname, "../../../apps/app/.env.local")
 const vars = Object.fromEntries(
   readFileSync(varsPath, "utf8")
     .split("\n")
@@ -26,7 +26,11 @@ const vars = Object.fromEntries(
     .filter((line) => line && !line.startsWith("#") && line.includes("="))
     .map((line) => {
       const i = line.indexOf("=")
-      return [line.slice(0, i).trim(), line.slice(i + 1).trim()]
+      const value = line
+        .slice(i + 1)
+        .trim()
+        .replace(/^(["'])(.*)\1$/, "$2")
+      return [line.slice(0, i).trim(), value]
     })
 ) as Record<string, string>
 
@@ -38,7 +42,7 @@ if (!/^(http:\/\/(127\.0\.0\.1|localhost)|file:)/.test(url)) {
 
 const [email] = parseAllowlist(vars.ALLOWED_EMAILS ?? "")
 if (!email) {
-  console.error("Set ALLOWED_EMAILS in apps/app/.dev.vars first.")
+  console.error("Set ALLOWED_EMAILS in apps/app/.env.local first.")
   process.exit(1)
 }
 

@@ -6,7 +6,6 @@ dist-ssr
 .env*
 .nitro
 .tanstack
-.wrangler
 .output
 .vinxi
 __unconfig*
@@ -18,10 +17,12 @@ todos.json
 # typescript
 *.tsbuildinfo
 
-# cloudflare
-.dev.vars*
-!.dev.vars.example
+# env (copy apps/app/.env.example to .env.local)
 !.env.example
+
+# vercel / nitro
+.vercel
+.output
 
 # local browser automation output
 .playwright-mcp

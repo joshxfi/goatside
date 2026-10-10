@@ -4,8 +4,9 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*", "!.dev.vars*"],
-      "outputs": ["dist/**"]
+      "inputs": ["$TURBO_DEFAULT$", ".env*", "!.env.local"],
+      "env": ["VERCEL", "VERCEL_ENV", "NITRO_PRESET"],
+      "outputs": [".output/**", ".vercel/output/**", "dist/**"]
     },
     "typecheck": {
       "dependsOn": ["^typecheck"]
@@ -13,10 +14,6 @@
     "test": {
       "dependsOn": ["^build"],
       "outputs": []
-    },
-    "deploy": {
-      "dependsOn": ["build"],
-      "cache": false
     },
     "dev": {
       "cache": false,

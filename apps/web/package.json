@@ -7,21 +7,20 @@
     "dev": "vite dev --port 3001",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "wrangler deploy",
-    "cf-typegen": "wrangler types",
     "generate-routes": "tsr generate",
-    "typecheck": "tsr generate && tsc --noEmit"
+    "typecheck": "tsr generate && tsc --noEmit",
+    "start": "node .output/server/index.mjs"
   },
   "dependencies": {
     "@tanstack/react-router": "catalog:",
     "@tanstack/react-start": "catalog:",
     "@workspace/ui": "workspace:*",
     "lucide-react": "catalog:",
+    "nitro": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "@tanstack/devtools-vite": "catalog:",
     "@tanstack/router-cli": "catalog:",
@@ -31,7 +30,6 @@
     "@vitejs/plugin-react": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
-    "vite": "catalog:",
-    "wrangler": "catalog:"
+    "vite": "catalog:"
   }
 }

@@ -2,7 +2,7 @@ import { type Auth, createAuth } from "@workspace/auth"
 import { type Db, createDb } from "@workspace/db"
 import { serverEnv } from "./env"
 
-// One instance per Worker isolate; env doesn't change within an isolate.
+// Created lazily (env is read on first use) and reused for the server's lifetime.
 let db: Db | undefined
 let auth: Auth | undefined
 

@@ -19,10 +19,5 @@
     "browser": true,
     "es2024": true
   },
-  "ignorePatterns": [
-    "**/routeTree.gen.ts",
-    "**/worker-configuration.d.ts",
-    "**/dist/**",
-    "**/.wrangler/**"
-  ]
+  "ignorePatterns": ["**/routeTree.gen.ts", "**/dist/**", "**/.output/**"]
 }

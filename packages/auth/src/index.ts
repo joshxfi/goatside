@@ -39,7 +39,7 @@ export async function seedUser(db: Db, userId: string) {
 
 /**
  * Better Auth for one self-hosted instance: Google sign-in only, limited
- * to `ALLOWED_EMAILS`. Built per request because Workers env isn't global.
+ * to `ALLOWED_EMAILS`. Takes env explicitly so scripts can build their own.
  */
 export function createAuth({
   db,

@@ -1,4 +1,3 @@
-import { env as workerEnv } from "cloudflare:workers"
 import { z } from "zod"
 
 const schema = z.object({
@@ -20,13 +19,13 @@ let parsed: ServerEnv | undefined
 /** Validated server config. Throws once, loudly, with every problem listed. */
 export function serverEnv(): ServerEnv {
   if (parsed) return parsed
-  const result = schema.safeParse(workerEnv)
+  const result = schema.safeParse(process.env)
   if (!result.success) {
     const problems = result.error.issues
       .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
       .join("\n")
     throw new Error(
-      `Goatside is misconfigured. Check .dev.vars or your Worker secrets:\n${problems}`
+      `Goatside is misconfigured. Check apps/app/.env.local (or your Vercel project's environment variables):\n${problems}`
     )
   }
   parsed = result.data

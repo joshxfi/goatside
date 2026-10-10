@@ -1,4 +1,4 @@
-import { drizzle } from "drizzle-orm/libsql/web"
+import { drizzle } from "drizzle-orm/libsql"
 import * as schema from "./schema"
 
 export interface DbConfig {
@@ -7,8 +7,9 @@ export interface DbConfig {
 }
 
 /**
- * Creates a Drizzle client over libSQL's HTTP protocol, which works on
- * Cloudflare Workers and against a local `turso dev` server alike.
+ * Creates a Drizzle client for Turso. `url` can be a Turso database
+ * (libsql://…), a local `turso dev` server (http://127.0.0.1:8080), or a
+ * plain SQLite file (file:local.db).
  */
 export function createDb({ url, authToken }: DbConfig) {
   return drizzle({ connection: { url, authToken }, schema })
