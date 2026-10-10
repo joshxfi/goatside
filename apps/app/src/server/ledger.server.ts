@@ -9,6 +9,7 @@ import {
   desc,
   eq,
   inArray,
+  gte,
   isNotNull,
   isNull,
 } from "drizzle-orm"
@@ -187,6 +188,12 @@ export async function monthView(requested?: string) {
     .where(eq(categories.archived, false))
     .orderBy(categories.kind, categories.sort)
   const labels = new Map(activeCategories.map((c) => [c.id, c]))
+  // Independent lookups; run them together.
+  const [questions, picks, balances] = await Promise.all([
+    openQuestions(db, labels),
+    quickPicks(db, labels),
+    peopleWithBalances(db),
+  ])
 
   return {
     month,
@@ -203,8 +210,9 @@ export async function monthView(requested?: string) {
     byCategory: [...byCategory.values()].toSorted((a, b) => b.out - a.out),
     transactions: txns,
     categories: activeCategories,
-    questions: await openQuestions(db, labels),
-    people: (await peopleWithBalances(db))
+    questions,
+    picks,
+    people: balances
       .filter((p) => p.owed !== 0)
       .map(({ id, name, owed }) => ({ id, name, owed }))
       .toSorted((a, b) => Math.abs(b.owed) - Math.abs(a.owed)),
@@ -214,7 +222,10 @@ export async function monthView(requested?: string) {
 export type MonthView = Awaited<ReturnType<typeof monthView>>
 
 /** Parses a composer line and saves it (or runs `undo`). */
-export async function logText(text: string) {
+export async function logText(
+  text: string,
+  { repeat = false }: { repeat?: boolean } = {}
+) {
   const db = getDb()
   const parsed = preparse(text, { today: await today(db) })
 
@@ -239,7 +250,8 @@ export async function logText(text: string) {
   const { saved, transactionIds, asked } = await saveLines(
     db,
     entry.id,
-    parsed.lines
+    parsed.lines,
+    { checkDuplicates: !repeat }
   )
   return {
     kind: "log" as const,
@@ -432,3 +444,87 @@ export async function trendView(month: string, months: number) {
 }
 
 export type TrendView = Awaited<ReturnType<typeof trendView>>
+
+const PICK_LOOKBACK_DAYS = 60
+const PICKS = 4
+
+/**
+ * Entries the owner logs again and again (same text, amount and sign),
+ * favoring ones usually logged around this hour: morning kape, the ride
+ * home. Tapping one re-logs it.
+ */
+async function quickPicks(
+  db: Db,
+  labels: Map<string, { name: string; emoji: string }>
+) {
+  const prefs = await db.query.settings.findFirst({
+    columns: { timeZone: true },
+  })
+  const timeZone = prefs?.timeZone ?? DEFAULT_TIME_ZONE
+  const since = new Date(Date.now() - PICK_LOOKBACK_DAYS * 24 * 60 * 60 * 1000)
+  const rows = await db
+    .select({
+      description: transactions.description,
+      amount: transactions.amount,
+      categoryId: transactions.categoryId,
+      createdAt: transactions.createdAt,
+    })
+    .from(transactions)
+    .where(
+      and(
+        isNull(transactions.deletedAt),
+        isNotNull(transactions.entryId),
+        inArray(transactions.kind, ["expense", "income"]),
+        gte(transactions.createdAt, since)
+      )
+    )
+
+  const hourOf = (date: Date) =>
+    Number(
+      new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        hourCycle: "h23",
+        timeZone,
+      }).format(date)
+    )
+  const now = hourOf(new Date())
+  const near = (hour: number) =>
+    Math.min(Math.abs(hour - now), 24 - Math.abs(hour - now)) <= 2
+
+  const groups = new Map<
+    string,
+    {
+      description: string
+      amount: number
+      categoryId: string | null
+      count: number
+      nearNow: number
+    }
+  >()
+  for (const r of rows) {
+    const description = r.description.trim().toLowerCase()
+    if (!description) continue
+    const key = `${description}|${r.amount}`
+    const group = groups.get(key) ?? {
+      description,
+      amount: r.amount,
+      categoryId: r.categoryId,
+      count: 0,
+      nearNow: 0,
+    }
+    group.count += 1
+    if (near(hourOf(r.createdAt))) group.nearNow += 1
+    groups.set(key, group)
+  }
+
+  return [...groups.values()]
+    .filter((g) => g.count >= 2)
+    .toSorted((a, b) => b.count + 2 * b.nearNow - (a.count + 2 * a.nearNow))
+    .slice(0, PICKS)
+    .map((g) => ({
+      text: `${g.amount > 0 ? "+" : "-"}${Math.abs(g.amount) / 100} ${g.description}`,
+      description: g.description,
+      amount: g.amount,
+      emoji: (g.categoryId && labels.get(g.categoryId)?.emoji) || null,
+    }))
+}

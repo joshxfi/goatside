@@ -33,8 +33,14 @@ export const getTrend = createServerFn()
 
 export const logEntry = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(z.object({ text: z.string().max(500) }))
-  .handler(({ data }) => logText(data.text))
+  .validator(
+    z.object({
+      text: z.string().max(500),
+      /** A quick pick: logged on purpose, so skip the duplicate check. */
+      repeat: z.boolean().optional(),
+    })
+  )
+  .handler(({ data }) => logText(data.text, { repeat: data.repeat }))
 
 export const deleteTransactions = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

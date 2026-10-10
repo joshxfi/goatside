@@ -36,9 +36,10 @@ export function Composer({
   const parsed = preparse(text, { today: view.today })
 
   const log = useMutation({
-    mutationFn: (input: string) => logEntry({ data: { text: input } }),
+    mutationFn: (input: string | { text: string; repeat: true }) =>
+      logEntry({ data: typeof input === "string" ? { text: input } : input }),
     onMutate: async (input) => {
-      const preview = preparse(input, { today: view.today })
+      const preview = preparse(textOf(input), { today: view.today })
       if (preview.kind !== "log") return { previous: undefined }
 
       await queryClient.cancelQueries({ queryKey })
@@ -74,7 +75,8 @@ export function Composer({
     onError: (_error, input, context) => {
       if (context?.previous)
         queryClient.setQueryData(queryKey, context.previous)
-      setText((current) => current || input)
+      // A failed quick pick has nothing to put back in the box.
+      if (typeof input === "string") setText((current) => current || input)
       toast.error("Couldn’t save that. Your text is back in the box.")
     },
     onSuccess: (result) => {
@@ -133,7 +135,14 @@ export function Composer({
         }}
       >
         {children}
-        <Preview parsed={parsed} today={view.today} />
+        {parsed.kind === "empty" && view.picks.length > 0 ? (
+          <Picks
+            picks={view.picks}
+            onPick={(pick) => log.mutate({ text: pick.text, repeat: true })}
+          />
+        ) : (
+          <Preview parsed={parsed} today={view.today} />
+        )}
         <div className="flex items-center gap-2">
           <label htmlFor="composer" className="sr-only">
             Log money in or out, or ask a question
@@ -162,6 +171,43 @@ export function Composer({
           </button>
         </div>
       </form>
+    </div>
+  )
+}
+
+const textOf = (input: string | { text: string }) =>
+  typeof input === "string" ? input : input.text
+
+/** Frequent entries, one tap to log again. No motion: this is used constantly. */
+function Picks({
+  picks,
+  onPick,
+}: {
+  picks: MonthView["picks"]
+  onPick: (pick: MonthView["picks"][number]) => void
+}) {
+  return (
+    <div className="-mx-1 flex [scrollbar-width:none] gap-1.5 overflow-x-auto px-1">
+      {picks.map((pick) => (
+        <button
+          key={pick.text}
+          type="button"
+          onClick={() => onPick(pick)}
+          aria-label={`Log ${pick.text} again`}
+          className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border bg-card px-3 text-xs transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] [@media(hover:hover)]:hover:bg-muted"
+        >
+          {pick.emoji && <span aria-hidden>{pick.emoji}</span>}
+          <span className="max-w-32 truncate">{pick.description}</span>
+          <span
+            className={cn(
+              "figure text-muted-foreground",
+              pick.amount > 0 && "text-gold-foreground"
+            )}
+          >
+            {formatPeso(pick.amount, { sign: pick.amount > 0 })}
+          </span>
+        </button>
+      ))}
     </div>
   )
 }

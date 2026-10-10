@@ -261,7 +261,11 @@ interface Decision {
  * Decides each line. Model calls for category, people and duplicates run in
  * parallel; any of them failing just means a less certain result.
  */
-async function decide(db: Db, lines: DraftLine[]): Promise<Decision[]> {
+async function decide(
+  db: Db,
+  lines: DraftLine[],
+  { checkDuplicates }: { checkDuplicates: boolean }
+): Promise<Decision[]> {
   const [options, known] = await Promise.all([
     categoryOptions(db),
     peopleWithBalances(db),
@@ -286,7 +290,7 @@ async function decide(db: Db, lines: DraftLine[]): Promise<Decision[]> {
       const [memory, months, earlier] = await Promise.all([
         memoryFor(db, draft.description),
         priorMonths(db, draft),
-        earlierSameAmount(db, draft),
+        checkDuplicates ? earlierSameAmount(db, draft) : null,
       ])
       // Duplicates compare like with like: the earlier row's signed amount.
       const asEarlier = earlier && { ...draft, amount: earlier.amount }
@@ -438,8 +442,14 @@ export interface SavedLine {
 }
 
 /** Decides and saves every line of an entry, with any questions. */
-export async function saveLines(db: Db, entryId: string, lines: DraftLine[]) {
-  const decisions = await decide(db, lines)
+export async function saveLines(
+  db: Db,
+  entryId: string,
+  lines: DraftLine[],
+  /** False for a deliberate repeat (a quick pick): don't ask "again?". */
+  { checkDuplicates = true }: { checkDuplicates?: boolean } = {}
+) {
+  const decisions = await decide(db, lines, { checkDuplicates })
   const saved: SavedLine[] = []
   const transactionIds: string[] = []
   let asked = false

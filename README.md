@@ -38,6 +38,13 @@ account, whose username and password you set in its environment.
   one-tap settle.
 - **Catching mistakes.** The same payment logged twice gets a "keep both?" check, and
   charges that recur month to month are marked as repeating.
+- **Doing things for you.** Ask it to "move all grab rides this month to Transport",
+  "delete the duplicate lunch", "log 350 lunch yesterday" or "Ben paid me back".
+  Every change shows a confirmation listing exactly what will change, and can be
+  undone.
+- **Small assists.** Add a category and it offers to move past entries that belong
+  there; it drafts a friendly payment reminder for someone who owes you; your
+  frequent entries become one-tap chips above the composer.
 - **Answering you.** Type a question instead of an amount ("how much on food this
   month?", "sino may utang sakin?") and DeepSeek V4.1 Flash answers from your ledger
   with read-only tools.

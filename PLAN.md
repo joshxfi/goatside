@@ -99,7 +99,7 @@ Amounts accept `500`, `1.5k`, `1,250.50` and an optional `₱` or `php` prefix. 
 - **Activity**: full list grouped by day, with search (semantic as well as text) and filters for category, person and type. Desktop shows a data table; mobile shows a virtualized card list.
 - **Insights**: month-over-month trend (stacked by category), top merchants, a calendar heatmap of daily spend, and "biggest changes vs last month".
 - **People**: running balance per person ("X owes you ₱800"), settle-up history, and one-tap settle.
-- **Settings**: categories (emoji, color, rename, merge), timezone, CSV export, account.
+- **Settings**: categories (emoji, rename, add, hide, merge, find entries for a new one) and timezone are built; CSV export pending.
 
 ### 2.4.1 Phone vs desktop (as built)
 
@@ -246,7 +246,13 @@ Answering a relation question re-files the line in place (the primary row keeps 
 - **Duplicates** (`packages/ai/src/duplicates.ts`): code finds the newest entry with the same amount within ±2 days, logged in the last 3 days. Same text within 15 minutes is a repeat outright; otherwise Jev answers "the same single payment entered twice?" with the gap between loggings in state. At ≥ 0.7 the owner is asked "Keep both / Remove this one", and that question replaces the line's others.
 - **Repeats:** a description seen in two earlier months (amount within 15%) is recurring regardless of the text; seen once, Jev's recurring score needs only 0.4 instead of 0.8.
 
-### 5.2.4 Evals (`pnpm --filter @workspace/ai eval`)
+### 5.2.4 More agent assists
+
+- **New category → "find entries for this".** Jev re-checks recent entries (last 120 days, up to 80) against the full category list and suggests ones whose best fit is now the new category (≥ 0.7); the owner unticks any and confirms. Examples are dropped for this pass: they come from current filing and vote for the status quo ("kape" as a Food example kept "kape" in Food at 0.70; without examples it's Coffee at 0.79).
+- **Payment reminders.** On a person's page, DeepSeek drafts a two-to-three sentence reminder from their actual open IOUs; the owner edits, copies or shares it. Nothing is sent automatically.
+- **Quick picks.** Up to four chips above the empty composer: entries typed at least twice in 60 days, weighted toward ones usually logged around this hour. A pick skips the duplicate check, since repeating it is the point.
+
+### 5.2.5 Evals (`pnpm --filter @workspace/ai eval`)
 
 Live runs against the real model, with results as of 2026-10-10:
 
@@ -266,8 +272,14 @@ Ranges are across runs (borderline cases like "gas shell" at 0.51 move a little)
 | `summarize(from, to, groupBy, direction, category?)` | Totals for a range, grouped by category, day or month |
 | `findTransactions(from, to, direction, category?, text?, sort, limit)` | Matching entries, newest or largest first, with their count and sum |
 | `balances(person?)` | Who owes the owner and whom they owe, with recent IOU entries |
+| `moveToCategory(filter, newCategory)` | **Write, approval.** Re-files matching entries; records corrections |
+| `deleteEntries(filter)` | **Write, approval.** Soft-deletes matching entries (≤ 50) |
+| `logEntries(text)` | **Write, approval.** Logs composer-syntax text through the full pipeline |
+| `settleUp(person, amount?)` | **Write, approval.** Records a full or partial repayment |
 
-All three are fixed, read-only queries; the model never writes SQL or changes data. The system prompt (`packages/ai/src/ask.ts`) gives today's date and timezone and the category names, and requires every figure to come from a tool. The route needs a session and passes the CSRF check; it keeps the last 12 messages and streams with `reasoning: "none"`. Write tools with approval cards, comparisons and inline charts come later (M5).
+Write tools use AI SDK `toolApproval`. The approval function runs on the server: it finds exactly what would change and writes the confirmation text itself ("Move 3 entries to 🎟️ Going out: grabfood dinner (10-05, ₱510); …"), so the card shows real entries rather than the model's description. Nothing matching, or too much, is an automatic denial with a reason the model can act on. Approvals are HMAC-signed (`experimental_toolApprovalSecret`, derived from `SESSION_SECRET`), so a modified client can't forge one. Results carry undo data (restore, delete, or put categories back), and the chat auto-continues after a decision (`lastAssistantMessageIsCompleteWithApprovalResponses`).
+
+The read tools are fixed queries; the model never writes SQL or changes data. The system prompt (`packages/ai/src/ask.ts`) gives today's date and timezone and the category names, and requires every figure to come from a tool. The route needs a session and passes the CSRF check; it keeps the last 12 messages and streams with `reasoning: "none"`. Inline charts in answers come later.
 
 ### 5.4 Embeddings (deferred)
 
@@ -287,7 +299,7 @@ Store `embedding_model` on each row so re-embedding stays possible. A `pnpm reem
 
 ### 5.5 Quality & safety
 
-- **Evals:** see §5.2.4. Next: grow the category set toward ~100 entries, and add held-out phrasing. Amounts never pass through a model, so the amount invariant holds by construction.
+- **Evals:** see §5.2.5. Next: grow the category set toward ~100 entries, and add held-out phrasing. Amounts never pass through a model, so the amount invariant holds by construction.
 - **Prompt injection:** transaction text is the owner's own, but the ask prompt still treats descriptions as data. The ask tools are read-only; future write tools need approval.
 - **Privacy:** the ledger lives in the owner's Turso database. Entry text and amounts go through the owner's AI Gateway to TypeSafe (categorizing); questions and the ledger rows the tools return go to DeepSeek. The README should say plainly what leaves the instance.
 
@@ -428,9 +440,9 @@ Later: a **Deploy to Vercel** button (`vercel.com/new/clone?repository-url=…&r
 | M0 | **Scaffold** | Turborepo + pnpm, shadcn monorepo (`-t start -b base`), both apps build with Nitro (Vercel Build Output verified locally). **Status: done; first Vercel deploy pending** |
 | M1 | **Auth + DB** | Zod env validation; single-account sign-in from env with throttling; Drizzle schema migrated to Turso; default categories seeded. **Status: done, tested locally** |
 | M2 | **Manual logging (no AI)** | `core.preparse` with tests; composer saves rows; feed grouped by day; month totals. Usable on its own. **Status: done (composer with live preview, optimistic save, undo, edit drawer, month switcher, interim daily bars + category breakdown)** |
-| M3 | **AI parsing** | Jev categorization through AI Gateway, memory and examples from confirmed rows, questions for uncertain fields, corrections, undo, eval suite. **Status: done; tested live, evals in §5.2.4** |
-| M4 | **Dashboard** | Month switcher, daily bars, category breakdown, Insights page, category management. **Status: desktop review view built (KPIs, pace vs last month, day-by-day, six-month trend by category, sortable/searchable table, people and repeats rail); category management pending** |
-| M5 | **Ask mode + People** | Tool-calling agent with streamed answers and inline charts; IOUs, splits, settle-up. **Status: ask mode (DeepSeek, three read-only tools), IOUs, splits, balances and settle-up built; inline charts and a full People page pending** |
+| M3 | **AI parsing** | Jev categorization through AI Gateway, memory and examples from confirmed rows, questions for uncertain fields, corrections, undo, eval suite. **Status: done; tested live, evals in §5.2.5** |
+| M4 | **Dashboard** | Month switcher, daily bars, category breakdown, Insights page, category management. **Status: desktop review view built (KPIs, pace vs last month, day-by-day, six-month trend by category, sortable/searchable table, people and repeats rail); category management built (rename, emoji, add, hide, merge, agent re-file suggestions)** |
+| M5 | **Ask mode + People** | Tool-calling agent with streamed answers and inline charts; IOUs, splits, settle-up. **Status: ask mode with read tools and approved write actions; IOUs, splits, People pages (history, nicknames, merge, partial settle, drafted reminders) built; inline charts pending** |
 | M6 | **Polish + ship** | PWA + offline queue, quick-repeat chips, monthly recap, CSV export, `docs/self-hosting.md`, landing page |
 | Later | | "Of all time" records (lowest-spend day/week/month, streaks), budgets and pace line, recurring detection, receipt photo (vision model), bank/e-wallet CSV import, wallets and balances |
 
