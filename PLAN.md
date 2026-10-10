@@ -273,7 +273,7 @@ const { embedding } = await embed({
 - **Credentials:** `GOATSIDE_USERNAME` and `GOATSIDE_PASSWORD` (12+ characters, since the app sits on a public URL). Compared in constant time via HMAC.
 - **Session:** a cookie `<expiresAt>.<HMAC-SHA256(SESSION_SECRET, expiry + username + password)>`, `HttpOnly`, `SameSite=Lax`, `Secure` in production, 30 days, renewed once past halfway. No session table: changing the username, password or secret invalidates every session.
 - **Sign-in form:** a plain HTML `POST /login` handled by a server route, so it works before hydration and credentials never land in a URL. It has an origin check (TanStack's CSRF middleware); server functions get Start's built-in CSRF protection.
-- **Throttling:** failed attempts are logged in `login_attempts`. Five failures per IP, or 25 overall, within 15 minutes block sign-in for the rest of the window. The overall cap stops distributed guessing; the cost is that an attacker could keep the owner locked out while they keep failing. Vercel's own firewall rate limits can sit in front of this.
+- **Throttling:** every attempt is recorded in `login_attempts` *before* counting, so parallel bursts can't slip under the limit. Unknown browsers get 5 failures per IP and 25 overall per 15 minutes. A browser that has signed in before carries a signed `goatside_device` cookie (1 year) and only has its own cap of 10, so an attacker filling the global cap can't lock the owner out of their existing devices. A brand-new device can still be blocked during an attack; Vercel's firewall rate limits can sit in front of this.
 - **Why not Better Auth anymore:** with one env-defined account, its user, account and session tables, OAuth flow and adapters were all unused weight. `packages/auth` is about 100 lines with 16 tests.
 
 ---
@@ -307,7 +307,7 @@ transactions   id, entry_id?, kind ('expense'|'income'|'lend'|'settle'),
 
 corrections    id, transaction_id, field, from_value, to_value, created_at
 
-login_attempts id, ip, succeeded, created_at   (sign-in throttling, pruned after a day)
+login_attempts id, ip, device_id?, succeeded, created_at   (sign-in throttling, pruned after a day)
 
 budgets (later) id, category_id?, month?, amount
 ```

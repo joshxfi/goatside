@@ -67,4 +67,6 @@ pnpm dlx shadcn@latest add drawer -c apps/app
 4. Deploy and sign in.
 
 Changing the username, password or session secret signs out every device.
-Failed sign-ins are throttled (5 per IP and 25 overall per 15 minutes).
+Failed sign-ins are throttled (5 per IP and 25 overall per 15 minutes). Browsers
+that have signed in before are trusted devices with their own limit, so a flood
+of bad attempts can't lock you out of them.

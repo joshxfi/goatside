@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest"
 import {
   SESSION_TTL_MS,
+  createDeviceToken,
   createSessionToken,
   verifyCredentials,
+  verifyDeviceToken,
   verifySessionToken,
 } from "./index"
 
@@ -84,4 +86,25 @@ describe("session tokens", () => {
       expect(await verifySessionToken(token, config, { now })).toBeNull()
     }
   )
+})
+
+describe("device tokens", () => {
+  it("round-trips and is unique", async () => {
+    const a = await createDeviceToken(config.secret)
+    const b = await createDeviceToken(config.secret)
+    expect(a.id).not.toBe(b.id)
+    expect(await verifyDeviceToken(a.token, config.secret)).toBe(a.id)
+  })
+
+  it("rejects forged, foreign or malformed tokens", async () => {
+    const { id, token } = await createDeviceToken(config.secret)
+    const [, signature] = token.split(".")
+    expect(await verifyDeviceToken(token, "b".repeat(32))).toBeNull()
+    expect(
+      await verifyDeviceToken(`${"A".repeat(22)}.${signature}`, config.secret)
+    ).toBeNull()
+    for (const bad of [undefined, "", id, `${id}.`, `${token}.x`]) {
+      expect(await verifyDeviceToken(bad, config.secret)).toBeNull()
+    }
+  })
 })

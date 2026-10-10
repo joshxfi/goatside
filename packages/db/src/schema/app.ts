@@ -170,10 +170,15 @@ export const loginAttempts = sqliteTable(
   {
     id: id(),
     ip: text("ip").notNull(),
+    /** Set when the browser carried a valid trusted-device cookie. */
+    deviceId: text("device_id"),
     succeeded: integer("succeeded", { mode: "boolean" }).notNull(),
     createdAt: createdAt(),
   },
-  (t) => [index("login_attempts_created_idx").on(t.createdAt, t.ip)]
+  (t) => [
+    index("login_attempts_created_idx").on(t.createdAt, t.ip),
+    index("login_attempts_device_idx").on(t.deviceId, t.createdAt),
+  ]
 )
 
 export type Category = typeof categories.$inferSelect

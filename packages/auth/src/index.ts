@@ -121,3 +121,40 @@ export async function verifySessionToken(
   const expected = encoder.encode(toBase64Url(await sign(config, expiresAt)))
   return bytesEqual(encoder.encode(signature), expected) ? { expiresAt } : null
 }
+
+/*
+ * Trusted devices. A browser that has signed in successfully keeps a signed
+ * device id. Sign-in throttling is keyed to that id instead of the shared
+ * per-IP / global caps, so someone hammering the login page can't lock the
+ * owner out of their own instance.
+ */
+
+export const DEVICE_COOKIE = "goatside_device"
+export const DEVICE_TTL_MS = 365 * 24 * 60 * 60 * 1000
+
+function deviceSignature(secret: string, id: string): Promise<Uint8Array> {
+  return hmac(secret, `goatside-device:v1:${id}`)
+}
+
+/** A new random device id and its signed token. */
+export async function createDeviceToken(
+  secret: string
+): Promise<{ id: string; token: string }> {
+  const id = toBase64Url(crypto.getRandomValues(new Uint8Array(16)))
+  const signature = toBase64Url(await deviceSignature(secret, id))
+  return { id, token: `${id}.${signature}` }
+}
+
+/** The device id if the token was issued with this secret, otherwise null. */
+export async function verifyDeviceToken(
+  token: string | undefined,
+  secret: string
+): Promise<string | null> {
+  if (!token) return null
+  const [id, signature, ...rest] = token.split(".")
+  if (!id || !signature || rest.length || !/^[\w-]{22}$/.test(id)) return null
+  const expected = encoder.encode(
+    toBase64Url(await deviceSignature(secret, id))
+  )
+  return bytesEqual(encoder.encode(signature), expected) ? id : null
+}

@@ -5,23 +5,18 @@ import { z } from "zod"
 import { CoinFlip, Wordmark } from "@workspace/ui/components/brand"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
-import {
-  attemptSignIn,
-  clientIp,
-  getViewer,
-  sessionCookieHeader,
-} from "@/server/session"
+import { attemptSignIn, clientIp, getViewer } from "@/server/session"
 
 const ERRORS = {
   invalid: "Wrong username or password.",
   throttled: "Too many attempts. Wait 15 minutes and try again.",
 } as const
 
-const seeOther = (location: string, headers: HeadersInit = {}) =>
-  new Response(null, {
-    status: 303,
-    headers: { Location: location, ...headers },
-  })
+function seeOther(location: string, cookies: string[] = []) {
+  const headers = new Headers({ Location: location })
+  for (const cookie of cookies) headers.append("Set-Cookie", cookie)
+  return new Response(null, { status: 303, headers })
+}
 
 export const Route = createFileRoute("/login")({
   validateSearch: z.object({
@@ -49,7 +44,7 @@ export const Route = createFileRoute("/login")({
           clientIp()
         )
         if (!result.ok) return seeOther(`/login?error=${result.error}`)
-        return seeOther("/", { "Set-Cookie": await sessionCookieHeader() })
+        return seeOther("/", result.cookies)
       },
     },
   },
