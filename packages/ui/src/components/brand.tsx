@@ -2,9 +2,9 @@ import { useId } from "react"
 import { cn } from "cn"
 
 /*
- * The Goatside mark: a coin struck with a lowercase "g". Drawn as strokes
- * on a 64×64 grid (a round bowl and a stem with a hooked tail) so it scales
- * from favicon to hero and renders the same without any font.
+ * The Goatside mark: a coin struck with a capital "G". Drawn as one stroke
+ * on a 64×64 grid so it scales from favicon to hero and renders the same
+ * without any font.
  */
 
 function reedingPath(count: number, r0: number, r1: number) {
@@ -17,21 +17,12 @@ function reedingPath(count: number, r0: number, r1: number) {
   return d
 }
 
-// The bowl, then the stem dropping into the tail. Offset to sit optically
-// centered in the coin (the descender makes the glyph bottom-heavy).
-const G_BOWL = "M38.5 27.5 A8 8 0 1 1 22.5 27.5 A8 8 0 1 1 38.5 27.5"
-const G_STEM =
-  "M38.5 19.5 V37.5 C38.5 44.5 33.5 47.5 28 47.5 C25.5 47.5 23.5 46.8 22 45.5"
+// A capital G: the ring opens at the upper right and drops into a short
+// stem that turns into the crossbar.
+const G_PATH = "M42.03 22.97 A13.5 13.5 0 1 0 43.92 38.34 V32 H34.5"
 const REEDING = reedingPath(40, 27, 29.4)
-const GLYPH_OFFSET = "translate(1.5 -1.5)"
-
 function Glyph({ strokeWidth }: { strokeWidth: number }) {
-  return (
-    <g transform={GLYPH_OFFSET} strokeWidth={strokeWidth}>
-      <path d={G_BOWL} />
-      <path d={G_STEM} />
-    </g>
-  )
+  return <path d={G_PATH} strokeWidth={strokeWidth} />
 }
 
 type SvgProps = Omit<React.ComponentProps<"svg">, "children"> & {
@@ -70,7 +61,7 @@ export function CoinMark({
           <circle cx="32" cy="32" r="25" strokeWidth="1.5" />
         </>
       )}
-      <Glyph strokeWidth={rim ? 3.2 : 4.4} />
+      <Glyph strokeWidth={rim ? 3.4 : 5} />
     </svg>
   )
 }
@@ -145,7 +136,7 @@ export function Coin({
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <Glyph strokeWidth={3.6} />
+        <Glyph strokeWidth={3.8} />
       </g>
     </svg>
   )
