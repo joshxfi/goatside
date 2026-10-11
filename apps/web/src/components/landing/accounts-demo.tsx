@@ -258,56 +258,70 @@ function FlyingCoin({
   flight: Flight
   onDone: () => void
 }) {
-  const ref = useRef<HTMLDivElement>(null)
+  const path = useRef<HTMLDivElement>(null)
+  const coin = useRef<HTMLDivElement>(null)
   const finish = useEffectEvent(() => {
     flight.onLand()
     onDone()
   })
   useEffect(() => {
-    const el = ref.current
-    if (!el) return
+    if (!path.current || !coin.current) return
     const { from, to } = flight
     const peak = Math.min(from.y, to.y) - 56
-    const run = animate(
-      el,
+    const DURATION = 0.75
+    // The outer element travels and holds the perspective (fixed, in CSS:
+    // animated, it ramps up from 0px and balloons the coin); the inner one
+    // turns.
+    const travel = animate(
+      path.current,
       {
         x: [from.x, to.x],
         y: [from.y, peak, to.y],
-        rotateY: [0, 720],
-        transformPerspective: 400,
         scale: [0.5, 1.15, 0.7],
         opacity: [0, 1, 1, 0],
       },
       {
-        duration: 0.75,
+        duration: DURATION,
         ease: [0.45, 0, 0.55, 1],
-        y: { duration: 0.75, times: [0, 0.45, 1], ease: ["easeOut", "easeIn"] },
-        opacity: { duration: 0.75, times: [0, 0.12, 0.85, 1] },
+        y: {
+          duration: DURATION,
+          times: [0, 0.45, 1],
+          ease: ["easeOut", "easeIn"],
+        },
+        opacity: { duration: DURATION, times: [0, 0.12, 0.85, 1] },
       }
+    )
+    const turn = animate(
+      coin.current,
+      { rotateY: [0, 720] },
+      { duration: DURATION, ease: [0.45, 0, 0.55, 1] }
     )
     // A flight cut short (unmounted) must not land the money twice.
     let live = true
-    void run.then(() => live && finish())
+    void travel.then(() => live && finish())
     return () => {
       live = false
-      run.stop()
+      travel.stop()
+      turn.stop()
     }
   }, [flight])
   return (
     <div
-      ref={ref}
+      ref={path}
       aria-hidden
-      className="pointer-events-none absolute top-0 left-0 z-10 -mt-5 -ml-5 size-10 opacity-0 transform-3d"
+      className="pointer-events-none absolute top-0 left-0 z-10 -mt-5 -ml-5 size-10 opacity-0 perspective-[300px]"
     >
-      {/* Gold up front, silver behind, as on the big coin. */}
-      <Coin
-        metal="gold"
-        className="absolute inset-0 size-full drop-shadow-md backface-hidden"
-      />
-      <Coin
-        metal="silver"
-        className="absolute inset-0 size-full rotate-y-180 drop-shadow-md backface-hidden"
-      />
+      <div ref={coin} className="relative size-full transform-3d">
+        {/* Gold up front, silver behind, as on the big coin. */}
+        <Coin
+          metal="gold"
+          className="absolute inset-0 size-full drop-shadow-md backface-hidden"
+        />
+        <Coin
+          metal="silver"
+          className="absolute inset-0 size-full rotate-y-180 drop-shadow-md backface-hidden"
+        />
+      </div>
     </div>
   )
 }
