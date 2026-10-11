@@ -60,6 +60,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
             "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content",
         },
         { title: "Goatside" },
+        // Someone's own ledger: keep every self-hosted instance out of search.
+        { name: "robots", content: "noindex, nofollow" },
         { name: "mobile-web-app-capable", content: "yes" },
         // iOS home screen: full screen, with the page's own colors up top.
         { name: "apple-mobile-web-app-capable", content: "yes" },
