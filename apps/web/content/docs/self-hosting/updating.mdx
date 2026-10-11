@@ -24,8 +24,12 @@ pnpm install
 
 ### Migrate the database
 
-The new version may expect new tables or columns, so apply any new migrations before it
-deploys:
+If you added your database secrets to the fork (see
+[Database](/docs/self-hosting/database#migrations)), GitHub Actions applies new
+migrations after you push, and you can skip this step.
+
+Otherwise, the new version may expect new tables or columns, so apply any new
+migrations before it deploys:
 
 ```sh
 TURSO_DATABASE_URL=libsql://goatside-<you>.turso.io \
@@ -50,7 +54,7 @@ Vercel builds and deploys it. Check that it finished under your project's
 </Step>
 </Steps>
 
-GitHub's **Sync fork** button works too, but it deploys straight away. If the update
-adds a migration, run it first.
+GitHub's **Sync fork** button works too, but it deploys straight away. Without the
+database secrets, run any new migration first.
 
 If a deploy misbehaves, **Instant Rollback** in Vercel puts the previous version back.

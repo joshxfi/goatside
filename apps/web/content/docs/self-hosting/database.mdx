@@ -8,8 +8,22 @@ migrations are written with [Drizzle](https://orm.drizzle.team) and live in `pac
 
 ## Migrations
 
-Goatside never runs migrations for you, on deploy or on startup. Run them from your clone
-against the database you want to update:
+Your fork's GitHub Actions can apply migrations for you. Add your database URL and token
+as secrets on your fork, under **Settings → Secrets and variables → Actions**:
+
+| Secret               | Value                                   |
+| -------------------- | --------------------------------------- |
+| `TURSO_DATABASE_URL` | `libsql://goatside-<you>.turso.io`      |
+| `TURSO_AUTH_TOKEN`   | the token from `turso db tokens create` |
+
+Then every push to `main` runs the checks and, once they pass, applies any new
+migrations. Without the secrets, that step is skipped and nothing else changes.
+
+Vercel deploys the same push on its own and can finish first. Until the migration lands,
+usually a minute or two, anything that needs the new tables or columns can fail. If an
+update adds a migration and you'd rather avoid that, run it by hand before you push.
+
+To run migrations by hand, from your clone:
 
 ```sh
 TURSO_DATABASE_URL=libsql://goatside-<you>.turso.io \

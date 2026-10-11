@@ -112,6 +112,8 @@ pnpm dlx shadcn@latest add drawer -c apps/app
    Gateway authenticates through OIDC, so `AI_GATEWAY_API_KEY` is only needed
    locally. Enable AI Gateway on your Vercel team for the agent to work.
 4. Deploy and sign in.
+5. Optional: add `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` as Actions secrets on
+   your fork. Each push to `main` then applies new migrations once CI passes.
 
 Changing the username, password or session secret signs out every device.
 Failed sign-ins are throttled (5 per IP and 25 overall per 15 minutes). Browsers

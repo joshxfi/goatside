@@ -55,9 +55,14 @@ TURSO_AUTH_TOKEN=<token> \
 pnpm db:migrate
 ```
 
+To have later migrations applied for you, add `TURSO_DATABASE_URL` and
+`TURSO_AUTH_TOKEN` as Actions secrets on your fork, under **Settings → Secrets and
+variables → Actions**. Every push to `main` then applies new migrations once the
+checks pass. More in [Database](/docs/self-hosting/database#migrations).
+
 <Callout type="warn">
-  Deploys don't migrate the database. Run this again whenever an update adds a
-  migration.
+  Vercel doesn't migrate the database. Without the secrets, run this again
+  whenever an update adds a migration.
 </Callout>
 
 </Step>

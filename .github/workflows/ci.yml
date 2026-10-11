@@ -7,7 +7,9 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Pull requests drop stale runs; main always finishes, so a migration is
+  # never cut off halfway.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
@@ -30,3 +32,41 @@ jobs:
       - run: pnpm typecheck
       # typecheck runs `tsr generate`, which drops the Start block the Vite plugin writes into routeTree.gen.ts, so CI doesn't diff the route trees.
       - run: pnpm test
+
+  # Applies new migrations to the production database once main passes.
+  # Needs TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in the repo's Actions
+  # secrets; a fork without them skips this job's work.
+  migrate:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: migrate
+      cancel-in-progress: false
+    env:
+      TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+      TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+    steps:
+      - name: No database secrets
+        if: env.TURSO_DATABASE_URL == ''
+        run: echo "::notice::TURSO_DATABASE_URL isn't set in this repo's Actions secrets, so no migrations ran."
+
+      - uses: actions/checkout@v4
+        if: env.TURSO_DATABASE_URL != ''
+
+      - uses: pnpm/action-setup@v4
+        if: env.TURSO_DATABASE_URL != ''
+
+      - uses: actions/setup-node@v4
+        if: env.TURSO_DATABASE_URL != ''
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+        if: env.TURSO_DATABASE_URL != ''
+
+      # Skips migrations already applied, so every push to main is safe.
+      - run: pnpm db:migrate
+        if: env.TURSO_DATABASE_URL != ''
