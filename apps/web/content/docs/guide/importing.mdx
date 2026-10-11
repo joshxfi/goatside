@@ -41,6 +41,8 @@ for the entries you type.
 
 Credit card statements print what you owe instead of a balance, and a payment shows as a
 negative amount. Goatside reads them that way when you import into a credit card account.
+A payment becomes a transfer from one of your accounts; a refund or cashback is money back,
+not a payment.
 
 ## Reviewing the rows
 
@@ -82,7 +84,8 @@ To take an import back, choose **Undo import** right after, or **Undo** next to 
 - Text PDFs: statements you download from your bank's app or website. Scanned paper
   statements have no text to read.
 - CSV exports with a date, details, amounts and a running balance. Numeric dates like
-  `09/12/2026` are read month first unless a day over 12 shows otherwise.
+  `09/12/2026` are read in whichever order the file makes clear. When every date could
+  be either, Goatside picks the order that keeps the rows within weeks of each other.
 
 Built against GoTyme deposit account and Maya credit card statements. Other banks work
 when their statements print a running balance or totals.
