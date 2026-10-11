@@ -59,7 +59,11 @@ TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter app eval:ask
 - **Agent write tools** need a server-side approval that lists the exact rows. Read tools
   are fixed queries; the model never writes SQL.
 - **Offline**: logs go through the outbox in `lib/outbox.ts` first. Kept pages in
-  `sw.js` must be cleared whenever the session ends (`clearOfflineCopies`).
+  `sw.js` must be cleared whenever the session ends (`clearOfflineCopies`). The worker
+  keeps the tab pages and their assets from the first launch. A route that fails
+  offline, or on a stale build after a deploy, reloads once (`RouteError` in
+  `__root.tsx`) so the worker or the new build can answer. Bump a cache name in
+  `sw.js` when what it keeps changes shape.
 
 ## Tests
 
@@ -76,7 +80,10 @@ explains a change: new entries grow in, deleted ones fold out, figures count to 
 The coin flip is for rare moments (sign-in, loading); the composer gets no decorative motion;
 nothing animates on first paint, month switches or navigation; reduced motion is respected.
 
-Phone and desktop render from one tree, split by CSS breakpoints (`lg` = desktop).
+Phone and desktop render from one tree, split by CSS breakpoints (`lg` = desktop). Phones
+get the `TabBar` (`app-shell.tsx`), hidden while a text field has focus (`data-typing`
+on the layout). Anything pinned to the bottom of a phone screen sits above it with
+`bottom-(--tab-bar,0px)`, and page padding adds `var(--tab-bar,0px)`.
 
 The ask sheet's conversation uses `MessageScroller`, `Message` and `Bubble`. Let the
 scroller handle following a stream and anchoring new turns; don't add `scrollIntoView`
