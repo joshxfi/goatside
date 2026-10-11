@@ -462,9 +462,12 @@ export interface CommitResult {
   added: number
   linked: number
   transfers: number
-  /** The account's balance after the import, and what the statement says. */
+  /** The account's balance now, after the import. */
   balance: number
+  /** The statement's last day, what it says then, and what Goatside had. */
+  end: string
   statementBalance: number | null
+  balanceAtEnd: number
 }
 
 /**
@@ -682,9 +685,13 @@ export async function commitImport(
             accountId: account.id,
             refs,
             extra: [
-              ...(newTransfers.length
-                ? [db.insert(transactions).values(newTransfers)]
-                : []),
+              ...Array.from(
+                { length: Math.ceil(newTransfers.length / 200) },
+                (_, i) =>
+                  db
+                    .insert(transactions)
+                    .values(newTransfers.slice(i * 200, (i + 1) * 200))
+              ),
               ...extra,
               record,
             ],
@@ -698,6 +705,32 @@ export async function commitImport(
 
   const balance =
     (await accountBalances(db)).find((a) => a.id === account.id)?.balance ?? 0
+  // The statement speaks for its last day. Entries after it (typed since,
+  // or a later statement) are taken off before comparing.
+  const end =
+    input.period?.end ??
+    input.rows
+      .map((r) => r.localDate)
+      .toSorted()
+      .at(-1)!
+  const [later] = await db
+    .select({
+      total: sql<number>`coalesce(sum(case when ${transactions.accountId} = ${account.id} then ${transactions.amount} else -${transactions.amount} end), 0)`,
+    })
+    .from(transactions)
+    .where(
+      and(
+        isNull(transactions.deletedAt),
+        sql`${transactions.localDate} > ${end}`,
+        or(
+          eq(transactions.accountId, account.id),
+          and(
+            eq(transactions.kind, "transfer"),
+            eq(transactions.toAccountId, account.id)
+          )
+        )
+      )
+    )
   const printed =
     input.summary.closing ??
     input.rows.findLast((r) => r.balance !== undefined)?.balance
@@ -707,6 +740,8 @@ export async function commitImport(
     linked,
     transfers,
     balance,
+    end,
+    balanceAtEnd: balance - Number(later?.total ?? 0),
     statementBalance:
       printed === undefined
         ? null

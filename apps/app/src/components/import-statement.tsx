@@ -768,14 +768,19 @@ function Done({
 }) {
   const queryClient = useQueryClient()
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["ledger"] })
-  const [balance, setBalance] = useState(result.balance)
+  const [fixed, setFixed] = useState(false)
   const target = result.statementBalance
+  // Shift the starting balance so the statement's last day reads right;
+  // entries after it still count on top.
+  const off = target === null ? 0 : target - result.balanceAtEnd
   const fix = useMutation({
-    mutationFn: (value: number) =>
-      setAccountBalance({ data: { id: account.id, balance: value } }),
-    onSuccess: async (res, value) => {
+    mutationFn: () =>
+      setAccountBalance({
+        data: { id: account.id, balance: result.balance + off },
+      }),
+    onSuccess: async (res) => {
       if (!res.ok) return toast(res.message)
-      setBalance(value)
+      setFixed(true)
       await refresh()
     },
   })
@@ -806,23 +811,30 @@ function Done({
         {result.transfers > 0 &&
           ` ${result.transfers === 1 ? "One is a transfer" : `${result.transfers} are transfers`} between your accounts.`}
       </p>
-      {target !== null && target !== balance && (
+      {target !== null && off !== 0 && !fixed && (
         <div className="flex flex-col gap-2 rounded-2xl border px-3 py-3">
           <p className="text-sm">
-            The statement ends at {said(target)}. Goatside has {said(balance)}{" "}
-            for {account.name}, maybe from entries after the statement or before
-            you started.
+            On {shortDate(result.end)} the statement says {said(target)}.
+            Goatside had {said(result.balanceAtEnd)} for {account.name} that
+            day, maybe from entries before you started.
           </p>
           <Button
             variant="outline"
             size="sm"
             disabled={fix.isPending}
-            onClick={() => fix.mutate(target)}
+            onClick={() => fix.mutate()}
           >
-            Use the statement's{" "}
-            {account.kind === "credit_card" ? "amount owed" : "balance"}
+            Match the statement
           </Button>
+          <p className="text-xs text-muted-foreground">
+            Your entries stay as they are. The starting balance moves.
+          </p>
         </div>
+      )}
+      {fixed && (
+        <p className="text-sm text-muted-foreground">
+          {account.name} now matches the statement.
+        </p>
       )}
       <div className="flex gap-2">
         <Button className="flex-1" onClick={onClose}>

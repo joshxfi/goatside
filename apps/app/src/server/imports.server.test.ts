@@ -422,6 +422,45 @@ describe("statement imports", () => {
     expect((await live()).map((r) => r.amount)).toEqual([-18_000])
   })
 
+  it("imports a statement at the 2,000-row limit in one go", async () => {
+    const bank = await createAccount({ name: "GoTyme", kind: "bank" })
+    const lines = Array.from(
+      { length: 2_000 },
+      (_, i): [string, string, number] => [
+        addDays(day, -Math.floor(i / 25)),
+        `Qr Payment ${i % 40}`,
+        -(100 + i),
+      ]
+    ).toReversed()
+    const input = bankStatement(bank.id, lines, { opening: 10_000_000 })
+    const started = Date.now()
+    const { result } = await importAsSuggested(input)
+    expect(result.added).toBe(2_000)
+    expect((await live()).length).toBe(2_000)
+    expect(Date.now() - started).toBeLessThan(15_000)
+  }, 30_000)
+
+  it("compares balances as of the statement's last day", async () => {
+    const bank = await createAccount({
+      name: "GoTyme",
+      kind: "bank",
+      balance: 100_000,
+    })
+    // Typed today, after the statement ends.
+    await log("250 lunch")
+    const input = bankStatement(bank.id, [
+      [addDays(day, -5), "Qr Payment", -18_000],
+    ])
+    const { result } = await importAsSuggested(input)
+    expect(result).toMatchObject({
+      end: addDays(day, -5),
+      balance: 100_000 - 25_000 - 18_000,
+      // Without the lunch: what the statement should agree with.
+      balanceAtEnd: 100_000 - 18_000,
+      statementBalance: 82_000,
+    })
+  })
+
   it("refuses a choice the preview didn't offer", async () => {
     const bank = await createAccount({ name: "GoTyme", kind: "bank" })
     const input = bankStatement(bank.id, [[day, "Qr Payment", -18_000]])
