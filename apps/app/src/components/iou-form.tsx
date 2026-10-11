@@ -75,11 +75,7 @@ function IouForm({
   const amount = parseAmount(amountText)
   const name = everyone.data?.find((p) => p.id === who[0])?.name
 
-  const refresh = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["ledger"] }),
-      queryClient.invalidateQueries({ queryKey: ["people"] }),
-    ])
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["ledger"] })
 
   const save = useMutation({
     mutationFn: () =>

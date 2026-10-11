@@ -34,12 +34,13 @@ export const categoriesQuery = () =>
     queryFn: () => getCategories(),
   })
 
+/** IOU balances move with every entry, so people live under "ledger" too. */
 export const peopleQuery = () =>
-  queryOptions({ queryKey: ["people"], queryFn: () => getPeople() })
+  queryOptions({ queryKey: ["ledger", "people"], queryFn: () => getPeople() })
 
 export const personQuery = (id: string) =>
   queryOptions({
-    queryKey: ["people", id],
+    queryKey: ["ledger", "people", id],
     queryFn: () => getPerson({ data: { id } }),
   })
 

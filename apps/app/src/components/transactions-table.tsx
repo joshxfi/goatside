@@ -413,7 +413,7 @@ export function TransactionsTable({
 
   const refresh = () =>
     Promise.all(
-      ["ledger", "people", "categories"].map((key) =>
+      ["ledger", "categories"].map((key) =>
         queryClient.invalidateQueries({ queryKey: [key] })
       )
     )

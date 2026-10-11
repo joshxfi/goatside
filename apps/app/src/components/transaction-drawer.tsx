@@ -287,11 +287,7 @@ function EditForm({
     return back
   }
 
-  const refresh = () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["ledger"] }),
-      queryClient.invalidateQueries({ queryKey: ["people"] }),
-    ])
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["ledger"] })
 
   const save = (data: Changes) =>
     updateTransaction({ data: { id: txn.id, ...data } })

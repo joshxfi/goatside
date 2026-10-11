@@ -47,11 +47,7 @@ export const Route = createFileRoute("/_app/people/$personId")({
 
 function useRefresh() {
   const queryClient = useQueryClient()
-  return () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["people"] }),
-      queryClient.invalidateQueries({ queryKey: ["ledger"] }),
-    ])
+  return () => queryClient.invalidateQueries({ queryKey: ["ledger"] })
 }
 
 function Person() {
