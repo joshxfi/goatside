@@ -6,7 +6,7 @@ import { DocsSearchDialog } from "@/components/search"
 import appCss from "@/styles/app.css?url"
 
 const DESCRIPTION =
-  "Goatside is an open-source, personal, agentic finance tracker that you self-host. Type what you spent in plain words and it files itself."
+  "Goatside is an open-source personal finance tracker you host yourself. Type what you spent in plain words and its agent files it."
 
 export const Route = createRootRoute({
   head: () => ({
@@ -39,9 +39,9 @@ export const Route = createRootRoute({
   }),
   notFoundComponent: () => (
     <main className="mx-auto max-w-xl p-4 pt-16">
-      <h1 className="font-display text-4xl">Off the edge.</h1>
+      <h1 className="font-display text-4xl">Page not found.</h1>
       <p className="mt-2 text-muted-foreground">
-        That page doesn’t exist. <a href="/">Head back home</a>.
+        That page doesn't exist. <a href="/">Go to the home page</a>.
       </p>
     </main>
   ),

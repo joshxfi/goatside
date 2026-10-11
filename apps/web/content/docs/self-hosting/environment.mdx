@@ -5,8 +5,8 @@ description: Everything Goatside reads from its environment, and what each one d
 
 Goatside checks its environment the first time it needs it, and fails with one message
 listing every missing or invalid variable. On Vercel, set them under **Settings →
-Environment Variables**. Locally, they go in `apps/app/.env.local` (copy
-`apps/app/.env.example`); `vercel env pull` brings Vercel's down into it.
+Environment Variables**. Locally, copy `apps/app/.env.example` to `apps/app/.env.local`
+and fill it in. `vercel env pull` copies the values set on Vercel into that file.
 
 ## Required
 
@@ -35,4 +35,4 @@ Environment Variables**. Locally, they go in `apps/app/.env.local` (copy
 
 - **Time zone.** Set it in the app under **Settings**. It decides which day an entry
   belongs to, and defaults to `Asia/Manila`.
-- **Currency.** Goatside is in Philippine pesos (₱) only.
+- **Currency.** Goatside only handles Philippine pesos.

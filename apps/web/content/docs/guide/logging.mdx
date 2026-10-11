@@ -3,10 +3,9 @@ title: Logging entries
 description: What you can type in the composer, and how Goatside reads it.
 ---
 
-The composer is the app. Type a line that starts with an amount and press
-
-<kbd>Enter</kbd>. The entry shows up right away, and the agent fills in its
-category a moment later.
+You log everything in the composer, the input at the bottom of the app. Type a line that
+starts with an amount and press Enter. The entry shows up right away, and the agent fills
+in its category a moment later.
 
 ```txt
 180 iced coffee
@@ -38,7 +37,7 @@ money in, and `-` as money out.
 
 ## The date
 
-An entry is dated today unless the line says otherwise:
+Goatside dates an entry today unless the line says otherwise:
 
 | You type                                          | Date                                            |
 | ------------------------------------------------- | ----------------------------------------------- |
@@ -49,12 +48,12 @@ An entry is dated today unless the line says otherwise:
 | `oct 3`, `october 3rd`, `3 oct`, `3rd of october` | The most recent October 3                       |
 | `2026-10-03`                                      | That exact date                                 |
 
-Dates follow the time zone set in **Settings**. Future dates are ignored.
+Dates follow the time zone set in **Settings**. Goatside ignores dates in the future.
 
 ## Splitting a bill
 
 Add `split` and the number of ways, you included. Your share is what counts as your
-spending; the rest becomes what each person owes you.
+spending. The rest becomes what each person owes you.
 
 ```txt
 2400 dinner with nini and daniel split 3
@@ -71,7 +70,7 @@ Put more than one entry on a line by starting each with its sign:
 -500 lunch, -120 coffee
 ```
 
-Without signs, everything after the first amount is read as one description.
+Without signs, Goatside reads everything after the first amount as one description.
 
 ## Undo
 

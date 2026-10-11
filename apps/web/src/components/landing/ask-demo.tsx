@@ -20,12 +20,12 @@ interface Script {
 const SCRIPTS: Script[] = [
   {
     ask: "how much on food this month?",
-    answer: `${formatPeso(spentOn(october, "Food"))} on food so far this October. All of September came to ${formatPeso(spentOn(september, "Food"))}, so you're on track to land close to it.`,
+    answer: `${formatPeso(spentOn(october, "Food"))} on food so far this October. All of September came to ${formatPeso(spentOn(september, "Food"))}, so you're on pace to spend about the same.`,
   },
   {
     ask: "sino may utang sakin?",
     answer:
-      "Dalawa: si Nini, ₱1,800 (₱1,000 na pinahiram mo noong Huwebes at ₱800 sa dinner), at si Daniel, ₱800 para sa dinner din.",
+      "Dalawa. Si Nini, ₱1,800, ₱1,000 na pinahiram mo noong Huwebes at ₱800 sa dinner. Si Daniel naman, ₱800 para sa dinner din.",
   },
   {
     ask: "biggest expenses this month?",

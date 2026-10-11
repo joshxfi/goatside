@@ -3,7 +3,7 @@ title: Deploy to Vercel
 description: Put your own Goatside on Vercel with a Turso database, step by step.
 ---
 
-A Goatside deploy is one Vercel project (the app in `apps/app`) and one Turso database.
+A Goatside deploy is one Vercel project, built from `apps/app`, and one Turso database.
 You'll need a [GitHub](https://github.com), [Vercel](https://vercel.com) and
 [Turso](https://turso.tech) account, Node 22.12 or newer and
 [pnpm](https://pnpm.io) on your computer, and the
@@ -66,7 +66,7 @@ pnpm db:migrate
 ### Import it in Vercel
 
 In Vercel, choose **Add New → Project** and import your fork. Set **Root Directory** to
-`apps/app`. Vercel detects TanStack Start and builds it with Nitro; leave the other build
+`apps/app`. Vercel detects TanStack Start and builds it with Nitro. Leave the other build
 settings as they are.
 
 </Step>
@@ -76,13 +76,13 @@ settings as they are.
 
 Before you deploy, add these under **Environment Variables**:
 
-| Variable             | Value                                                               |
-| -------------------- | ------------------------------------------------------------------- |
-| `GOATSIDE_USERNAME`  | The username you'll sign in with                                    |
-| `GOATSIDE_PASSWORD`  | A password of 12 or more characters. The app lives on a public URL  |
-| `SESSION_SECRET`     | A random secret of 32 or more characters: `openssl rand -base64 32` |
-| `TURSO_DATABASE_URL` | Your database URL from step 2                                       |
-| `TURSO_AUTH_TOKEN`   | Your token from step 2                                              |
+| Variable             | Value                                                              |
+| -------------------- | ------------------------------------------------------------------ |
+| `GOATSIDE_USERNAME`  | The username you'll sign in with                                   |
+| `GOATSIDE_PASSWORD`  | A password of 12 or more characters. The app lives on a public URL |
+| `SESSION_SECRET`     | 32 or more random characters. Run `openssl rand -base64 32`        |
+| `TURSO_DATABASE_URL` | Your database URL from step 2                                      |
+| `TURSO_AUTH_TOKEN`   | Your token from step 2                                             |
 
 You don't need `AI_GATEWAY_API_KEY` on Vercel. See
 [Environment variables](/docs/self-hosting/environment) for everything Goatside reads.
@@ -93,7 +93,7 @@ You don't need `AI_GATEWAY_API_KEY` on Vercel. See
 ### Turn on AI Gateway
 
 The agent runs on [Vercel AI Gateway](https://vercel.com/docs/ai-gateway). On Vercel it
-signs in with your project's OIDC token, so there's no key to manage: open **AI Gateway**
+signs in with your project's OIDC token, so there's no key to manage. Open **AI Gateway**
 on your Vercel team's dashboard and enable it.
 
 Skip this and Goatside still works, without the agent. See
@@ -104,16 +104,17 @@ Skip this and Goatside still works, without the agent. See
 
 ### Deploy and sign in
 
-Deploy, open your project's URL and sign in with your username and password. Your
-default categories are set up on the first sign-in.
+Deploy, open your project's URL and sign in with your username and password. Goatside
+adds the default categories the first time you sign in.
 
 Then [install it on your phone](/docs/guide/phone) and log your first entry.
 
 </Step>
 </Steps>
 
-## Optional: pick a function region
+## Pick a function region
 
-Each request makes a few database calls, so the app is fastest when its function runs
-near your database. In your Vercel project, open **Settings → Functions** and set the
-**Function Region** to the one closest to your Turso location (Singapore is `sin1`).
+This step is optional. Each request makes a few database calls, so the app is fastest
+when its function runs near your database. In your Vercel project, open **Settings →
+Functions** and set the **Function Region** to the one closest to your Turso location.
+For Singapore, that's `sin1`.

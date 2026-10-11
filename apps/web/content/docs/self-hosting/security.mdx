@@ -3,7 +3,7 @@ title: Sign-in and security
 description: How the one account signs in, stays signed in, and resists guessing.
 ---
 
-A Goatside deploy has exactly one account: the username and password in its
+A Goatside deploy has exactly one account, set by the username and password in its
 environment. There's no sign-up page, no user table and no password reset. To change
 your password, change `GOATSIDE_PASSWORD` in Vercel and redeploy.
 
@@ -19,24 +19,24 @@ also how you sign out a lost phone.
 
 ## Guessing passwords
 
-Every sign-in attempt is recorded before it's checked, so a burst of parallel guesses
-can't slip past the limits:
+Goatside records every sign-in attempt before checking it, so a burst of parallel
+guesses can't slip past the limits:
 
 - **5 failed attempts per IP address** in 15 minutes.
 - **25 failed attempts in total** in 15 minutes, from anywhere.
 
-A flood of bad guesses could then lock you out too, so browsers you've signed in from are
-trusted: they get a separate year-long cookie that skips both limits. A trusted browser
+A flood of bad guesses could then lock you out too, so Goatside trusts browsers you've
+signed in from. They get a separate year-long cookie that skips both limits. A trusted browser
 that fails more than 10 times in a day loses that trust, and changing your password
 untrusts every browser.
 
-During an attack, a browser that has never signed in can still be blocked. If that's a
+During an attack, the limits can still block a browser that has never signed in. If that's a
 concern, [Vercel Firewall](https://vercel.com/docs/vercel-firewall) rate limits can sit in
 front of the sign-in page.
 
 ## The agent's actions
 
 When you ask the agent to change something, it can't do it alone. The server works out
-exactly which entries would change and shows you that list; nothing is written until
-you confirm. Approvals are signed with a key derived from `SESSION_SECRET`, so they can't
-be forged from the browser, and every change can be undone.
+exactly which entries would change and shows you that list. Nothing changes until you
+confirm. The server signs each approval with a key derived from `SESSION_SECRET`, so the
+browser can't forge one. You can undo every change.

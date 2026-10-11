@@ -245,7 +245,7 @@ function QuestionCard({
       <p className="text-sm">
         {question.kind === "direction" ? (
           <>
-            {figure} for {question.what}: was that money out or in?
+            Was {figure} for {question.what} money out or in?
           </>
         ) : (
           <>

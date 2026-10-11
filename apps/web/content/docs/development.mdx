@@ -17,19 +17,19 @@ pnpm db:migrate   # first run, and after schema changes
 
 Sign in at [localhost:3000](http://localhost:3000) with the `GOATSIDE_USERNAME` and
 `GOATSIDE_PASSWORD` from your `.env.local`. Locally, AI needs an `AI_GATEWAY_API_KEY`
-from the AI Gateway dashboard; without one, entries save uncategorized.
+from the AI Gateway dashboard. Without one, entries save uncategorized.
 
 ## Repo layout
 
-| Path            | What                                                          |
-| --------------- | ------------------------------------------------------------- |
-| `apps/app`      | The app you self-host (TanStack Start, deployed to Vercel)    |
-| `apps/web`      | This site: the landing page and these docs (Fumadocs)         |
-| `packages/core` | Pure TS: the entry parser, account matching, money, dates     |
-| `packages/db`   | Drizzle schema and migrations for Turso (libSQL)              |
-| `packages/auth` | Single-account auth: env credentials, signed session cookie   |
-| `packages/ai`   | The agent: categorization, people, accounts, ask mode         |
-| `packages/ui`   | shadcn/ui components (Base UI), the coin brand, theme, styles |
+| Path            | What                                                                               |
+| --------------- | ---------------------------------------------------------------------------------- |
+| `apps/app`      | The app you self-host, on TanStack Start, deployed to Vercel                       |
+| `apps/web`      | This site, the landing page and these docs, built with Fumadocs                    |
+| `packages/core` | The entry parser, account matching, money and dates, in plain TypeScript           |
+| `packages/db`   | The Drizzle schema and migrations for Turso                                        |
+| `packages/auth` | Sign-in for the one account, with credentials from env and a signed session cookie |
+| `packages/ai`   | The agent's logic for categories, people, accounts and questions                   |
+| `packages/ui`   | shadcn/ui components on Base UI, the coin brand, theme and styles                  |
 
 ## Commands
 
@@ -55,7 +55,7 @@ pnpm --filter @workspace/ai eval
 TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter app eval:ask
 ```
 
-Add shadcn components from an app directory. They're installed into `packages/ui`:
+Add shadcn components from an app directory. The CLI installs them into `packages/ui`:
 
 ```sh
 pnpm dlx shadcn@latest add drawer -c apps/app
@@ -63,7 +63,7 @@ pnpm dlx shadcn@latest add drawer -c apps/app
 
 ## Writing these docs
 
-The docs are MDX files in `apps/web/content/docs`, rendered by
-[Fumadocs](https://fumadocs.dev) on TanStack Start. Each folder's `meta.json` sets the
-order in the sidebar. Every page is also served as Markdown at its URL plus `.md`, and
-the whole set at [`/llms.txt`](/llms.txt) and [`/llms-full.txt`](/llms-full.txt).
+The docs are MDX files in `apps/web/content/docs`. [Fumadocs](https://fumadocs.dev)
+renders them on TanStack Start. Each folder's `meta.json` sets the order in the sidebar.
+The site also serves every page as Markdown at its URL plus `.md`, and the whole set at
+[`/llms.txt`](/llms.txt) and [`/llms-full.txt`](/llms-full.txt).

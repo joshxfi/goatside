@@ -71,7 +71,7 @@ const EXAMPLES: Example[] = [
     ],
     outcome: {
       asks: true,
-      text: "Saved with its best guess, and asks: ₱500 for “from tita”: was that money out or in?",
+      text: 'Saved with its best guess. Then it asks: Was ₱500 for "From tita" money out or in?',
     },
   },
   {
@@ -84,7 +84,7 @@ const EXAMPLES: Example[] = [
         label: "Money out, Food",
         value: "From your past entries",
         source: "memory",
-        note: "You filed “kape” under Food before, so the model isn't asked at all.",
+        note: 'You filed "kape" under Food before, so Goatside doesn\'t ask the model at all.',
       },
     ],
     outcome: { asks: false, text: "Filed the way you did last time." },
@@ -107,7 +107,7 @@ const EXAMPLES: Example[] = [
         source: "agent",
         confidence: 0.72,
         threshold: 0.4,
-        note: "Seen in an earlier month, so the bar is lower.",
+        note: "It showed up in an earlier month, so the bar is lower.",
       },
     ],
     outcome: {

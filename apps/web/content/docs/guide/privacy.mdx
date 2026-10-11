@@ -6,14 +6,14 @@ description: Where your ledger lives, and exactly what is sent to AI models.
 Your ledger lives in your own Turso database. Goatside has no server of its own and
 collects nothing: no analytics, no telemetry, no account with us.
 
-Two things are sent out, both through **your** Vercel AI Gateway:
+Goatside sends two things out, both through your own Vercel AI Gateway:
 
-| When              | What is sent                                                                                                                                                          | Model                                                |
-| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| You log an entry  | The entry's text and amount, plus what it needs to file it: your category names with a few recent entries in each, and the people and accounts the line might involve | TypeSafe's Jev (`typesafe-ai/jev`)                   |
-| You ask the agent | Your question, the recent chat, and the ledger rows its tools look up to answer                                                                                       | DeepSeek V4.1 Flash (`deepseek/deepseek-v4.1-flash`) |
+| When              | What goes out                                                                                                                               | Model                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| You log an entry  | The entry's text and amount, plus your category names with a few recent entries in each, and the people and accounts the line might involve | TypeSafe's Jev, `typesafe-ai/jev`                   |
+| You ask the agent | Your question, the recent chat, and the ledger rows its tools look up to answer                                                             | DeepSeek V4.1 Flash, `deepseek/deepseek-v4.1-flash` |
 
-Nothing is sent when you only browse your dashboard, edit an entry by hand or settle up
+Nothing goes out when you only browse your dashboard, edit an entry by hand or settle up
 with someone.
 
 ## Running without AI
@@ -28,5 +28,5 @@ The agent's chat is the one feature that needs a model.
 
 ## Choosing other models
 
-Both models can be swapped for any model on AI Gateway with the `DECISION_MODEL` and
+You can swap either model for any model on AI Gateway with the `DECISION_MODEL` and
 `CHAT_MODEL` variables. See [Environment variables](/docs/self-hosting/environment).

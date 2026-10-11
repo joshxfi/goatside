@@ -4,8 +4,8 @@ description: Banks, e-wallets, credit cards and cash, with balances that add up.
 ---
 
 Goatside can keep track of where your money is: banks, e-wallets, credit cards and cash,
-each with its balance. Accounts are optional. Without any, entries simply aren't filed
-to one.
+each with its balance. Accounts are optional. If you don't add any, entries have no
+account.
 
 ## Setting them up
 
@@ -24,17 +24,17 @@ A credit card shows what you owe and the credit left.
 ```
 
 Say which account you used after _via_, _using_, _thru_, _gamit_, _paid with_ or
-_charged to_, among others. Accounts are matched by name or nickname, so `bpi card` and
-`bpi` can be different accounts. _Cash_ and _credit card_ mean your only account of that
+_charged to_, among others. Goatside matches accounts by name or nickname, so `bpi card`
+and `bpi` can be different accounts. _Cash_ and _credit card_ mean your only account of that
 kind.
 
 Bills and subscriptions go on the account they were charged to last time, so `89 spotify`
 lands on the same card each month.
 
-A name you haven't set up, like `using unionbank`, becomes a question: add it as a bank,
-e-wallet or card, or say it isn't an account. Well-known Philippine banks and e-wallets
-(GCash, BPI, BDO, UnionBank, GoTyme, SeaBank and many more) are recognized without
-a cue word.
+A name you haven't set up, like `using unionbank`, becomes a question. You can add it as a
+bank, e-wallet or card, or say it isn't an account. Goatside recognizes well-known
+Philippine banks and e-wallets without a cue word, such as GCash, BPI, BDO, UnionBank,
+GoTyme and SeaBank.
 
 ## Transfers
 
@@ -48,7 +48,7 @@ Moving money between your own accounts is a transfer, not spending:
 ```
 
 Transfer words include _cash in_, _top up_, _ATM_, _withdraw_, _cash out_, _card payment_,
-_transfer_, _instapay_ and _deposit_. A fee (`15 atm fee`) is spending. When a line could
+_transfer_, _instapay_ and _deposit_. A fee, like `15 atm fee`, is spending. When a line could
 go either way, the agent asks.
 
 Transfers never count in your totals or charts.

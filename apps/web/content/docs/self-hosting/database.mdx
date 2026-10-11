@@ -3,13 +3,12 @@ title: Database
 description: Turso, migrations, local development and backups.
 ---
 
-Goatside keeps everything in one [Turso](https://turso.tech) (libSQL) database, managed
-with [Drizzle](https://orm.drizzle.team). The schema and its migrations live in
-`packages/db`.
+Goatside keeps everything in one [Turso](https://turso.tech) database. The schema and its
+migrations are written with [Drizzle](https://orm.drizzle.team) and live in `packages/db`.
 
 ## Migrations
 
-Migrations are never run for you: not on deploy, not on startup. Run them from your clone
+Goatside never runs migrations for you, on deploy or on startup. Run them from your clone
 against the database you want to update:
 
 ```sh
@@ -18,7 +17,7 @@ TURSO_AUTH_TOKEN=<token> \
 pnpm db:migrate
 ```
 
-Running it again is safe. Migrations already applied are skipped.
+Running it again is safe. It skips migrations that are already applied.
 
 Without `TURSO_DATABASE_URL`, `pnpm db:migrate` targets the local database at
 `http://127.0.0.1:8080`. It doesn't read `.env.local`, so pass the URL every time you
@@ -26,12 +25,12 @@ mean production.
 
 ## What's set up on sign-in
 
-Every successful sign-in makes sure your settings and default categories exist. They're
-only added when missing, so renaming or archiving a category is never undone.
+Every successful sign-in makes sure your settings and default categories exist. It only
+adds what's missing, so it never undoes a rename or an archived category.
 
-- **Spending:** Food, Groceries, Transport, Bills, Subscriptions, Shopping, Health, Fun,
-  Others.
-- **Income:** Salary, Freelance, Gifts, Others.
+- Spending categories: Food, Groceries, Transport, Bills, Subscriptions, Shopping,
+  Health, Fun, Others.
+- Income categories: Salary, Freelance, Gifts, Others.
 
 ## Locally
 
@@ -56,8 +55,8 @@ TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter @workspace/db demo
 ## Backups
 
 Your ledger is only in your database, so keep a copy. Turso keeps point-in-time history
-you can restore from (how far back depends on your plan), and you can export a
-SQLite file of the database at any time:
+you can restore from, and how far back depends on your plan. You can also export the
+database as a SQLite file at any time:
 
 ```sh
 turso db export goatside

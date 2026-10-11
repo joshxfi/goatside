@@ -3,8 +3,8 @@ title: Asking the agent
 description: Questions about your money, and changes made for you after you confirm.
 ---
 
-Type a question in the composer, or open **Ask Goatside** (<kbd>⌘</kbd> <kbd>J</kbd>).
-Anything that doesn't start with an amount, or ends in `?`, is a question.
+Type a question in the composer, or press <kbd>⌘</kbd> <kbd>J</kbd> to open **Ask
+Goatside**. Anything that doesn't start with an amount, or ends in `?`, is a question.
 
 ```txt
 how much on food this month?
@@ -27,9 +27,9 @@ The agent can also make changes:
 - "add my Security Bank savings with ₱15,000"
 - "my Maya actually has ₱2,000"
 
-Nothing changes until you confirm. Before anything is written, a card lists exactly
-which entries will change, worked out by the server rather than described by the model.
-Approve it or decline it, and every change can be undone afterwards.
+Nothing changes until you confirm. First, a card lists the exact entries that will
+change. The server builds that list from your ledger, so it isn't the model's own
+description. Approve or decline it. You can undo any change afterwards.
 
 ## What it can't do
 
@@ -37,5 +37,5 @@ Approve it or decline it, and every change can be undone afterwards.
 - Delete more than 50 entries in one go.
 - See anything outside your own ledger.
 
-The chat model is DeepSeek V4.1 Flash by default. Your question and the rows it looks up
-are sent to it through your AI Gateway. See [What leaves your instance](/docs/guide/privacy).
+The chat model is DeepSeek V4.1 Flash by default. Goatside sends it your question and the
+rows it looks up, through your AI Gateway. See [What leaves your instance](/docs/guide/privacy).

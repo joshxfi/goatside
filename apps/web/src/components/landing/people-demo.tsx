@@ -61,7 +61,7 @@ export function PeopleDemo() {
   function remind(person: Person) {
     setCopied(false)
     setReminder(
-      `Hi ${person.name}! Just a heads-up: you still owe me ${formatPeso(person.owes)} (${person.history.map((h) => h.phrase).join(", and ")}). No rush, whenever you can. Thanks!`
+      `Hi ${person.name}! Just a heads-up, you still owe me ${formatPeso(person.owes)}. That's ${person.history.map((h) => h.phrase).join(", and ")}. No rush, whenever you can. Thanks!`
     )
   }
 
@@ -152,7 +152,8 @@ export function PeopleDemo() {
           <p className="text-sm text-pretty">{reminder}</p>
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs text-muted-foreground">
-              Drafted from their open IOUs. Nothing is sent for you.
+              The agent drafts it from their open IOUs. Goatside never sends it
+              for you.
             </span>
             <AnswerButton
               onClick={() => {

@@ -110,8 +110,8 @@ function Hero() {
         </h1>
         <p className="max-w-lg text-lg text-pretty text-muted-foreground">
           Goatside is a personal finance tracker you host yourself. Its agent
-          picks the category, the account and who owes whom, asks when it isn’t
-          sure, and turns your month into something you can actually read.
+          picks the category, the account and who owes whom, and asks when it
+          isn't sure. Your month shows up as charts by category and by day.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link
@@ -140,9 +140,9 @@ function Hero() {
       <div className="flex min-w-0 flex-col gap-3">
         <LiveComposer />
         <DemoNote>
-          Try it. This is Goatside’s own parser, running in your browser:
-          amounts, dates, splits, accounts and transfers are read exactly as the
-          app reads them. Categories here come from a short word list; your
+          Try it. This is Goatside's own parser, running in your browser. It
+          reads amounts, dates, splits, accounts and transfers exactly as the
+          app does. Categories here come from a short word list. Your own
           instance asks the agent.
         </DemoNote>
       </div>
@@ -162,17 +162,17 @@ function HowItFiles() {
           title="Code reads the numbers. The agent reads the meaning."
         >
           <p>
-            The amount, date, split and account are parsed by plain code, so no
-            model can change a number you typed. The agent judges the rest, with
-            a confidence for every call. When it’s under the bar, it asks you
-            instead of guessing.
+            Plain code parses the amount, date, split and account, so no model
+            can change a number you typed. The agent judges the rest and gives
+            each call a confidence. Below the bar, it asks you instead of
+            guessing.
           </p>
         </SectionHeading>
         <ul className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
           <Point icon={CodeIcon} title="Amounts stay as typed">
             Parsed by code, never by a model.
           </Point>
-          <Point icon={ShieldCheckIcon} title="Asks when it isn’t sure">
+          <Point icon={ShieldCheckIcon} title="Asks when it isn't sure">
             One tap confirms or fixes its guess.
           </Point>
           <Point icon={HistoryIcon} title="Learns from your fixes">
@@ -195,16 +195,16 @@ function Dashboard() {
         title="Your month, readable at a glance."
       >
         <p>
-          Your pace against last month with a projection to month end, where the
-          money went, which days ran hot, and six months of trend. Hover
-          anything for the numbers.
+          Your pace against last month with a projection to month end, spending
+          by category, a calendar of daily spending, and six months of trend.
+          Hover any chart for the numbers.
         </p>
       </SectionHeading>
       <div className="flex flex-col gap-3">
         <DashboardPreview />
         <DemoNote>
-          Sample months. Bills that repeat count once in the projection;
-          everyday spending runs at its daily rate.
+          Sample months. Bills that repeat count once in the projection.
+          Everyday spending runs at its daily rate.
         </DemoNote>
       </div>
       <ul className="grid gap-6 sm:grid-cols-3">
@@ -236,9 +236,9 @@ function People() {
         title="Splits and IOUs, kept straight."
       >
         <p>
-          Mention someone and Goatside keeps track of what’s owed. Split a bill
-          and only your share counts as spending. Settle up in one tap, or have
-          a friendly reminder drafted for you.
+          Mention someone and Goatside keeps track of what's owed. Split a bill
+          and only your share counts as spending. Settle up in one tap, or let
+          the agent draft a friendly reminder.
         </p>
         <Lines
           lines={[
@@ -264,12 +264,13 @@ function Accounts() {
       <div className="lg:order-2">
         <SectionHeading
           kicker="Accounts and transfers"
-          title="Every peso in the right pocket."
+          title="Balances for every bank, wallet and card."
         >
           <p>
             Banks, e-wallets, credit cards and cash, each with its balance. Say
-            where you paid from and it’s filed there. Cash-ins, ATM withdrawals
-            and card payments are transfers, so they never count as spending.
+            where you paid from and Goatside files it there. Cash-ins, ATM
+            withdrawals and card payments are transfers, so they never count as
+            spending.
           </p>
           <Lines
             lines={["200 taxi via gcash", "1500 groceries using bpi card"]}
@@ -296,7 +297,7 @@ function Ask() {
         <p>
           Answers come from your ledger through read-only lookups, never from a
           guess. Ask it to re-file, log or delete entries and it shows you
-          exactly which ones will change first. Every change can be undone.
+          exactly which ones will change first. You can undo every change.
         </p>
       </SectionHeading>
       <div className="flex min-w-0 flex-col gap-3">
@@ -313,23 +314,23 @@ function Yours() {
   return (
     <section className="flex flex-col gap-10" id="yours">
       <SectionHeading
-        kicker="Yours, all the way down"
-        title="One person, one database, no middleman."
+        kicker="Privacy"
+        title="Your ledger stays in your own database."
       />
       <ul className="grid gap-3 sm:grid-cols-2">
         <Tile icon={DatabaseIcon} title="Your database">
-          Your ledger lives in your own Turso database. There’s no Goatside
+          Your ledger lives in your own Turso database. There's no Goatside
           server, no account with us and no analytics. The code is open, so you
           can read every line.
         </Tile>
         <Tile icon={SparklesIcon} title="What leaves, and where">
-          Entry text goes to TypeSafe’s Jev to be filed, and your questions go
-          to DeepSeek, both through your own AI Gateway. Swap either model with
-          one variable.
+          Entry text goes to TypeSafe's Jev, which files it, and your questions
+          go to DeepSeek, both through your own AI Gateway. Swap either model
+          with one variable.
         </Tile>
         <Tile icon={CloudOffIcon} title="Works offline">
           Install it on your phone. Entries typed with no signal wait on your
-          phone and sync on their own when you’re back.
+          phone and sync on their own when you're back online.
           <span className="mt-3 flex items-center gap-1.5 text-xs text-bronze">
             <CloudOffIcon aria-hidden className="size-3" />
             Waiting to sync · 180 iced coffee
@@ -337,7 +338,7 @@ function Yours() {
         </Tile>
         <Tile icon={ShieldCheckIcon} title="Works without AI">
           No AI configured? Entries still save, and lines without a sign still
-          get an “in or out?” card. You can file everything by hand.
+          get an "in or out?" card. You can file everything by hand.
         </Tile>
       </ul>
     </section>
@@ -372,16 +373,16 @@ function Deploy() {
         </h2>
         <p className="text-pretty text-muted-foreground md:text-lg">
           Fork the repo, create a Turso database, and import it into Vercel. The
-          guide walks you through every step.
+          guide covers every step.
         </p>
       </div>
       <ol className="grid w-full max-w-3xl gap-3 text-left sm:grid-cols-3">
         {[
-          ["Fork", "Your copy of the code, so updates are a pull away."],
+          ["Fork", "Your own copy of the code. Updating is a git pull."],
           ["Turso", "One free database for your ledger."],
           [
             "Vercel",
-            "Import it with Root Directory apps/app, add five variables.",
+            "Import your fork with Root Directory apps/app and add five variables.",
           ],
         ].map(([title, text], i) => (
           <li
@@ -424,7 +425,7 @@ function Footer() {
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-6">
         <span className="flex items-center gap-2">
           <CoinMark className="size-5" />
-          Open source. Self-hosted. Steady climbing.
+          Goatside is open source and self-hosted.
         </span>
         <nav className="flex flex-wrap gap-x-5 gap-y-2">
           <Link to="/docs/$" className="hover:text-foreground">

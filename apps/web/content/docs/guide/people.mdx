@@ -15,20 +15,20 @@ Mention someone in a line and Goatside keeps track of what's owed. The home scre
 
 The agent works out what kind of line it is:
 
-| Kind             | Example                                    | What it records                                      |
-| ---------------- | ------------------------------------------ | ---------------------------------------------------- |
-| You lent         | `1000 lent nini`                           | Nini owes you ₱1,000                                 |
-| You borrowed     | `350 lunch, daniel paid`                   | You owe Daniel ₱350                                  |
-| Paid back to you | `+500 daniel paid me back`                 | Daniel owes you ₱500 less                            |
-| You paid back    | `1000 paid back nini`                      | You owe Nini ₱1,000 less                             |
-| Shared           | `2400 dinner with nini and daniel split 3` | ₱800 is your spending; Nini and Daniel owe ₱800 each |
+| Kind             | Example                                    | What it records                                          |
+| ---------------- | ------------------------------------------ | -------------------------------------------------------- |
+| You lent         | `1000 lent nini`                           | Nini owes you ₱1,000                                     |
+| You borrowed     | `350 lunch, daniel paid`                   | You owe Daniel ₱350                                      |
+| Paid back to you | `+500 daniel paid me back`                 | Daniel owes you ₱500 less                                |
+| You paid back    | `1000 paid back nini`                      | You owe Nini ₱1,000 less                                 |
+| Shared           | `2400 dinner with nini and daniel split 3` | ₱800 is your spending, and Nini and Daniel owe ₱800 each |
 
-IOUs never count as spending or income, only your own share does. When a line could be
+IOUs never count as spending or income. Only your own share does. When a line could be
 either your own spending or an IOU, the agent asks, and **Just my spending** is always
 an option.
 
-Names are recognized after words like _with_, _by_, _from_, _to_, _for_, _lent_, _ni_,
-_kay_, _utang_ and _bayad_, and anyone you've logged before is recognized anywhere.
+Goatside looks for names after words like _with_, _by_, _from_, _to_, _for_, _lent_, _ni_,
+_kay_, _utang_ and _bayad_. It recognizes anyone you've logged before anywhere in a line.
 
 ## On the People page
 
@@ -38,10 +38,10 @@ _kay_, _utang_ and _bayad_, and anyone you've logged before is recognized anywhe
   who turned out to be one.
 - **Add an IOU** by hand: who, which way, how much and what for.
 - **Draft a reminder.** The agent writes a short, friendly payment reminder from their
-  open IOUs. Edit it, then copy or share it yourself. Nothing is sent for you.
+  open IOUs. Edit it, then copy or share it yourself. Goatside never sends it for you.
 
 ## Editing a split
 
 Open a split bill in the edit drawer to change who it was split with, the number of
-ways or the total. The shares are re-divided evenly, and everyone's rows move together
-when you change the date, description or account.
+ways or the total. Goatside divides the shares evenly again, and everyone's rows move
+together when you change the date, description or account.

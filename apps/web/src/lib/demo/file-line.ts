@@ -344,7 +344,8 @@ function fileLine(
     check: !direction || Boolean(scan.unknown),
   }
 
-  const what = `“${description || "this"}”`
+  // As the app words it: the description capitalized, in quotes.
+  const what = description ? `"${capitalize(description)}"` : "this"
   const question: DemoQuestion | null = !direction
     ? { kind: "direction", rowId: id, amount: line.amount, what }
     : scan.unknown
