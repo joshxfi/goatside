@@ -106,6 +106,11 @@ export type ImportDecision =
   | { action: "link" }
   | { action: "transfer"; accountId: string }
 
+/** A typed amount a little off what was charged: within ₱20 or 5%. */
+const near = (a: number, b: number) =>
+  Math.sign(a) === Math.sign(b) &&
+  Math.abs(a - b) <= Math.max(2_000, Math.round(Math.abs(a) * 0.05))
+
 const dayGap = (a: string, b: string) =>
   Math.abs(Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) /
   86_400_000
@@ -312,9 +317,6 @@ export async function previewImport(
   // Near misses, for the owner to confirm: a typed amount a little off
   // (180 typed, 185 charged), a date up to a week off, or the right amount
   // filed under another account (entries that name none go to the default).
-  const near = (a: number, b: number) =>
-    Math.sign(a) === Math.sign(b) &&
-    Math.abs(a - b) <= Math.max(2_000, Math.round(Math.abs(a) * 0.05))
   const usedElsewhere = new Set([...counterparts.values()].map((t) => t.id))
   const maybe = pairUp(
     open
