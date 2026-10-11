@@ -276,19 +276,21 @@ export function readPeriod(lines: StatementLine[]): StatementPeriod | null {
 function resolveYear(
   parts: DateParts,
   period: StatementPeriod | null,
-  fallbackYear: number | null
+  latest: LocalDate | null
 ): LocalDate | null {
   if (parts.year) return makeDate(parts.year, parts.month, parts.day)
-  if (!period) {
-    return fallbackYear ? makeDate(fallbackYear, parts.month, parts.day) : null
-  }
-  const startYear = Number(period.start.slice(0, 4))
-  const endYear = Number(period.end.slice(0, 4))
-  const from = addDays(period.start, -31)
+  // No period: the latest full date printed (often a due date) bounds the
+  // rows, so a "05 Dec" before a January due date is last December.
+  const window =
+    period ?? (latest ? { start: addDays(latest, -365), end: latest } : null)
+  if (!window) return null
+  const startYear = Number(window.start.slice(0, 4))
+  const endYear = Number(window.end.slice(0, 4))
+  const from = period ? addDays(window.start, -31) : window.start
   for (let y = endYear; y >= startYear - 1; y--) {
     if (!isValidDate(y, parts.month, parts.day)) continue
     const date = makeDate(y, parts.month, parts.day)
-    if (date >= from && date <= period.end) return date
+    if (date >= from && date <= window.end) return date
   }
   return null
 }
@@ -517,7 +519,7 @@ export function extractRows(
 ): { rows: StatementRow[]; problem?: string } {
   const all = ordered(lines)
   const rowSet = new Set(layout.rowLines)
-  const fallbackYear = yearInText(all)
+  const latest = latestDate(all)
 
   // Row pitch: the usual gap between row lines on a page.
   const gaps: number[] = []
@@ -564,9 +566,9 @@ export function extractRows(
   const signs = new Map<AmountRole, Set<number>>()
   for (const line of layout.rowLines) {
     const parsed = parseRowLine(line)!
-    const localDate = resolveYear(parsed.date, period, fallbackYear)
+    const localDate = resolveYear(parsed.date, period, latest)
     const postedDate = parsed.posted
-      ? resolveYear(parsed.posted, period, fallbackYear)
+      ? resolveYear(parsed.posted, period, latest)
       : undefined
     if (!localDate || postedDate === null) {
       return { rows: [], problem: "Some dates on the statement have no year." }
@@ -630,13 +632,13 @@ export function extractRows(
   return { rows }
 }
 
-/** The latest four-digit year printed anywhere, for dates without one. */
-function yearInText(lines: StatementLine[]): number | null {
-  let best: number | null = null
+/** The latest full date printed anywhere, for dates without a year. */
+function latestDate(lines: StatementLine[]): LocalDate | null {
+  let best: LocalDate | null = null
   for (const line of lines) {
     for (const cell of line.cells) {
       const d = readDate(cell.text)
-      if (d) best = Math.max(best ?? 0, Number(d.slice(0, 4)))
+      if (d && (!best || d > best)) best = d
     }
   }
   return best
@@ -777,7 +779,12 @@ export function checkStatement(
     const inOk = summary.totalIn === undefined || summary.totalIn === totalIn
     const outOk =
       summary.totalOut === undefined || summary.totalOut === totalOut
-    check.totals = inOk && outOk ? "pass" : "fail"
+    // One printed total vouches for one side only: a statement with money
+    // in and out needs both to pass on totals alone.
+    const covered =
+      (summary.totalIn !== undefined || totalIn === 0) &&
+      (summary.totalOut !== undefined || totalOut === 0)
+    check.totals = !inOk || !outOk ? "fail" : covered ? "pass" : "skip"
   }
 
   // Opening plus rows equals closing; and the last running balance.
@@ -865,6 +872,24 @@ const NUMBER =
   /^(?:php|₱)?\s*\(?[-−]?\s*(?:php|₱)?\s*[\d,]+(?:\.\d+)?\)?\s*(?:php)?$/i
 const SLASH_DATE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
 
+/**
+ * When every value could be either order (01/10/2026), the reading that
+ * keeps the rows in date order over the shorter span: a statement covers
+ * weeks, not a year. Month first on a tie.
+ */
+function tighterDayFirst(dates: (readonly [number, number, number])[]) {
+  const spread = (dayFirst: boolean) => {
+    const days = dates.map(([a, b, y]) =>
+      Date.UTC(y, (dayFirst ? b : a) - 1, dayFirst ? a : b)
+    )
+    const up = days.every((d, i) => i === 0 || d >= days[i - 1]!)
+    const down = days.every((d, i) => i === 0 || d <= days[i - 1]!)
+    const span = Math.max(...days) - Math.min(...days)
+    return up || down ? span : Infinity
+  }
+  return spread(true) < spread(false)
+}
+
 /** "1500" or "1,500.5" in a money column, as a statement prints it. */
 function asMoney(text: string): string {
   const negative = /[-−(]/.test(text)
@@ -878,7 +903,7 @@ function asMoney(text: string): string {
  * field, so the same layout detection and checks apply. Money columns get
  * two decimals (`1500` becomes `1500.00`). Numeric dates (`09/12/2026`)
  * become ISO when the column shows which number is the day; when every
- * value could be either, month first, as Philippine banks export them.
+ * value could be either, the order that keeps the dates close together.
  */
 export function linesFromCsv(text: string): StatementLine[] {
   const body = text.replace(/^\uFEFF/, "")
@@ -910,6 +935,10 @@ export function linesFromCsv(text: string): StatementLine[] {
     })
     if (dates.length && dates.length >= values.length - 1) {
       const dayFirst = dates.some(([a]) => a > 12)
+        ? true
+        : dates.some(([, b]) => b > 12)
+          ? false
+          : tighterDayFirst(dates)
       for (const r of records) {
         const m = r[col]?.match(SLASH_DATE)
         if (!m) continue

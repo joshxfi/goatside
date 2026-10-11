@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import {
+  checkStatement,
   fingerprintRows,
   linesFromCsv,
   linesFromItems,
@@ -509,6 +510,74 @@ describe("readStatement: other layouts", () => {
     })
     expect(result.ok).toBe(false)
     expect(result.problem).toMatch(/No transactions/)
+  })
+})
+
+describe("findings from review", () => {
+  it("dates rows without a year before a due date in the next year", () => {
+    const lines = [
+      line(1, 800, text(20, "Statement date"), text(200, "20 Dec 2026")),
+      line(1, 785, text(20, "Payment due date"), text(200, "08 Jan 2027")),
+      line(1, 770, text(20, "Previous balance"), num(440, "1,000.00")),
+      line(1, 755, text(20, "New balance"), num(440, "1,350.00")),
+      line(
+        1,
+        660,
+        text(20, "05 Dec"),
+        text(90, "SAMPLE SHOP"),
+        num(440, "150.00")
+      ),
+      line(
+        1,
+        645,
+        text(20, "10 Dec"),
+        text(90, "SAMPLE CAFE"),
+        num(440, "200.00")
+      ),
+    ]
+    const result = readStatement(lines, { kind: "credit_card" })
+    expect(result.ok).toBe(true)
+    expect(result.rows.map((r) => r.localDate)).toEqual([
+      "2026-12-05",
+      "2026-12-10",
+    ])
+  })
+
+  it("doesn't pass a statement on one printed total", () => {
+    const rows = [
+      {
+        localDate: "2026-09-01",
+        details: "Refund",
+        amount: 5_000,
+        page: 1,
+        y: 2,
+      },
+      {
+        localDate: "2026-09-02",
+        details: "Shop",
+        amount: -999_999,
+        page: 1,
+        y: 1,
+      },
+    ]
+    const check = checkStatement(rows, { totalIn: 5_000 }, null, "credit_card")
+    expect(check.ok).toBe(false)
+    expect(check.totals).toBe("skip")
+  })
+
+  it("reads early-month day-first CSV dates as one month", () => {
+    const csv = [
+      "Date,Details,Amount,Balance",
+      "01/10/2026,Groceries,-100.00,900.00",
+      "05/10/2026,Coffee,-50.00,850.00",
+      "12/10/2026,Lunch,-50.00,800.00",
+    ].join("\n")
+    const result = readStatement(linesFromCsv(csv), { kind: "bank" })
+    expect(result.rows.map((r) => r.localDate)).toEqual([
+      "2026-10-01",
+      "2026-10-05",
+      "2026-10-12",
+    ])
   })
 })
 
