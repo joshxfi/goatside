@@ -386,12 +386,18 @@ importers:
 
   apps/web:
     dependencies:
+      '@tanstack/charts':
+        specifier: 'catalog:'
+        version: 1.1.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(solid-js@1.9.15)
       '@tanstack/react-router':
         specifier: 'catalog:'
         version: 1.170.41(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@tanstack/react-start':
         specifier: 'catalog:'
         version: 1.168.60(crossws@0.4.15(srvx@1.0.5))(esbuild@0.28.1)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.12)(supports-color@10.2.2)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      '@workspace/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@workspace/ui':
         specifier: workspace:*
         version: link:../../packages/ui
