@@ -32,6 +32,19 @@ const MAX_ASSETS = 150
 const PAGE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
 const KEPT_AT = "x-goatside-kept-at"
 
+/**
+ * Goes up each time the session ends. A page fetched under an earlier
+ * session is dropped instead of kept, so a fetch still in flight at sign-out
+ * can't put the ledger back after it was cleared.
+ */
+let session = 0
+
+/** Clears kept pages and voids any still being fetched. */
+function forget() {
+  session += 1
+  return caches.delete(PAGES)
+}
+
 /** A copy of `response` stamped with when it was kept. */
 async function stamped(response) {
   const headers = new Headers(response.headers)
@@ -78,7 +91,10 @@ self.addEventListener("activate", (event) => {
  */
 self.addEventListener("message", (event) => {
   const { type, assets = [], pages = [] } = event.data ?? {}
+  // Sent at sign-out and whenever the sign-in page shows.
+  if (type === "forget") return event.waitUntil(forget())
   if (type !== "keep") return
+  const started = session
   event.waitUntil(
     (async () => {
       const cache = await caches.open(ASSETS)
@@ -93,9 +109,11 @@ self.addEventListener("message", (event) => {
         if (await caches.match(href)) continue
         const response = await fetch(href, { credentials: "same-origin" })
         if (!response.ok || response.redirected) break
-        await (
-          await caches.open(PAGES)
-        ).put(href, await stamped(response.clone()))
+        const copy = await stamped(response.clone())
+        const kept = await caches.open(PAGES)
+        // Checked last, right before the write, so nothing slips in between.
+        if (session !== started) break
+        await kept.put(href, copy)
         // A page kept before it's ever opened also needs its code offline.
         await keepAssets(await response.text())
       }
@@ -126,18 +144,22 @@ self.addEventListener("fetch", (event) => {
 /** Network first; the kept copy if the network fails or dawdles. */
 async function page(event, request) {
   const cache = await caches.open(PAGES)
+  const started = session
   const network = fetch(request).then((response) => {
     if (response.redirected && new URL(response.url).pathname === "/login") {
       // Sent to sign in: the session ended, so its kept pages go too.
-      event.waitUntil(caches.delete(PAGES))
+      event.waitUntil(forget())
     } else if (
-      // Only real pages: not redirects or errors.
+      // Only real pages from this session: not redirects or errors.
       response.ok &&
       !response.redirected &&
       response.type === "basic"
     ) {
       event.waitUntil(
-        stamped(response.clone()).then((copy) => cache.put(request, copy))
+        stamped(response.clone()).then(async (copy) => {
+          const kept = await caches.open(PAGES)
+          if (session === started) await kept.put(request, copy)
+        })
       )
     }
     return response

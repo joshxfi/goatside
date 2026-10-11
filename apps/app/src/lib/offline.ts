@@ -125,6 +125,8 @@ export function isStaleBuild(error: unknown) {
 
 /** Kept pages hold the ledger; signing out shouldn't leave them behind. */
 export async function clearOfflineCopies() {
+  // The worker also drops pages it's still fetching for the old session.
+  navigator.serviceWorker?.controller?.postMessage({ type: "forget" })
   if (!("caches" in window)) return
   const names = await caches.keys()
   await Promise.all(
