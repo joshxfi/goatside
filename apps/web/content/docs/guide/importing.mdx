@@ -46,8 +46,12 @@ negative amount. Goatside reads them that way when you import into a credit card
 
 The review sorts the rows into groups:
 
-- **New** rows get filed like typed entries, with a category from the agent. Untick any
-  you don't want. A row that looks like a transfer, such as "Outbound interbank transfer",
+- **Maybe logged** rows are close to an entry you typed but not exact: ₱180 typed for a
+  ₱185 charge, a date up to a week off, or the right amount filed under another account
+  (entries that name no account go to your default). Choose **Same entry** to link them. The entry takes the statement's amount and account. Otherwise the row is added as new.
+- **New** rows get filed like typed entries, with a category from the agent. Rows that
+  read the same, like 30 "Qr Payment" lines, get one question between them, and your
+  answer files them all. Untick any you don't want. A row that looks like a transfer, such as "Outbound interbank transfer",
   has a menu to make it one.
 - **Transfers** are money moving between your own accounts. A card payment, an ATM
   withdrawal or a row that names another of your accounts lands here, with the other
@@ -56,7 +60,8 @@ The review sorts the rows into groups:
 - **Already logged** rows match an entry you typed: same amount, within two days. They're
   linked, not added again. Choose **Not the same** if the match is wrong.
 - Rows from a statement you imported before are left alone, so overlapping statements
-  never add a row twice.
+  never add a row twice. That includes rows you deleted after importing: they stay
+  deleted.
 
 Imported rows don't create IOUs. "Transfer to Nini" on a bank statement could be a loan,
 a gift or a bill, so file it with Nini by hand if it's a loan.
