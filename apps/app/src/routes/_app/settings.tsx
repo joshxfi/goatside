@@ -41,6 +41,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { toast } from "@workspace/ui/components/sonner"
+import { ThemeSwitch } from "@workspace/ui/components/theme-switch"
 import { cn } from "@workspace/ui/lib/utils"
 import { PageFrame, PageHeader } from "@/components/app-shell"
 import { capitalize, shortDate } from "@/lib/format"
@@ -105,6 +106,7 @@ function Settings() {
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           <Currency current={data.currency} />
           <TimeZone current={data.timeZone} />
+          <Appearance />
           <InstallApp />
         </div>
       </div>
@@ -697,6 +699,20 @@ function Currency({ current }: { current: string }) {
             ))}
           </SelectContent>
         </Select>
+      </div>
+    </section>
+  )
+}
+
+function Appearance() {
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-sm font-medium text-muted-foreground">Appearance</h2>
+      <div className="flex items-center justify-between gap-4 rounded-2xl border bg-card px-4 py-3">
+        <p className="text-sm text-muted-foreground">
+          Light, dark, or your device's setting. Saved on this device.
+        </p>
+        <ThemeSwitch labels />
       </div>
     </section>
   )

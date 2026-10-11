@@ -25,6 +25,8 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
@@ -43,6 +45,7 @@ import {
   SidebarTrigger,
 } from "@workspace/ui/components/sidebar"
 import { toast } from "@workspace/ui/components/sonner"
+import { THEMES, type Theme, setTheme, useTheme } from "@workspace/ui/lib/theme"
 import { cn } from "@workspace/ui/lib/utils"
 import { useAgent } from "@/components/agent-provider"
 import { clearOfflineCopies } from "@/lib/offline"
@@ -157,12 +160,38 @@ function UserMenu({ viewer }: { viewer: Viewer }) {
         <ChevronsUpDownIcon className="ml-auto size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent side="right" align="end" className="min-w-56">
+        <ThemeMenuItems />
+        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={signOutAndLeave}>
           <LogOutIcon />
           Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+const THEME_LABELS: Record<Theme, string> = {
+  light: "Light",
+  dark: "Dark",
+  system: "System",
+}
+
+/** Light, dark or system, in the account menus. Settings has it too. */
+function ThemeMenuItems() {
+  const theme = useTheme()
+  return (
+    <DropdownMenuRadioGroup
+      value={theme}
+      onValueChange={(value) => setTheme(value as Theme)}
+    >
+      <DropdownMenuLabel>Theme</DropdownMenuLabel>
+      {THEMES.map((value) => (
+        <DropdownMenuRadioItem key={value} value={value}>
+          {THEME_LABELS[value]}
+        </DropdownMenuRadioItem>
+      ))}
+    </DropdownMenuRadioGroup>
   )
 }
 
@@ -375,6 +404,8 @@ export function AccountMenu({
             Ask Goatside
           </DropdownMenuItem>
         </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <ThemeMenuItems />
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={signOutAndLeave}>
           <LogOutIcon />
