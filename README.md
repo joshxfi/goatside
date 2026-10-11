@@ -1,78 +1,85 @@
 # Goatside
 
-Goatside is an open-source, personal, agentic finance tracker that you self-host.
-Type what you spent or received in plain words, like `180 iced coffee`, and it
-becomes a categorized transaction. On your phone it's a quick logger and a chat with the agent; on a
-wide screen it's a dashboard for reviewing your money, with charts and a full
-transactions table.
+![Goatside: type what you spent, it files itself.](apps/web/public/og.png)
 
-It's built for one person. There's no hosted service: you deploy your own copy
-to Vercel, with your own Turso database and AI Gateway key. It has exactly one
-account, whose username and password you set in its environment.
+Goatside is an open-source personal finance tracker that you host yourself. Type what
+you spent or received in plain words, like `180 iced coffee`, and its agent files it
+with a category, an account, and who owes whom.
 
-Amounts are in one currency you pick in Settings. It starts as Philippine pesos.
+On your phone it's a quick logger with an agent to chat with. On a wide screen it's a
+dashboard for reviewing your money, with charts and a full transactions table.
 
-> Early development. The docs, including the full self-hosting guide, are in
-> [`apps/web/content/docs`](./apps/web/content/docs).
+It's built for one person. There's no hosted service. You deploy your own copy to Vercel
+with your own Turso database and AI Gateway, and sign in with the one account set in its
+environment.
 
-## Structure
+[![MIT license](https://img.shields.io/badge/license-MIT-2a2620)](./LICENSE)
 
-| Path            | What                                                          |
-| --------------- | ------------------------------------------------------------- |
-| `apps/app`      | The app you self-host (TanStack Start, deployed to Vercel)    |
-| `apps/web`      | The landing site and docs (TanStack Start + Fumadocs)         |
-| `packages/core` | Pure TS: the entry parser, account matching, money, dates     |
-| `packages/db`   | Drizzle schema and migrations for Turso (libSQL)              |
-| `packages/auth` | Single-account auth: env credentials, signed session cookie   |
-| `packages/ai`   | The agent: Jev categorization policy, ask-mode instructions   |
-| `packages/ui`   | shadcn/ui components (Base UI), the coin brand, theme, styles |
+## Features
 
-## The agent
+- **Logging in plain words.** Code reads the amount, date, split and account exactly as
+  you typed them. The agent picks the category and whether money went out or came in,
+  and learns from the entries you've confirmed.
+- **An agent that asks.** When it isn't sure, the entry is saved with its best guess and
+  a one-tap question appears ("₱500 for 'lunch': money out or in?").
+- **People and IOUs.** "lent nini 1000", "daniel paid me back" and "dinner with nini and
+  daniel split 3" become loans, repayments and split bills, with one-tap settle.
+- **Accounts and transfers.** Banks, e-wallets, credit cards and cash, each with its
+  balance. Moving money between your own accounts is a transfer, not spending.
+- **Statement imports.** Pick a bank or card statement, PDF or CSV, and Goatside adds the
+  rows you didn't log and links the ones you did. Every row has to add up to the
+  statement's own balances, or nothing is imported.
+- **Asking and doing.** Ask "how much on food this month?" and the agent answers from
+  your ledger. Ask it to "move all grab rides this month to Transport" and it shows
+  exactly what will change before it does anything, and you can undo it.
+- **Your currency.** Pick it in Settings. It starts as Philippine pesos.
+- **Works offline.** Install it on your phone. Entries typed with no signal wait on the
+  phone and sync when you're back online.
+- **Works without AI.** Without AI Gateway, entries still save, and you file them by
+  hand.
 
-- **Filing entries.** Each line goes to TypeSafe's [Jev](https://docs.typesafe.ai/), a
-  decision model, through AI Gateway. It picks the category, notices recurring bills,
-  and decides money in or out when you leave off the sign. It learns from entries you
-  confirmed before.
-- **Asking you.** When Jev isn't sure, the entry is saved with its best guess and a
-  quick question appears above the composer ("₱500 for 'lunch': money out or in?").
-  One tap confirms or fixes it, and the answer teaches the next guess.
-- **People and IOUs.** "lent nini 1000", "daniel paid me back", "dinner with nini and daniel, I paid"
-  become loans, repayments and split bills. The home screen shows who owes whom, with
-  one-tap settle.
-- **Accounts.** Banks, e-wallets, credit cards and cash, each with its balance.
-  Say which one you used ("200 taxi via GCash") and it's filed there; entries that
-  name none go to a default account. Moving money between your own accounts ("cash
-  in GCash from BPI", "pay BPI Card", "atm") is a transfer, not spending. A name
-  it doesn't know ("using UnionBank") becomes a question: add it as a bank,
-  e-wallet or card, or not an account. Bills and subscriptions go on the card
-  they were charged to last time.
-- **Importing statements.** Pick a bank or card statement, PDF or CSV, on an account
-  and Goatside adds the rows you didn't log and links the ones you did. Your browser
-  reads the file, so it and its password never leave your device. Every row has to add
-  up to the statement's own balances, or nothing is imported.
-- **Catching mistakes.** The same payment logged twice gets a "keep both?" check, and
-  charges that recur month to month are marked as repeating.
-- **Doing things for you.** Ask it to "move all grab rides this month to Transport",
-  "delete the duplicate lunch", "log 350 lunch yesterday", "Daniel paid me back",
-  "add my Security Bank savings with ₱15,000" or "my Maya actually has ₱2,000".
-  Every change shows a confirmation listing exactly what will change, and can be
-  undone.
-- **Small assists.** Add a category and it offers to move past entries that belong
-  there; it drafts a friendly payment reminder for someone who owes you; your
-  frequent entries become one-tap chips above the composer.
-- **Answering you.** Type a question instead of an amount ("how much on food this
-  month?", "who owes me money?") and DeepSeek V4.1 Flash answers from your ledger
-  with read-only tools.
+## What leaves your instance
 
-**What leaves your instance:** entry text and amounts (to TypeSafe, for categorizing,
-including the new rows of an imported statement), and your questions plus the ledger
-rows needed to answer them (to DeepSeek), both via your own AI Gateway. Statement files
-and their passwords never leave your device. Without AI Gateway credentials, Goatside still works: entries
-save uncategorized and sign-less ones still get an "in or out?" question.
+Your ledger lives in your own Turso database. Two things go out, both through your own
+Vercel AI Gateway:
 
-## Development
+- The text and amount of each entry you log, to TypeSafe's
+  [Jev](https://docs.typesafe.ai/) for filing. That includes the new rows of an imported
+  statement.
+- Your questions to the agent and the ledger rows it looks up to answer them, to
+  DeepSeek V4.1 Flash.
 
-Requires Node 22.12+, pnpm, and the [Turso CLI](https://docs.turso.tech/cli) for the local database.
+Statement files and their passwords never leave your device. Goatside collects nothing:
+no analytics, no telemetry, no account with us. See
+[What leaves your instance](apps/web/content/docs/guide/privacy.mdx).
+
+## Deploy your own
+
+You'll need GitHub, [Vercel](https://vercel.com) and [Turso](https://turso.tech)
+accounts, Node 22.12 or newer, [pnpm](https://pnpm.io) and the
+[Turso CLI](https://docs.turso.tech/cli).
+
+1. [Fork the repo](https://github.com/joshxfi/goatside/fork), clone your fork and run
+   `pnpm install`.
+2. Create a database with `turso db create goatside`, then get its URL
+   (`turso db show goatside --url`) and a token (`turso db tokens create goatside`).
+3. Apply the migrations:
+   `TURSO_DATABASE_URL=<url> TURSO_AUTH_TOKEN=<token> pnpm db:migrate`.
+4. Import your fork in Vercel with **Root Directory** set to `apps/app`.
+5. Add `GOATSIDE_USERNAME`, `GOATSIDE_PASSWORD` (12 or more characters),
+   `SESSION_SECRET` (`openssl rand -base64 32`), `TURSO_DATABASE_URL` and
+   `TURSO_AUTH_TOKEN` as environment variables.
+6. Enable AI Gateway on your Vercel team, deploy and sign in.
+
+The [full guide](apps/web/content/docs/self-hosting/index.mdx) covers each step, plus
+[updating](apps/web/content/docs/self-hosting/updating.mdx), the
+[database](apps/web/content/docs/self-hosting/database.mdx) and
+[security](apps/web/content/docs/self-hosting/security.mdx).
+
+## Local development
+
+Requires Node 22.12+, pnpm and the [Turso CLI](https://docs.turso.tech/cli) for the local
+database.
 
 ```sh
 pnpm install
@@ -84,20 +91,16 @@ pnpm db:migrate   # first run, and after schema changes
 Sign in at http://localhost:3000 with the `GOATSIDE_USERNAME` and `GOATSIDE_PASSWORD`
 from your `.env.local`.
 
-Other commands:
-
 ```sh
 pnpm typecheck
 pnpm test         # vitest
 pnpm lint         # oxlint
 pnpm format       # oxfmt
-pnpm db:generate  # new migration after editing packages/db/src/schema
+pnpm db:generate  # a new migration after editing packages/db/src/schema
 pnpm db:studio    # browse the local DB
 TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter @workspace/db demo
-                  # 3 months of sample data into a separate local DB (local URLs only)
-pnpm --filter @workspace/ai eval   # live accuracy evals (needs AI_GATEWAY_API_KEY)
-TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter app eval:ask
-                  # chat agent scenarios against a local demo DB (writes to it)
+                  # 3 months of sample data in a separate local DB
+pnpm --filter @workspace/ai eval   # live filing evals (needs AI_GATEWAY_API_KEY)
 ```
 
 Add shadcn components from an app directory. They're installed into `packages/ui`:
@@ -106,24 +109,38 @@ Add shadcn components from an app directory. They're installed into `packages/ui
 pnpm dlx shadcn@latest add drawer -c apps/app
 ```
 
-## Self-hosting on Vercel
+## Project layout
 
-1. Create a Turso database (`turso db create goatside`) and a token
-   (`turso db tokens create goatside`), then apply migrations:
-   `TURSO_DATABASE_URL=libsql://… TURSO_AUTH_TOKEN=… pnpm db:migrate`
-2. Import this repo in Vercel with **Root Directory** set to `apps/app`. Vercel
-   detects TanStack Start and builds it with Nitro.
-3. Add the variables from `apps/app/.env.example` in the project's settings:
-   your username, a password of 12+ characters, a session secret
-   (`openssl rand -base64 32`) and the Turso URL and token. On Vercel, AI
-   Gateway authenticates through OIDC, so `AI_GATEWAY_API_KEY` is only needed
-   locally. Enable AI Gateway on your Vercel team for the agent to work.
-4. Deploy and sign in.
-5. Optional: add `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` as Actions secrets on
-   your fork. Each push to `main` then applies new migrations once CI passes.
+| Path            | What                                                          |
+| --------------- | ------------------------------------------------------------- |
+| `apps/app`      | The app you self-host (TanStack Start, deployed to Vercel)    |
+| `apps/web`      | The landing page and docs (TanStack Start + Fumadocs)         |
+| `packages/core` | Pure TS: the entry parser, account matching, money, dates     |
+| `packages/db`   | Drizzle schema and migrations for Turso (libSQL)              |
+| `packages/auth` | Single-account auth: env credentials, signed session cookie   |
+| `packages/ai`   | The agent: Jev filing policy, ask-mode instructions           |
+| `packages/ui`   | shadcn/ui components (Base UI), the coin brand, theme, styles |
 
-Changing the username, password or session secret signs out every device.
-Failed sign-ins are throttled (5 per IP and 25 overall per 15 minutes). Browsers
-that have signed in before are trusted and skip those limits, so a flood of bad
-attempts can't lock you out of them; a trusted browser that fails more than 10
-times in a day loses that status. Changing the password untrusts every browser.
+## Contributing
+
+Issues and pull requests are welcome. For anything larger than a fix, open an issue
+first so we can agree on the approach.
+
+- Read [`AGENTS.md`](./AGENTS.md) and the one in the folder you're changing. They hold
+  the rules the code follows, like integer cents for money and soft deletes everywhere.
+- Run `pnpm format`, `pnpm lint`, `pnpm typecheck` and `pnpm test` before you push. CI
+  runs the same checks.
+- Fix a ledger bug with a failing test first.
+- Write commits as [Conventional Commits](https://www.conventionalcommits.org), like
+  `fix(app): keep the outbox order after a retry`.
+- When a change affects how Goatside behaves, update the docs in
+  `apps/web/content/docs` in the same pull request.
+
+## Security
+
+Please report vulnerabilities privately through **Security → Report a vulnerability** on
+GitHub, not in a public issue.
+
+## License
+
+[MIT](./LICENSE). Built by Josh Daniel ([@joshxfi](https://github.com/joshxfi)).

@@ -78,7 +78,7 @@ Open findings from the 2026-10-11 audit. Fix them with a failing test first.
   `transactions.entry_id` or `created_at`.
 - The demo seed's split bills have no `entry_id`, so split features don't show on demo
   data.
-- No LICENSE yet (MIT or AGPL is the owner's call). No security headers.
+- No security headers.
 
 <!-- BEGIN:turborepo-agent-rules -->
 

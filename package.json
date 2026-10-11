@@ -3,6 +3,14 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "description": "An open-source, self-hosted personal finance tracker with an agent that files what you type.",
+  "license": "MIT",
+  "author": "Josh Daniel (https://github.com/joshxfi)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/joshxfi/goatside.git"
+  },
+  "bugs": "https://github.com/joshxfi/goatside/issues",
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
