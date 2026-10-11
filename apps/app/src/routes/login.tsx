@@ -1,10 +1,11 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { createCsrfMiddleware } from "@tanstack/react-start"
 import { createFileRoute, redirect } from "@tanstack/react-router"
 import { z } from "zod"
 import { CoinFlip, Wordmark } from "@workspace/ui/components/brand"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
+import { clearOfflineCopies } from "@/lib/offline"
 import { attemptSignIn, clientIp, getViewer } from "@/server/session"
 
 const ERRORS = {
@@ -55,6 +56,11 @@ export const Route = createFileRoute("/login")({
 function Login() {
   const { error } = Route.useSearch()
   const [pending, setPending] = useState(false)
+  // This page only shows without a session (expired, revoked or signed out),
+  // so pages kept from the last one shouldn't open offline anymore.
+  useEffect(() => {
+    void clearOfflineCopies()
+  }, [])
 
   return (
     <main className="mx-auto flex min-h-svh max-w-sm flex-col px-6 pt-[max(env(safe-area-inset-top),1.5rem)] pb-[max(env(safe-area-inset-bottom),1.5rem)]">
