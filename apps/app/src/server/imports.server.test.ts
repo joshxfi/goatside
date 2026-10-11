@@ -315,6 +315,24 @@ describe("statement imports", () => {
     expect(await balanceOf(card.id)).toBe(0)
   })
 
+  it("suggests cash for an ATM withdrawal, but not for its fee", async () => {
+    const bank = await createAccount({ name: "GoTyme", kind: "bank" })
+    const cash = await createAccount({ name: "Cash", kind: "cash" })
+    const input = bankStatement(bank.id, [
+      [day, "Withdrawal via ATM", -200_000],
+      [day, "ATM withdrawal fee", -1_800],
+    ])
+    const preview = await previewImport(getDb(), input)
+    expect(preview.rows[0]).toMatchObject({
+      status: "transfer",
+      transfer: { accountId: cash.id, convert: null },
+    })
+    expect(preview.rows[1]).toMatchObject({
+      status: "new",
+      transferish: false,
+    })
+  })
+
   it("refuses a choice the preview didn't offer", async () => {
     const bank = await createAccount({ name: "GoTyme", kind: "bank" })
     const input = bankStatement(bank.id, [[day, "Qr Payment", -18_000]])

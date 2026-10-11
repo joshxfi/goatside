@@ -33,6 +33,10 @@ const TRANSFER_DAYS = 3
 /** Words that make a statement row look like money moving between accounts. */
 const TRANSFER_WORDS =
   /\b(transfer|bill payment|payment received|cash ?in|top ?up|instapay|pesonet|atm|withdrawal|deposit)\b/i
+/** Cash out of a machine: money moving into the owner's cash. */
+const ATM_WORDS = /\b(atm|withdrawal)\b/i
+/** A bank's charge is spending, even when it says "ATM". */
+const FEE_WORDS = /\b(fees?|charges?)\b/i
 
 export interface StatementInput {
   accountId: string
@@ -233,6 +237,7 @@ export async function previewImport(
   const others = book.known.filter((a) => a.id !== A)
   const looksLikeTransfer = (i: number) => {
     const row = rows[i]!
+    if (FEE_WORDS.test(row.details)) return false
     return (
       TRANSFER_WORDS.test(row.details) ||
       (account.kind === "credit_card" && row.amount > 0)
@@ -309,8 +314,13 @@ export async function previewImport(
       }
     }
     const named = scanAccounts(row.details, others).mentions[0]?.accountId
+    const atm =
+      row.amount < 0 && base.transferish && ATM_WORDS.test(row.details)
+        ? others.find((a) => a.kind === "cash")?.id
+        : null
     const target =
       named ??
+      atm ??
       (account.kind === "credit_card" && row.amount > 0 ? payFrom?.id : null)
     if (target) {
       return {
