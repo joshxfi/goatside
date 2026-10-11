@@ -135,7 +135,15 @@ export function ImportStatement({
         summary: result.summary,
         period: result.period,
       }
-      const preview = await previewStatement({ data: statement })
+      const preview = await previewStatement({ data: statement }).catch(
+        (error: unknown) => {
+          console.error("[goatside] statement preview:", error)
+          return {
+            ok: false as const,
+            message: "Couldn't reach Goatside to check the rows. Try again.",
+          }
+        }
+      )
       if (!preview.ok)
         return setStep({ name: "failed", message: preview.message })
       const mentioned =
@@ -222,6 +230,8 @@ function Pick({
   const input = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
   const { data: history = [] } = useQuery(importsQuery(account.id))
+  // Undoing an old import removes its rows for good, so it takes two taps.
+  const [confirming, setConfirming] = useState<string | null>(null)
   const undo = useMutation({
     mutationFn: (id: string) => undoStatementImport({ data: { id } }),
     onSuccess: async (removed) => {
@@ -283,14 +293,27 @@ function Pick({
                     {h.rowCount} rows, {h.addedCount} added
                   </span>
                 </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={undo.isPending}
-                  onClick={() => undo.mutate(h.id)}
-                >
-                  Undo
-                </Button>
+                {confirming === h.id ? (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={undo.isPending}
+                    onClick={() => undo.mutate(h.id)}
+                  >
+                    {h.addedCount
+                      ? `Remove ${entries(h.addedCount)}`
+                      : "Remove from list"}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={undo.isPending}
+                    onClick={() => setConfirming(h.id)}
+                  >
+                    Undo
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
