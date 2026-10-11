@@ -1,5 +1,6 @@
 import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared"
 import { Wordmark } from "@workspace/ui/components/brand"
+import { ThemeSwitch } from "@workspace/ui/components/theme-switch"
 import { REPO_URL } from "@/lib/site"
 
 /** GitHub's mark; lucide no longer ships brand icons. */
@@ -12,8 +13,9 @@ function GitHubIcon() {
 }
 
 /**
- * Shared by the docs layout: the wordmark home and a GitHub link, with no
- * theme switch (it follows the system). GitHub is a labeled link, not
+ * Shared by the docs layout: the wordmark home, a GitHub link and the same
+ * theme switch as the landing page and app, in place of Fumadocs' own (which
+ * runs its own theme store). GitHub is a labeled link, not
  * `githubUrl`: Fumadocs puts icon-only links in a sidebar footer row, which
  * held nothing but that one icon.
  */
@@ -28,6 +30,8 @@ export function baseOptions(): BaseLayoutProps {
         external: true,
       },
     ],
-    themeSwitch: { enabled: false },
+    slots: {
+      themeSwitch: ({ className }) => <ThemeSwitch className={className} />,
+    },
   }
 }

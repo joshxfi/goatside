@@ -20,6 +20,7 @@ import {
   type Metal,
 } from "@workspace/ui/components/brand"
 import { buttonVariants } from "@workspace/ui/components/button"
+import { ThemeSwitch } from "@workspace/ui/components/theme-switch"
 import { cn } from "@workspace/ui/lib/utils"
 import { AccountsDemo } from "@/components/landing/accounts-demo"
 import { Anatomy } from "@/components/landing/anatomy"
@@ -128,6 +129,7 @@ function Nav() {
           >
             GitHub
           </a>
+          <ThemeSwitch />
         </nav>
       </div>
     </header>

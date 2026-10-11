@@ -76,7 +76,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {/* Light or dark follows the system (THEME_SCRIPT), as in the app. */}
+        {/* Light, dark or system: THEME_SCRIPT and ThemeSwitch, as in the app. */}
         <RootProvider
           theme={{ enabled: false }}
           search={{ SearchDialog: DocsSearchDialog }}
