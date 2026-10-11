@@ -1,0 +1,81 @@
+---
+title: Importing statements
+description: Add a bank or card statement's rows without typing them, or typing them twice.
+---
+
+When you've fallen behind on logging, import the statement your bank or card sends you.
+Goatside adds the rows you didn't log, links the ones you did, and saves nothing until
+you've reviewed them.
+
+## Importing one
+
+1. Open the account on the **Accounts** page and choose **Choose a statement**.
+2. Pick the PDF your bank or card sends you, or a CSV export.
+3. If the PDF has a password, type it. Banks often use your birthday or part of your
+   account number.
+4. Review the rows and choose **Import**.
+
+Each statement goes into the account you opened it from. If the account has its last four
+digits set and the statement never mentions them, Goatside warns you before you import.
+
+## The file stays on your device
+
+Your browser opens the file and reads it. The PDF and its password never reach your
+server or any AI model, and Goatside doesn't keep them. What gets saved is each row's
+date, details and amount, the balances the statement printed, and a fingerprint of the
+file so you can see if you import it again.
+
+## Every row has to add up
+
+Goatside checks the rows against the statement before it shows them to you:
+
+- Each running balance equals the one before it plus that row.
+- The money in and out add up to the totals the statement prints.
+- The opening balance plus every row equals the closing balance.
+- Every row is dated inside the statement period.
+
+If a check fails, nothing is imported, and you see the first row that doesn't fit. A
+statement with no running balance and no totals that match its rows can't be checked, so
+it isn't imported either. No model reads your amounts. Code reads every number, as it does
+for the entries you type.
+
+Credit card statements print what you owe instead of a balance, and a payment shows as a
+negative amount. Goatside reads them that way when you import into a credit card account.
+
+## Reviewing the rows
+
+The review sorts the rows into groups:
+
+- **New** rows get filed like typed entries, with a category from the agent. Untick any
+  you don't want. A row that looks like a transfer, such as "Outbound interbank transfer",
+  has a menu to make it one.
+- **Transfers** are money moving between your own accounts. A card payment, an ATM
+  withdrawal or a row that names another of your accounts lands here, with the other
+  account picked. If you already logged the other side, like the bank's transfer out
+  for a card payment, the two become one transfer.
+- **Already logged** rows match an entry you typed: same amount, within two days. They're
+  linked, not added again. Choose **Not the same** if the match is wrong.
+- Rows from a statement you imported before are left alone, so overlapping statements
+  never add a row twice.
+
+Imported rows don't create IOUs. "Transfer to Nini" on a bank statement could be a loan,
+a gift or a bill, so file it with Nini by hand if it's a loan.
+
+## After importing
+
+If the statement ends at a different balance than Goatside has, you can set the account
+to the statement's balance, or for a card to what you owe. That keeps your entries and moves
+the starting balance, like **Correct the balance**.
+
+To take an import back, choose **Undo import** right after, or **Undo** next to it under
+**Imported before**. Undo removes the rows it added. Entries it linked stay as they are.
+
+## What it can read
+
+- Text PDFs: statements you download from your bank's app or website. Scanned paper
+  statements have no text to read.
+- CSV exports with a date, details, amounts and a running balance. Numeric dates like
+  `09/12/2026` are read month first unless a day over 12 shows otherwise.
+
+Built against GoTyme deposit account and Maya credit card statements. Other banks work
+when their statements print a running balance or totals.

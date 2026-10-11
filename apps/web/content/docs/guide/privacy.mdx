@@ -13,6 +13,10 @@ Goatside sends two things out, both through your own Vercel AI Gateway:
 | You log an entry  | The entry's text and amount, plus your category names with a few recent entries in each, and the people and accounts the line might involve | TypeSafe's Jev, `typesafe-ai/jev`                   |
 | You ask the agent | Your question, the recent chat, and the ledger rows its tools look up to answer                                                             | DeepSeek V4.1 Flash, `deepseek/deepseek-v4.1-flash` |
 
+Importing a statement sends each new row's details and amount to Jev for a category,
+the same as a typed entry. Your browser reads the statement file, so the file and its
+password never leave your device. See [Importing statements](/docs/guide/importing).
+
 Nothing goes out when you only browse your dashboard, edit an entry by hand or settle up
 with someone.
 

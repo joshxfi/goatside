@@ -50,6 +50,12 @@ TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter app eval:ask
 - **Query keys**: anything derived from entries lives under `"ledger"` (month,
   transactions, accounts, people), so one `invalidateQueries({ queryKey: ["ledger"] })`
   refreshes it all. Don't add a separate top-level key for ledger-derived data.
+- **Statement imports** (`imports.server.ts`): the browser reads the file
+  (`lib/statement-pdf.ts`, `linesFromCsv`) and sends only rows. The server re-runs
+  `checkStatement` and `previewImport` on commit and accepts only choices the preview
+  offered. New rows go through `saveLines` with `imported` (forced account, no people,
+  no duplicate check, `import_ref` set) in the same batch as links, transfers and the
+  `imports` row. Never upload or store the file or its password.
 - **Agent write tools** need a server-side approval that lists the exact rows. Read tools
   are fixed queries; the model never writes SQL.
 - **Offline**: logs go through the outbox in `lib/outbox.ts` first. Kept pages in

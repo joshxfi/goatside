@@ -44,6 +44,10 @@ account, whose username and password you set in its environment.
   it doesn't know ("using UnionBank") becomes a question: add it as a bank,
   e-wallet or card, or not an account. Bills and subscriptions go on the card
   they were charged to last time.
+- **Importing statements.** Pick a bank or card statement, PDF or CSV, on an account
+  and Goatside adds the rows you didn't log and links the ones you did. Your browser
+  reads the file, so it and its password never leave your device. Every row has to add
+  up to the statement's own balances, or nothing is imported.
 - **Catching mistakes.** The same payment logged twice gets a "keep both?" check, and
   charges that recur month to month are marked as repeating.
 - **Doing things for you.** Ask it to "move all grab rides this month to Transport",
@@ -58,9 +62,10 @@ account, whose username and password you set in its environment.
   month?", "sino may utang sakin?") and DeepSeek V4.1 Flash answers from your ledger
   with read-only tools.
 
-**What leaves your instance:** entry text and amounts (to TypeSafe, for categorizing),
-and your questions plus the ledger rows needed to answer them (to DeepSeek), both via
-your own AI Gateway. Without AI Gateway credentials, Goatside still works: entries
+**What leaves your instance:** entry text and amounts (to TypeSafe, for categorizing,
+including the new rows of an imported statement), and your questions plus the ledger
+rows needed to answer them (to DeepSeek), both via your own AI Gateway. Statement files
+and their passwords never leave your device. Without AI Gateway credentials, Goatside still works: entries
 save uncategorized and sign-less ones still get an "in or out?" question.
 
 ## Development
