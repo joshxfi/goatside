@@ -16,7 +16,10 @@ export function DailyBars({
   const last = daily.at(-1)?.date
 
   return (
-    <section aria-label="Daily spending" className="flex flex-col gap-2">
+    <section aria-labelledby="daily-bars" className="flex flex-col gap-3">
+      <h2 id="daily-bars" className="text-sm font-medium text-muted-foreground">
+        Day by day
+      </h2>
       <ul className="flex h-20 items-end gap-[3px]">
         {daily.map((d) => {
           const future = d.date > today

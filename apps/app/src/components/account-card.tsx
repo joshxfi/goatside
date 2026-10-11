@@ -129,7 +129,7 @@ export function AccountCard({
             </div>
             <span
               className={cn(
-                "figure text-[11px] text-white/70",
+                "figure text-xs text-white/70",
                 size === "sm" && "sr-only"
               )}
             >

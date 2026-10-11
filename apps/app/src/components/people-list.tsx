@@ -36,19 +36,21 @@ export function PeopleList({ people }: { people: MonthView["people"] }) {
   if (!people.length) return null
 
   return (
-    <section aria-labelledby={headingId} className="flex flex-col gap-2">
-      <h2
-        id={headingId}
-        className="px-1 text-sm font-medium text-muted-foreground"
-      >
-        People
+    <section aria-labelledby={headingId} className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2
+          id={headingId}
+          className="text-sm font-medium text-muted-foreground"
+        >
+          People
+        </h2>
         <Link
           to="/people"
-          className="ml-2 font-normal underline-offset-4 hover:text-foreground hover:underline"
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           See all
         </Link>
-      </h2>
+      </div>
       <ul className="flex flex-col divide-y rounded-2xl border bg-card">
         <AnimatePresence initial={false}>
           {people.map((person) => {

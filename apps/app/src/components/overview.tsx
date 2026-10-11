@@ -347,7 +347,7 @@ export function Overview({ view }: { view: MonthView }) {
           />
         }
       >
-        <PaceChart view={view} />
+        <PaceChart view={view} fill />
       </Card>
 
       <Card

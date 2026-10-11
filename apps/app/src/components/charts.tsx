@@ -6,7 +6,7 @@
  * Mark specs follow the dataviz rules: bars ≤ 24px with 4px rounded ends,
  * 2px lines, a 2px surface gap between touching segments, recessive grids.
  */
-import { useMemo } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { barY, cell, defineChart, group, lineY, ruleY } from "@tanstack/charts"
 import { crosshair } from "@tanstack/charts/crosshair"
 import { pie, polar, radialArc } from "@tanstack/charts/polar"
@@ -58,7 +58,35 @@ export function projection(view: MonthView) {
  * This month's running total against last month's, day by day, with a
  * dashed projection to month end. Answers "am I spending faster?".
  */
-export function PaceChart({ view }: { view: MonthView }) {
+/**
+ * The height left in a card, at least `min`: lets a chart fill the card its
+ * row neighbor made tall instead of leaving a blank band under it.
+ */
+function useFillHeight(min: number) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [height, setHeight] = useState(min)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => {
+      const next = Math.max(min, Math.floor(entry?.contentRect.height ?? min))
+      setHeight((h) => (Math.abs(h - next) > 2 ? next : h))
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [min])
+  return { ref, height }
+}
+
+export function PaceChart({
+  view,
+  fill = false,
+}: {
+  view: MonthView
+  /** Grow to the card's height (desktop grid), never below 360px. */
+  fill?: boolean
+}) {
+  const { ref: fillRef, height: fillHeight } = useFillHeight(360)
   const isCurrent = view.month === view.today.slice(0, 7)
   const todayDay = Number(view.today.slice(8, 10))
   const current = monthName(view.month)
@@ -134,14 +162,22 @@ export function PaceChart({ view }: { view: MonthView }) {
     })
   }, [view, isCurrent, todayDay, current, previous])
 
-  return (
+  const chart = (
     <Chart
       definition={definition}
-      height={360}
+      height={fill ? fillHeight : 360}
       initialWidth={720}
       ariaLabel={`Running total of spending in ${current} compared with ${previous}`}
       className="goat-chart"
     />
+  )
+  if (!fill) return chart
+  return (
+    // The chart sits out of flow, so it never props the card open: the card
+    // takes its height from the row, and the chart follows.
+    <div ref={fillRef} className="relative min-h-[360px] flex-1">
+      <div className="absolute inset-x-0 top-0">{chart}</div>
+    </div>
   )
 }
 
