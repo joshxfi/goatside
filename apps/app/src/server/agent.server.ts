@@ -74,6 +74,13 @@ const DUPLICATE_LOOKBACK_MS = 3 * 24 * 60 * 60 * 1000
 const REPEAT_LOOKBACK_DAYS = 100
 /** Lines decided at once; a statement import has dozens. */
 const DECIDE_CHUNK = 10
+/** Rows per insert: SQLite caps the parameters in one statement. */
+const INSERT_CHUNK = 200
+
+const chunked = <T>(items: T[], size = INSERT_CHUNK): T[][] =>
+  Array.from({ length: Math.ceil(items.length / size) }, (_, i) =>
+    items.slice(i * size, (i + 1) * size)
+  )
 
 export const normalize = (description: string) =>
   description.trim().toLowerCase().replace(/\s+/g, " ")
@@ -779,12 +786,12 @@ export async function saveLines(
       rawText: entry.rawText,
       mode: "log",
     }),
-    ...(rowsToInsert.length
-      ? [db.insert(transactions).values(rowsToInsert)]
-      : []),
-    ...(questionsToInsert.length
-      ? [db.insert(questions).values(questionsToInsert)]
-      : []),
+    ...chunked(rowsToInsert).map((part) =>
+      db.insert(transactions).values(part)
+    ),
+    ...chunked(questionsToInsert).map((part) =>
+      db.insert(questions).values(part)
+    ),
     ...(imported?.extra ?? []),
   ])
   return { saved, transactionIds, asked }
