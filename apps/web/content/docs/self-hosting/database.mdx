@@ -1,0 +1,66 @@
+---
+title: Database
+description: Turso, migrations, local development and backups.
+---
+
+Goatside keeps everything in one [Turso](https://turso.tech) (libSQL) database, managed
+with [Drizzle](https://orm.drizzle.team). The schema and its migrations live in
+`packages/db`.
+
+## Migrations
+
+Migrations are never run for you: not on deploy, not on startup. Run them from your clone
+against the database you want to update:
+
+```sh
+TURSO_DATABASE_URL=libsql://goatside-<you>.turso.io \
+TURSO_AUTH_TOKEN=<token> \
+pnpm db:migrate
+```
+
+Running it again is safe. Migrations already applied are skipped.
+
+Without `TURSO_DATABASE_URL`, `pnpm db:migrate` targets the local database at
+`http://127.0.0.1:8080`. It doesn't read `.env.local`, so pass the URL every time you
+mean production.
+
+## What's set up on sign-in
+
+Every successful sign-in makes sure your settings and default categories exist. They're
+only added when missing, so renaming or archiving a category is never undone.
+
+- **Spending:** Food, Groceries, Transport, Bills, Subscriptions, Shopping, Health, Fun,
+  Others.
+- **Income:** Salary, Freelance, Gifts, Others.
+
+## Locally
+
+`pnpm dev` starts a local libSQL server on `:8080` with the data in
+`packages/db/.data/local.db`. You can also run it alone with `pnpm db:dev`.
+
+| Command            | What it does                                                     |
+| ------------------ | ---------------------------------------------------------------- |
+| `pnpm db:migrate`  | Applies migrations                                               |
+| `pnpm db:generate` | Writes a new migration after you change `packages/db/src/schema` |
+| `pnpm db:studio`   | Opens Drizzle Studio to browse the data                          |
+
+To try Goatside with three months of sample data, start a second local database and fill
+it. The demo script refuses remote URLs, and a database that already has entries.
+
+```sh
+turso dev --db-file packages/db/.data/demo.db --port 8090
+TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm db:migrate
+TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter @workspace/db demo
+```
+
+## Backups
+
+Your ledger is only in your database, so keep a copy. Turso keeps point-in-time history
+you can restore from (how far back depends on your plan), and you can export a
+SQLite file of the database at any time:
+
+```sh
+turso db export goatside
+```
+
+For a spreadsheet of your entries, use **Export** on the Transactions page.

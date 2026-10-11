@@ -1,0 +1,56 @@
+---
+title: Updating
+description: Pull in new versions of Goatside and keep your database in step.
+---
+
+Your Vercel project deploys your fork, and every push to its main branch deploys. So an
+update is: pull the new version, migrate your database, then push.
+
+<Steps>
+<Step>
+
+### Pull the update
+
+From your clone:
+
+```sh
+git remote add upstream https://github.com/joshxfi/goatside   # once
+git pull upstream main
+pnpm install
+```
+
+</Step>
+<Step>
+
+### Migrate the database
+
+The new version may expect new tables or columns, so apply any new migrations before it
+deploys:
+
+```sh
+TURSO_DATABASE_URL=libsql://goatside-<you>.turso.io \
+TURSO_AUTH_TOKEN=<token> \
+pnpm db:migrate
+```
+
+With nothing new to apply, it does nothing, so it's safe to run every time.
+
+</Step>
+<Step>
+
+### Push to deploy
+
+```sh
+git push
+```
+
+Vercel builds and deploys it. Check that it finished under your project's
+**Deployments**.
+
+</Step>
+</Steps>
+
+GitHub's **Sync fork** button works too, but it deploys straight away. If the update
+adds a migration, run it first.
+
+If a deploy misbehaves, **Instant Rollback** in Vercel puts the previous version back.

@@ -10,14 +10,15 @@ It's built for one person. There's no hosted service: you deploy your own copy
 to Vercel, with your own Turso database and AI Gateway key. It has exactly one
 account, whose username and password you set in its environment.
 
-> Early development. See [PLAN.md](./PLAN.md) for the roadmap.
+> Early development. See [PLAN.md](./PLAN.md) for the roadmap. The docs, including
+> the full self-hosting guide, are in [`apps/web/content/docs`](./apps/web/content/docs).
 
 ## Structure
 
 | Path            | What                                                          |
 | --------------- | ------------------------------------------------------------- |
 | `apps/app`      | The app you self-host (TanStack Start, deployed to Vercel)    |
-| `apps/web`      | The project's landing site (TanStack Start, prerendered)      |
+| `apps/web`      | The landing site and docs (TanStack Start + Fumadocs)         |
 | `packages/core` | Pure TS: the entry parser, account matching, money, dates     |
 | `packages/db`   | Drizzle schema and migrations for Turso (libSQL)              |
 | `packages/auth` | Single-account auth: env credentials, signed session cookie   |

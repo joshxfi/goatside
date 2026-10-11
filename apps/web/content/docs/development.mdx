@@ -1,0 +1,69 @@
+---
+title: Development
+description: Run Goatside locally, find your way around the repo, and contribute.
+---
+
+## Run it locally
+
+You need Node 22.12 or newer, [pnpm](https://pnpm.io) and the
+[Turso CLI](https://docs.turso.tech/cli), which serves the local database.
+
+```sh
+pnpm install
+cp apps/app/.env.example apps/app/.env.local   # then fill it in
+pnpm dev          # local DB on :8080, app on :3000, this site on :3001
+pnpm db:migrate   # first run, and after schema changes
+```
+
+Sign in at [localhost:3000](http://localhost:3000) with the `GOATSIDE_USERNAME` and
+`GOATSIDE_PASSWORD` from your `.env.local`. Locally, AI needs an `AI_GATEWAY_API_KEY`
+from the AI Gateway dashboard; without one, entries save uncategorized.
+
+## Repo layout
+
+| Path            | What                                                          |
+| --------------- | ------------------------------------------------------------- |
+| `apps/app`      | The app you self-host (TanStack Start, deployed to Vercel)    |
+| `apps/web`      | This site: the landing page and these docs (Fumadocs)         |
+| `packages/core` | Pure TS: the entry parser, account matching, money, dates     |
+| `packages/db`   | Drizzle schema and migrations for Turso (libSQL)              |
+| `packages/auth` | Single-account auth: env credentials, signed session cookie   |
+| `packages/ai`   | The agent: categorization, people, accounts, ask mode         |
+| `packages/ui`   | shadcn/ui components (Base UI), the coin brand, theme, styles |
+
+## Commands
+
+```sh
+pnpm typecheck
+pnpm test         # vitest
+pnpm lint         # oxlint
+pnpm format       # oxfmt
+pnpm db:generate  # new migration after editing packages/db/src/schema
+pnpm db:studio    # browse the local DB
+```
+
+Sample data and evals:
+
+```sh
+# 3 months of sample data into a separate local DB (local URLs only)
+TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter @workspace/db demo
+
+# live accuracy evals for categorizing (needs AI_GATEWAY_API_KEY)
+pnpm --filter @workspace/ai eval
+
+# chat agent scenarios against a local demo DB (writes to it)
+TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter app eval:ask
+```
+
+Add shadcn components from an app directory. They're installed into `packages/ui`:
+
+```sh
+pnpm dlx shadcn@latest add drawer -c apps/app
+```
+
+## Writing these docs
+
+The docs are MDX files in `apps/web/content/docs`, rendered by
+[Fumadocs](https://fumadocs.dev) on TanStack Start. Each folder's `meta.json` sets the
+order in the sidebar. Every page is also served as Markdown at its URL plus `.md`, and
+the whole set at [`/llms.txt`](/llms.txt) and [`/llms-full.txt`](/llms-full.txt).

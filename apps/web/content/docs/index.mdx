@@ -1,0 +1,49 @@
+---
+title: Introduction
+description: Goatside is an open-source, personal finance tracker that you host yourself.
+---
+
+Type what you spent or received in plain words, like `180 iced coffee`, and Goatside
+turns it into a categorized transaction. On your phone it's a quick logger and a chat
+with its agent. On a wide screen it's a dashboard for reviewing your money, with charts
+and a full transactions table.
+
+## How it works
+
+1. **You write one line.** `180 iced coffee`, `+18000 client payment`,
+   `dinner with nini and daniel split 3`. The amount is read by code, exactly as you
+   typed it. No model ever changes a number.
+2. **The agent files it.** It picks the category, notices bills that repeat, spots
+   people you lent to or split with, and works out which account the money moved in.
+3. **It asks when it isn't sure.** A small question card shows its best guess, and one
+   tap confirms or fixes it. Every answer teaches the next guess.
+4. **You ask it things.** "How much on food this month?" gets an answer from your own
+   ledger. It can also re-file, log or delete entries for you, after you confirm.
+
+## Built for one person
+
+There's no Goatside service to sign up for. Each copy belongs to one person, who
+deploys it to their own Vercel account with their own database. It has exactly one
+account, and you set its username and password yourself.
+
+What you need:
+
+- A [Vercel](https://vercel.com) account, for hosting and AI Gateway.
+- A [Turso](https://turso.tech) database, for your ledger.
+- About 15 minutes.
+
+Hosting and the database fit in the free tiers for one person. AI usage for hundreds of
+entries a month should come to well under a dollar.
+
+<Cards>
+  <Card
+    title="Deploy your own"
+    description="Put Goatside on Vercel with a Turso database, step by step."
+    href="/docs/self-hosting"
+  />
+  <Card
+    title="Logging entries"
+    description="What you can type, and how Goatside reads it."
+    href="/docs/guide/logging"
+  />
+</Cards>

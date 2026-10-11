@@ -1,0 +1,90 @@
+---
+title: Logging entries
+description: What you can type in the composer, and how Goatside reads it.
+---
+
+The composer is the app. Type a line that starts with an amount and press
+
+<kbd>Enter</kbd>. The entry shows up right away, and the agent fills in its
+category a moment later.
+
+```txt
+180 iced coffee
++18000 client payment
+2400 dinner with nini and daniel split 3
+350 lunch yesterday
+200 taxi via gcash
+```
+
+## The amount
+
+The amount comes first, and code reads it exactly as typed. The agent never changes a
+number.
+
+| You type                  | Amount    |
+| ------------------------- | --------- |
+| `500`                     | ₱500      |
+| `1,250.50`                | ₱1,250.50 |
+| `1.5k`                    | ₱1,500    |
+| `₱500`, `php 500`, `p500` | ₱500      |
+
+Amounts are in pesos, up to two decimal places.
+
+## Money in or out
+
+You don't need to say. The agent works out whether `client payment` is money in and
+`iced coffee` is money out, and asks you when it can't tell. A leading `+` settles it as
+money in, and `-` as money out.
+
+## The date
+
+An entry is dated today unless the line says otherwise:
+
+| You type                                          | Date                                            |
+| ------------------------------------------------- | ----------------------------------------------- |
+| `yesterday`, `yday`, `kahapon`                    | Yesterday                                       |
+| `3 days ago`                                      | Three days back                                 |
+| `friday`, `on fri`                                | The most recent Friday, or today if it's Friday |
+| `last friday`                                     | The Friday before today                         |
+| `oct 3`, `october 3rd`, `3 oct`, `3rd of october` | The most recent October 3                       |
+| `2026-10-03`                                      | That exact date                                 |
+
+Dates follow the time zone set in **Settings**. Future dates are ignored.
+
+## Splitting a bill
+
+Add `split` and the number of ways, you included. Your share is what counts as your
+spending; the rest becomes what each person owes you.
+
+```txt
+2400 dinner with nini and daniel split 3
+```
+
+That's ₱800 of food for you, and ₱800 owed by each of Nini and Daniel. See
+[People and IOUs](/docs/guide/people).
+
+## Several at once
+
+Put more than one entry on a line by starting each with its sign:
+
+```txt
+-500 lunch, -120 coffee
+```
+
+Without signs, everything after the first amount is read as one description.
+
+## Undo
+
+Type `undo` to remove the last line you logged, including every entry it made. Changes
+in the app also show an **Undo** button for a few seconds.
+
+## Not an amount? It's a question
+
+A line that doesn't start with an amount, or that ends in `?`, goes to the agent as a
+question instead: `how much on food this month?` See
+[Asking the agent](/docs/guide/asking).
+
+## Quick picks
+
+Entries you log often show up as chips above the empty composer, favoring the ones you
+usually log around this time of day. Tap one to log it again.

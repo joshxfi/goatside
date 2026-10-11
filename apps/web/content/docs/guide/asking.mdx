@@ -1,0 +1,41 @@
+---
+title: Asking the agent
+description: Questions about your money, and changes made for you after you confirm.
+---
+
+Type a question in the composer, or open **Ask Goatside** (<kbd>⌘</kbd> <kbd>J</kbd>).
+Anything that doesn't start with an amount, or ends in `?`, is a question.
+
+```txt
+how much on food this month?
+what were my biggest expenses last week?
+sino may utang sakin?
+how much is left on my credit card?
+```
+
+Every figure in an answer comes from your ledger, through fixed, read-only lookups. The
+agent never writes its own database queries.
+
+## Asking it to do things
+
+The agent can also make changes:
+
+- "move all grab rides this month to Transport"
+- "delete the duplicate lunch"
+- "log 350 lunch yesterday"
+- "Daniel paid me back 500"
+- "add my Security Bank savings with ₱15,000"
+- "my Maya actually has ₱2,000"
+
+Nothing changes until you confirm. Before anything is written, a card lists exactly
+which entries will change, worked out by the server rather than described by the model.
+Approve it or decline it, and every change can be undone afterwards.
+
+## What it can't do
+
+- Answer without a connection, or without AI configured.
+- Delete more than 50 entries in one go.
+- See anything outside your own ledger.
+
+The chat model is DeepSeek V4.1 Flash by default. Your question and the rows it looks up
+are sent to it through your AI Gateway. See [What leaves your instance](/docs/guide/privacy).

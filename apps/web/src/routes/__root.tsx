@@ -1,7 +1,9 @@
 import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
+import { RootProvider } from "fumadocs-ui/provider/tanstack"
 import { THEME_SCRIPT } from "@workspace/ui/lib/theme"
+import { DocsSearchDialog } from "@/components/search"
 
-import appCss from "@workspace/ui/globals.css?url"
+import appCss from "@/styles/app.css?url"
 
 const DESCRIPTION =
   "Goatside is an open-source, personal, agentic finance tracker that you self-host. Type what you spent in plain words and it files itself."
@@ -54,7 +56,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {children}
+        {/* Light or dark follows the system (THEME_SCRIPT), as in the app. */}
+        <RootProvider
+          theme={{ enabled: false }}
+          search={{ SearchDialog: DocsSearchDialog }}
+        >
+          {children}
+        </RootProvider>
         <Scripts />
       </body>
     </html>

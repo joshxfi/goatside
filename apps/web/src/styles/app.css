@@ -1,0 +1,15 @@
+@import "@workspace/ui/globals.css";
+
+/* Docs: Fumadocs on our tokens (shadcn preset), so they share the landing's palette. */
+@import "fumadocs-ui/css/shadcn.css";
+@import "fumadocs-ui/css/preset.css";
+
+@layer components {
+  /* Section headings in the serif display face, like the page title and the landing. */
+  #nd-page .prose h2 {
+    font-family: var(--font-display);
+    font-size: 1.875rem;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+}

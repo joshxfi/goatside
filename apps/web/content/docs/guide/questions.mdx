@@ -1,0 +1,39 @@
+---
+title: When the agent asks
+description: How the agent decides, when it asks you instead, and how it learns from you.
+---
+
+The agent only files an entry on its own when it's confident. When it isn't, it saves
+the entry with its best guess and asks you, one card at a time above the composer. Entries
+with an open question show a **Check** marker in your feed.
+
+The questions you'll see:
+
+- **Money in or out?** "₱500 for 'lunch': was that money out or in?" for an entry
+  without a sign that it's torn on.
+- **Which category?** Its top three guesses, with **Other…** to pick any category.
+- **Who's involved?** Whether a line was your own spending, a loan, or a shared bill.
+- **Is this a duplicate?** **Keep both** or **Remove this one**, when the same payment
+  looks logged twice.
+- **Which account?** When a line names an account you haven't set up, like
+  `500 groceries using unionbank`: add it as a bank, e-wallet or card, or say it isn't
+  an account.
+- **Transfer or spending?** When a line could be moving money between your own
+  accounts.
+
+One tap answers. **Keep guess** confirms what's already there.
+
+## How it learns
+
+Every answer, and every fix you make in the edit drawer, is remembered. The next time you
+log the same thing, Goatside files it the way you did, often without asking the model at
+all. Categories also learn from the entries you've filed in them, so a category of your
+own starts catching the right entries after a few uses.
+
+Bills that come back month after month are marked as **repeating**, which the pace
+projection and the Repeats card use.
+
+## Without AI
+
+With no AI configured, nothing is categorized for you, but a line without a sign still
+gets a "money out or in?" card.

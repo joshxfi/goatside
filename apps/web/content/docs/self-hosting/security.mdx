@@ -1,0 +1,42 @@
+---
+title: Sign-in and security
+description: How the one account signs in, stays signed in, and resists guessing.
+---
+
+A Goatside deploy has exactly one account: the username and password in its
+environment. There's no sign-up page, no user table and no password reset. To change
+your password, change `GOATSIDE_PASSWORD` in Vercel and redeploy.
+
+## Staying signed in
+
+Signing in sets a cookie that lasts 30 days and renews itself while you keep using the
+app, so a phone you use every week stays signed in. The cookie is `HttpOnly` and, in
+production, `Secure`.
+
+There are no stored sessions. A cookie is a signature over your username, password and
+`SESSION_SECRET`, so changing any of the three signs out every device at once. That is
+also how you sign out a lost phone.
+
+## Guessing passwords
+
+Every sign-in attempt is recorded before it's checked, so a burst of parallel guesses
+can't slip past the limits:
+
+- **5 failed attempts per IP address** in 15 minutes.
+- **25 failed attempts in total** in 15 minutes, from anywhere.
+
+A flood of bad guesses could then lock you out too, so browsers you've signed in from are
+trusted: they get a separate year-long cookie that skips both limits. A trusted browser
+that fails more than 10 times in a day loses that trust, and changing your password
+untrusts every browser.
+
+During an attack, a browser that has never signed in can still be blocked. If that's a
+concern, [Vercel Firewall](https://vercel.com/docs/vercel-firewall) rate limits can sit in
+front of the sign-in page.
+
+## The agent's actions
+
+When you ask the agent to change something, it can't do it alone. The server works out
+exactly which entries would change and shows you that list; nothing is written until
+you confirm. Approvals are signed with a key derived from `SESSION_SECRET`, so they can't
+be forged from the browser, and every change can be undone.

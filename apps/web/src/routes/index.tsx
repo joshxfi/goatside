@@ -1,12 +1,11 @@
 import { useState } from "react"
-import { createFileRoute } from "@tanstack/react-router"
+import { Link, createFileRoute } from "@tanstack/react-router"
 import { CoinFlip, Wordmark, type Metal } from "@workspace/ui/components/brand"
 import { buttonVariants } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
+import { REPO_URL } from "@/lib/site"
 
 export const Route = createFileRoute("/")({ component: Landing })
-
-const REPO_URL = "https://github.com/joshxfi/goatside"
 
 const EXAMPLES = [
   {
@@ -36,12 +35,20 @@ function Landing() {
     <div className="mx-auto flex min-h-svh max-w-5xl flex-col px-4">
       <header className="flex items-center justify-between py-5">
         <Wordmark />
-        <a
-          href={REPO_URL}
-          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          GitHub
-        </a>
+        <nav className="flex items-center gap-5 text-sm text-muted-foreground">
+          <Link
+            to="/docs/$"
+            className="transition-colors hover:text-foreground"
+          >
+            Docs
+          </Link>
+          <a
+            href={REPO_URL}
+            className="transition-colors hover:text-foreground"
+          >
+            GitHub
+          </a>
+        </nav>
       </header>
 
       <main className="flex flex-1 flex-col gap-24 pt-10 pb-24 md:pt-20">
@@ -56,15 +63,16 @@ function Landing() {
               files it into a month you can actually read.
             </p>
             <div className="flex flex-wrap gap-3">
-              <a
-                href={REPO_URL}
+              <Link
+                to="/docs/$"
+                params={{ _splat: "self-hosting" }}
                 className={cn(
                   buttonVariants({ size: "lg" }),
                   "h-11 px-5 text-base"
                 )}
               >
                 Deploy your own
-              </a>
+              </Link>
               <a
                 href="#how"
                 className={cn(
@@ -165,9 +173,14 @@ function Landing() {
 
       <footer className="flex items-center justify-between border-t py-6 text-sm text-muted-foreground">
         <span>Open source. Self-hosted. Steady climbing.</span>
-        <a href={REPO_URL} className="hover:text-foreground">
-          GitHub
-        </a>
+        <div className="flex items-center gap-5">
+          <Link to="/docs/$" className="hover:text-foreground">
+            Docs
+          </Link>
+          <a href={REPO_URL} className="hover:text-foreground">
+            GitHub
+          </a>
+        </div>
       </footer>
     </div>
   )

@@ -1,0 +1,38 @@
+---
+title: Environment variables
+description: Everything Goatside reads from its environment, and what each one does.
+---
+
+Goatside checks its environment the first time it needs it, and fails with one message
+listing every missing or invalid variable. On Vercel, set them under **Settings →
+Environment Variables**. Locally, they go in `apps/app/.env.local` (copy
+`apps/app/.env.example`); `vercel env pull` brings Vercel's down into it.
+
+## Required
+
+| Variable             | What it is                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------- |
+| `GOATSIDE_USERNAME`  | Your username. There's exactly one account.                                                             |
+| `GOATSIDE_PASSWORD`  | Your password, at least 12 characters.                                                                  |
+| `SESSION_SECRET`     | At least 32 characters, used to sign your sign-in cookies. Generate one with `openssl rand -base64 32`. |
+| `TURSO_DATABASE_URL` | Your database. `libsql://…` for Turso; locally, `http://127.0.0.1:8080` from `pnpm db:dev`.             |
+
+<Callout type="warn">
+  Changing the username, password or session secret signs out every device. See
+  [Sign-in and security](/docs/self-hosting/security).
+</Callout>
+
+## Optional
+
+| Variable             | Default                        | What it is                                                                                                                                 |
+| -------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `TURSO_AUTH_TOKEN`   |                                | Your Turso token. Needed for Turso; not for the local database.                                                                            |
+| `AI_GATEWAY_API_KEY` |                                | An AI Gateway key. Not needed on Vercel, where the project's OIDC token signs in. Needed locally or on another host for the agent to work. |
+| `DECISION_MODEL`     | `typesafe-ai/jev`              | The model that files entries. Any AI Gateway model ID.                                                                                     |
+| `CHAT_MODEL`         | `deepseek/deepseek-v4.1-flash` | The model that answers your questions. Any AI Gateway model ID.                                                                            |
+
+## Not in the environment
+
+- **Time zone.** Set it in the app under **Settings**. It decides which day an entry
+  belongs to, and defaults to `Asia/Manila`.
+- **Currency.** Goatside is in Philippine pesos (₱) only.
