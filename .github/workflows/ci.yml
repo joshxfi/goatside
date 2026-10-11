@@ -33,6 +33,30 @@ jobs:
       # typecheck runs `tsr generate`, which drops the Start block the Vite plugin writes into routeTree.gen.ts, so CI doesn't diff the route trees.
       - run: pnpm test
 
+  # Rebase merges put every commit of a pull request on main, and release-please
+  # reads each one for the changelog, so each must be a Conventional Commit.
+  commits:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm commitlint --from "$BASE" --to "$HEAD" --verbose
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+
   # Applies new migrations to the production database once main passes.
   # Needs TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in the repo's Actions
   # secrets; a fork without them skips this job's work.

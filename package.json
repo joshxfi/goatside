@@ -22,9 +22,12 @@
     "db:dev": "pnpm --filter @workspace/db dev",
     "db:generate": "pnpm --filter @workspace/db generate",
     "db:migrate": "pnpm --filter @workspace/db migrate",
-    "db:studio": "pnpm --filter @workspace/db studio"
+    "db:studio": "pnpm --filter @workspace/db studio",
+    "commitlint": "commitlint"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
     "oxfmt": "^0.72.0",
     "oxlint": "^1.87.0",
     "turbo": "^2.11.7",
