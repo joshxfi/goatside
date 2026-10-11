@@ -155,3 +155,40 @@ describe("settling", () => {
     expect(await settleWith(ben)).toEqual({ amount: 0, id: null })
   })
 })
+
+describe("resending an entry id", () => {
+  beforeEach(resetDb)
+
+  it("saves once when two sends of the same id race", async () => {
+    const id = crypto.randomUUID()
+    const [a, b] = await Promise.all([
+      log("-200 taxi", { id }),
+      log("-200 taxi", { id }),
+    ])
+    expect(a.transactionIds).toEqual(b.transactionIds)
+    expect(await liveRows(id)).toHaveLength(1)
+  })
+
+  it("saves once over an entry an older version left without rows", async () => {
+    const id = crypto.randomUUID()
+    await getDb()
+      .insert(schema.entries)
+      .values({ id, rawText: "-200 taxi", mode: "log" })
+    await Promise.all([
+      log("-200 taxi", { id }),
+      log("-200 taxi", { id }),
+      log("-200 taxi", { id }),
+    ])
+    expect(await liveRows(id)).toHaveLength(1)
+    // No row was cut loose from its entry by a late cleanup.
+    const all = await getDb().select().from(schema.transactions)
+    expect(all.every((r) => r.entryId === id)).toBe(true)
+  })
+
+  it("still saves every line of a multi-line entry", async () => {
+    const id = crypto.randomUUID()
+    const result = await log("-100 coffee, -200 lunch", { id })
+    expect(result.transactionIds).toHaveLength(2)
+    expect(await liveRows(id)).toHaveLength(2)
+  })
+})
