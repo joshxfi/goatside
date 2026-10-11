@@ -48,7 +48,11 @@ every push, and applies migrations on `main` when the repo has database secrets.
 - **Secrets stay out:** never read or copy `apps/app/.env.local` into code, logs or tool
   input. Evals and the demo seed refuse non-local databases; keep it that way.
 - **Commits** are conventional with scopes (`fix(app): …`, `docs(web): …`, `test(app): …`).
-  Run format, lint, typecheck and tests first.
+  Run format, lint, typecheck and tests first. `feat`, `fix` and `perf` commits land in
+  the changelog, so write them for self-hosters; mark breaking changes with `!`.
+- **Releases** come from release-please (`.github/workflows/release.yml`): merge its
+  release pull request to cut a version. Don't edit `CHANGELOG.md`, the root `version` or
+  `.release-please-manifest.json` by hand.
 - **Before changing Turborepo config**, read the installed Turborepo docs (block below).
 
 ## Copy and design

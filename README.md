@@ -131,10 +131,21 @@ first so we can agree on the approach.
 - Run `pnpm format`, `pnpm lint`, `pnpm typecheck` and `pnpm test` before you push. CI
   runs the same checks.
 - Fix a ledger bug with a failing test first.
-- Write commits as [Conventional Commits](https://www.conventionalcommits.org), like
-  `fix(app): keep the outbox order after a retry`.
+- Title your pull request as a [Conventional Commit](https://www.conventionalcommits.org),
+  like `fix(app): keep the outbox order after a retry`. Pull requests are squash-merged,
+  so the title becomes the commit, and a check enforces it. Mark a breaking change with
+  `!`, like `feat(db)!: …`.
 - When a change affects how Goatside behaves, update the docs in
   `apps/web/content/docs` in the same pull request.
+
+## Releases
+
+[release-please](https://github.com/googleapis/release-please) keeps a release pull
+request open with the next version and its changelog, built from the commits on `main`.
+Merging it tags the version and publishes it on
+[GitHub Releases](https://github.com/joshxfi/goatside/releases). Before 1.0, a `feat`
+bumps the minor version and a `fix` the patch. Changes are listed in
+[`CHANGELOG.md`](./CHANGELOG.md).
 
 ## Security
 
