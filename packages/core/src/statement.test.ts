@@ -557,6 +557,41 @@ describe("linesFromCsv", () => {
     ])
   })
 
+  it("reads a month with only spending, so the credit column is empty", () => {
+    const csv = [
+      "Date,Description,Debit,Credit,Balance",
+      "2026-09-12,Groceries,1500.00,,8500.00",
+      "2026-09-13,180 iced coffee,180.00,,8320.00",
+    ].join("\n")
+    const result = readStatement(linesFromCsv(csv), { kind: "bank" })
+    expect(result.problem).toBeUndefined()
+    expect(result.rows.map((r) => r.amount)).toEqual([-150_000, -18_000])
+  })
+
+  it("reads a PDF month with only deposits and no header", () => {
+    const lines = [
+      line(
+        1,
+        660,
+        text(20, "02 Jul 2026"),
+        text(90, "Payroll"),
+        num(380, "10,000.00"),
+        num(440, "12,000.00")
+      ),
+      line(
+        1,
+        645,
+        text(20, "15 Jul 2026"),
+        text(90, "Payroll"),
+        num(380, "10,000.00"),
+        num(440, "22,000.00")
+      ),
+    ]
+    const result = readStatement(lines, { kind: "bank" })
+    expect(result.ok).toBe(true)
+    expect(result.rows.map((r) => r.amount)).toEqual([1_000_000, 1_000_000])
+  })
+
   it("still needs balances or totals to check against", () => {
     const csv = "Date,Details,Amount\n2026-09-13,Groceries,-15.00\n"
     const result = readStatement(linesFromCsv(csv), { kind: "bank" })

@@ -467,10 +467,14 @@ export function columnRoles(layout: Layout): AmountRole[][] {
   let options: AmountRole[][]
   if (n === 1) options = [["amount"]]
   else if (n === 2) {
+    // A statement whose rows are all one way (only spending this month)
+    // has an empty credit or debit column, leaving one amount and a balance.
     options = [
       ["credit", "debit"],
       ["debit", "credit"],
       ["amount", "balance"],
+      ["debit", "balance"],
+      ["credit", "balance"],
     ]
   } else if (n === 3) {
     options = [
@@ -555,6 +559,9 @@ export function extractRows(
   }
 
   const rows: StatementRow[] = []
+  // Signs seen in each credit or debit column. Both signs in one column
+  // means it's really a signed amount column.
+  const signs = new Map<AmountRole, Set<number>>()
   for (const line of layout.rowLines) {
     const parsed = parseRowLine(line)!
     const localDate = resolveYear(parsed.date, period, fallbackYear)
@@ -577,6 +584,14 @@ export function extractRows(
         return { rows: [], problem: "Couldn't line up the amount columns." }
       }
       values[role] = value
+      if ((role === "credit" || role === "debit") && value !== 0) {
+        const seen = signs.get(role) ?? new Set()
+        seen.add(Math.sign(value))
+        signs.set(role, seen)
+        if (seen.size > 1) {
+          return { rows: [], problem: "Couldn't line up the amount columns." }
+        }
+      }
     }
 
     let amount: Centavos
