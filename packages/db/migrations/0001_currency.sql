@@ -1,1 +1,0 @@
-ALTER TABLE `settings` ADD `currency` text DEFAULT 'PHP' NOT NULL;

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "67ded9e8-9835-4d86-a44e-b800fdcce3fa",
+  "id": "49d391d8-a111-48df-ba28-3b065cd75e72",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "accounts": {
@@ -676,6 +676,14 @@
           "notNull": true,
           "autoincrement": false,
           "default": "'Asia/Manila'"
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'PHP'"
         },
         "default_account_id": {
           "name": "default_account_id",

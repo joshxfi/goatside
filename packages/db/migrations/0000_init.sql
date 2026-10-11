@@ -106,6 +106,7 @@ CREATE INDEX `questions_transaction_idx` ON `questions` (`transaction_id`);--> s
 CREATE TABLE `settings` (
 	`id` integer PRIMARY KEY DEFAULT 1 NOT NULL,
 	`time_zone` text DEFAULT 'Asia/Manila' NOT NULL,
+	`currency` text DEFAULT 'PHP' NOT NULL,
 	`default_account_id` text,
 	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	CONSTRAINT "settings_single_row" CHECK("settings"."id" = 1)
