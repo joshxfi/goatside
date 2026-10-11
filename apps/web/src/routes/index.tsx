@@ -39,7 +39,7 @@ function Landing() {
   return (
     <div className="flex min-h-svh flex-col">
       <Nav />
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-28 px-4 pt-8 pb-28 md:gap-40 md:px-6 md:pt-16">
+      <main className="reveal-sections mx-auto flex w-full max-w-6xl flex-1 flex-col gap-28 px-4 pt-8 pb-28 md:gap-40 md:px-6 md:pt-16">
         <Hero />
         <HowItFiles />
         <Dashboard />
@@ -393,17 +393,18 @@ function Deploy() {
       <button
         type="button"
         onClick={() => {
-          setSide((s) => (s === "gold" ? "silver" : "gold"))
+          // A fair toss: either face, whatever showed before.
+          setSide(Math.random() < 0.5 ? "gold" : "silver")
           setTosses((n) => n + 1)
         }}
         className="rounded-full transition-transform duration-150 ease-out outline-none focus-visible:ring-4 focus-visible:ring-ring/40 active:scale-[0.97]"
         aria-label="Flip the coin"
       >
         <CoinFlip
-          key={tosses}
           side={side}
-          toss={tosses > 0}
-          className="size-28 drop-shadow-[0_14px_18px_rgb(0_0_0/0.18)] md:size-36"
+          tossKey={tosses || undefined}
+          tilt
+          className="size-28 md:size-36"
         />
       </button>
       <div className="flex max-w-xl flex-col gap-3">

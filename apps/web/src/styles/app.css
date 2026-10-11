@@ -13,3 +13,26 @@
     letter-spacing: -0.01em;
   }
 }
+
+/*
+ * Landing sections rise into place as they scroll in. Tied to scrolling, not
+ * a timer, so nothing waits on JavaScript or hides content before it loads.
+ * Browsers without scroll timelines show them as they are.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .reveal-sections > section:not(:first-child) {
+      animation: section-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 280px;
+    }
+  }
+}
+
+@keyframes section-rise {
+  from {
+    opacity: 0;
+    translate: 0 2.5rem;
+    scale: 0.985;
+  }
+}

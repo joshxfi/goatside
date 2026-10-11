@@ -21,6 +21,7 @@
     "fumadocs-mdx": "^15.4.7",
     "fumadocs-ui": "npm:@fumadocs/base-ui@16.17.1",
     "lucide-react": "catalog:",
+    "motion": "catalog:",
     "nitro": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"
