@@ -69,9 +69,10 @@ function Home() {
       </div>
       <main
         className={cn(
-          "flex flex-col gap-8 px-4 pt-8 pb-40 lg:gap-4 lg:px-0 lg:pt-2 lg:pb-12",
+          "flex flex-col gap-8 px-4 pt-8 pb-[calc(10rem+var(--tab-bar,0px))] lg:gap-4 lg:px-0 lg:pt-2 lg:pb-12",
           // Room for the question card above the phone composer.
-          data.questions.length > 0 && "pb-80"
+          data.questions.length > 0 &&
+            "pb-[calc(20rem+var(--tab-bar,0px))] lg:pb-12"
         )}
       >
         {/* Phone: the lighter stack, mostly for logging. */}

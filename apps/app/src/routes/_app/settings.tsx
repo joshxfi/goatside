@@ -86,7 +86,7 @@ function Settings() {
 
   return (
     <PageFrame width="default">
-      <PageHeader title="Settings" viewer={viewer} />
+      <PageHeader title="Settings" viewer={viewer} back="/" />
       <div className="flex flex-col gap-8">
         <p className="text-sm text-muted-foreground">
           Your categories teach the agent how you file things.

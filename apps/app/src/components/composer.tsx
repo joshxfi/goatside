@@ -156,11 +156,11 @@ export function Composer({
     )
 
   return (
-    // Phones: pinned to the thumb zone. Desktop: a one-line bar in the header,
+    // Phones: pinned to the thumb zone, just above the tab bar. Desktop: a one-line bar in the header,
     // with the preview and quick picks in a dropdown while it's focused.
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 lg:static lg:z-30 lg:w-full lg:max-w-xl lg:border-0 lg:bg-transparent lg:backdrop-blur-none lg:supports-[backdrop-filter]:bg-transparent">
+    <div className="fixed inset-x-0 bottom-(--tab-bar,0px) z-40 border-t bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70 lg:static lg:z-30 lg:w-full lg:max-w-xl lg:border-0 lg:bg-transparent lg:backdrop-blur-none lg:supports-[backdrop-filter]:bg-transparent">
       <form
-        className="group/composer mx-auto flex max-w-md flex-col gap-2 px-4 pt-2 pb-[max(env(safe-area-inset-bottom),0.75rem)] lg:relative lg:max-w-none lg:p-0"
+        className="group/composer mx-auto flex max-w-md flex-col gap-2 px-4 pt-2 pb-3 in-data-typing:pb-[max(env(safe-area-inset-bottom),0.75rem)] lg:relative lg:max-w-none lg:p-0"
         onSubmit={(e) => {
           e.preventDefault()
           submit()

@@ -1,7 +1,13 @@
-import { Link, useLocation, useRouter } from "@tanstack/react-router"
+import {
+  Link,
+  useCanGoBack,
+  useLocation,
+  useRouter,
+} from "@tanstack/react-router"
 import {
   ArrowLeftIcon,
   ChevronsUpDownIcon,
+  CloudOffIcon,
   LayoutDashboardIcon,
   LogOutIcon,
   ReceiptTextIcon,
@@ -40,6 +46,7 @@ import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
 import { useAgent } from "@/components/agent-provider"
 import { clearOfflineCopies } from "@/lib/offline"
+import { useOnline } from "@/lib/outbox"
 import { useShortcut } from "@/lib/use-shortcut"
 import { type Viewer, signOut } from "@/server/session"
 
@@ -51,7 +58,10 @@ const PAGES = [
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ] as const
 
-/** Desktop navigation. Phones use the account menu and the bottom composer. */
+/** The phone tab bar's pages; Settings sits in the account menu. */
+const TABS = PAGES.filter((page) => page.to !== "/settings")
+
+/** Desktop navigation. Phones use the tab bar and the account menu. */
 export function AppSidebar({ viewer }: { viewer: Viewer }) {
   const { pathname } = useLocation()
   const { ask } = useAgent()
@@ -204,7 +214,7 @@ export function PageFrame({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex min-h-svh w-full flex-col px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:px-8 lg:pt-4">
+    <div className="flex min-h-svh w-full flex-col px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-[calc(var(--tab-bar,0px)+3rem)] lg:px-8 lg:pt-4 lg:pb-16">
       <div
         className={cn(
           "mx-auto flex w-full max-w-md min-w-0 flex-col gap-6 lg:mx-0",
@@ -220,11 +230,12 @@ export function PageFrame({
 export function PageHeader({
   title,
   viewer,
-  back = "/",
+  back,
   action,
 }: {
   title: string
   viewer: Viewer
+  /** Detail pages: the list a phone's back arrow returns to. */
   back?: string
   /** A page-level button, e.g. "Add account". */
   action?: React.ReactNode
@@ -233,16 +244,7 @@ export function PageHeader({
     <header className="flex items-center justify-between gap-3 lg:min-h-10">
       <div className="flex items-center gap-2">
         <DesktopSidebarTrigger />
-        <Link
-          to={back}
-          aria-label="Back"
-          className={cn(
-            buttonVariants({ variant: "ghost", size: "icon-lg" }),
-            "rounded-full active:scale-[0.97] lg:hidden"
-          )}
-        >
-          <ArrowLeftIcon />
-        </Link>
+        {back && <BackButton to={back} />}
         <h1 className="font-display text-3xl leading-none">{title}</h1>
       </div>
       <div className="flex items-center gap-2">
@@ -253,7 +255,79 @@ export function PageHeader({
   )
 }
 
-/** Phone account menu: pages, the agent, and sign out. */
+/**
+ * Back to where the owner came from, like a native back button. Opened
+ * straight from a link (nothing to go back to), it replaces the page with
+ * `to` instead of stacking another entry.
+ */
+function BackButton({ to }: { to: string }) {
+  const router = useRouter()
+  const canGoBack = useCanGoBack()
+  return (
+    <Link
+      to={to}
+      replace
+      aria-label="Back"
+      onClick={(event) => {
+        if (!canGoBack) return
+        event.preventDefault()
+        router.history.back()
+      }}
+      className={cn(
+        buttonVariants({ variant: "ghost", size: "icon-lg" }),
+        "-ml-2 rounded-full active:scale-[0.97] lg:hidden"
+      )}
+    >
+      <ArrowLeftIcon />
+    </Link>
+  )
+}
+
+/**
+ * Phone navigation, pinned to the bottom like a native tab bar. Tapping the
+ * page you're on scrolls it back to the top. Hidden while typing, so the
+ * keyboard and composer get the room.
+ */
+export function TabBar() {
+  const { pathname } = useLocation()
+  const online = useOnline()
+  return (
+    <nav
+      aria-label="Pages"
+      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/85 px-[env(safe-area-inset-left)] pb-[env(safe-area-inset-bottom)] backdrop-blur-md select-none in-data-typing:hidden supports-[backdrop-filter]:bg-background/70 lg:hidden"
+    >
+      {!online && pathname !== "/" && (
+        <p className="flex items-center justify-center gap-1.5 pt-2 text-xs text-muted-foreground">
+          <CloudOffIcon aria-hidden className="size-3.5" />
+          Offline · showing what was last loaded
+        </p>
+      )}
+      <ul className="mx-auto grid h-14 max-w-md grid-cols-4">
+        {TABS.map((page) => (
+          <li key={page.to} className="flex">
+            <Link
+              to={page.to}
+              activeOptions={{ exact: page.to === "/" }}
+              onClick={(event) => {
+                if (event.currentTarget.dataset.status !== "active") return
+                event.preventDefault()
+                window.scrollTo({ top: 0, behavior: "smooth" })
+              }}
+              className="group flex flex-1 flex-col items-center justify-center gap-0.5 text-xs text-muted-foreground transition-colors [-webkit-touch-callout:none] active:scale-[0.97] data-[status=active]:text-foreground"
+            >
+              <span className="flex h-7 w-12 items-center justify-center rounded-full transition-colors group-data-[status=active]:bg-accent">
+                <page.icon aria-hidden className="size-5" />
+              </span>
+              {page.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+
+/** Phone account menu: Settings, the agent, and sign out. */
 export function AccountMenu({
   viewer,
   className,
@@ -290,15 +364,12 @@ export function AccountMenu({
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          {PAGES.map((page) => (
-            <DropdownMenuItem
-              key={page.to}
-              onClick={() => router.navigate({ to: page.to })}
-            >
-              <page.icon />
-              {page.label}
-            </DropdownMenuItem>
-          ))}
+          <DropdownMenuItem
+            onClick={() => router.navigate({ to: "/settings" })}
+          >
+            <SettingsIcon />
+            Settings
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => ask()}>
             <MessageCircleQuestionMarkIcon />
             Ask Goatside
