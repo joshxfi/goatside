@@ -36,6 +36,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@workspace/ui/components/sidebar"
+import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
 import { useAgent } from "@/components/agent-provider"
 import { clearOfflineCopies } from "@/lib/offline"
@@ -155,12 +156,20 @@ function UserMenu({ viewer }: { viewer: Viewer }) {
   )
 }
 
-/** Signs out and drops this device's offline copies of the ledger. */
+/** Drops this device's offline copies of the ledger, then signs out. */
 function useSignOut() {
   const router = useRouter()
   return async () => {
-    await signOut()
+    // First, so they're gone even if the sign-out request can't get through.
     await clearOfflineCopies()
+    try {
+      await signOut()
+    } catch {
+      toast(
+        "Couldn't reach Goatside to sign out. Try again once you're online."
+      )
+      return
+    }
     await router.invalidate()
     await router.navigate({ to: "/login" })
   }
