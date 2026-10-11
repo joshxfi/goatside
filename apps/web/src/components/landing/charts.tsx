@@ -1,5 +1,5 @@
 /**
- * The app's overview charts (apps/app/src/components/charts.tsx), drawn from
+ * The app's overview charts (apps/goatside/src/components/charts.tsx), drawn from
  * sample months instead of a ledger. Same TanStack Charts definitions, theme
  * tokens and mark specs, so the preview looks like the real dashboard.
  */

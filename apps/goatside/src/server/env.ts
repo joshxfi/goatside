@@ -33,7 +33,7 @@ export function serverEnv(): ServerEnv {
       .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
       .join("\n")
     throw new Error(
-      `Goatside is misconfigured. Check apps/app/.env.local (or your Vercel project's environment variables):\n${problems}`
+      `Goatside is misconfigured. Check apps/goatside/.env.local (or your Vercel project's environment variables):\n${problems}`
     )
   }
   parsed = result.data

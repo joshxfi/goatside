@@ -10,7 +10,7 @@ You need Node 22.12 or newer, [pnpm](https://pnpm.io) and the
 
 ```sh
 pnpm install
-cp apps/app/.env.example apps/app/.env.local   # then fill it in
+cp apps/goatside/.env.example apps/goatside/.env.local   # then fill it in
 pnpm dev          # local DB on :8080, app on :3000, this site on :3001
 pnpm db:migrate   # first run, and after schema changes
 ```
@@ -23,7 +23,7 @@ from the AI Gateway dashboard. Without one, entries save uncategorized.
 
 | Path            | What                                                                               |
 | --------------- | ---------------------------------------------------------------------------------- |
-| `apps/app`      | The app you self-host, on TanStack Start, deployed to Vercel                       |
+| `apps/goatside` | The app you self-host, on TanStack Start, deployed to Vercel                       |
 | `apps/web`      | This site, the landing page and these docs, built with Fumadocs                    |
 | `packages/core` | The entry parser, account matching, money and dates, in plain TypeScript           |
 | `packages/db`   | The Drizzle schema and migrations for Turso                                        |
@@ -58,7 +58,7 @@ TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter app eval:ask
 Add shadcn components from an app directory. The CLI installs them into `packages/ui`:
 
 ```sh
-pnpm dlx shadcn@latest add drawer -c apps/app
+pnpm dlx shadcn@latest add drawer -c apps/goatside
 ```
 
 ## Writing these docs

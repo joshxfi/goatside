@@ -8,7 +8,7 @@ the docs in `apps/web/content/docs` for how it behaves. Each app and package has
 
 | Path            | What                                                               |
 | --------------- | ------------------------------------------------------------------ |
-| `apps/app`      | The app people self-host (TanStack Start on Vercel)                |
+| `apps/goatside` | The app people self-host (TanStack Start on Vercel)                |
 | `apps/web`      | Landing page and docs (TanStack Start + Fumadocs)                  |
 | `packages/core` | Pure TS: money, the entry parser, dates, account and name scanning |
 | `packages/ai`   | Jev decisions (category, people, accounts, duplicates), ask prompt |
@@ -25,7 +25,7 @@ pnpm dev            # local DB :8080, app :3000, landing :3001
 pnpm lint           # oxlint, must stay at zero warnings
 pnpm format         # oxfmt (Markdown too); `pnpm format:check` in CI
 pnpm typecheck      # turbo; apps run `tsr generate` first (see below)
-pnpm test           # vitest in core, ai, auth and apps/app
+pnpm test           # vitest in core, ai, auth and apps/goatside
 pnpm db:generate    # new migration after a schema change
 ```
 
@@ -44,8 +44,8 @@ every push, and applies migrations on `main` when the repo has database secrets.
 - **The model never changes an amount.** Code parses amounts; the agent adds meaning.
 - **Don't commit what typecheck rewrites in `routeTree.gen.ts`.** `tsr generate` drops the
   TanStack Start `Register` block that the Vite plugin writes. Restore with
-  `git checkout -- apps/app/src/routeTree.gen.ts apps/web/src/routeTree.gen.ts`.
-- **Secrets stay out:** never read or copy `apps/app/.env.local` into code, logs or tool
+  `git checkout -- apps/goatside/src/routeTree.gen.ts apps/web/src/routeTree.gen.ts`.
+- **Secrets stay out:** never read or copy `apps/goatside/.env.local` into code, logs or tool
   input. Evals and the demo seed refuse non-local databases; keep it that way.
 - **Commits** are conventional with scopes (`fix(app): …`, `docs(web): …`, `test(app): …`).
   Run format, lint, typecheck and tests first. `feat`, `fix` and `perf` commits land in

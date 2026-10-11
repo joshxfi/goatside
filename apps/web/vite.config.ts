@@ -21,7 +21,7 @@ export default defineConfig({
     tsconfigPaths: true,
     // Base UI's use-sync-external-store shims, swapped for React's built-in
     // hook: their require("react") fails on Vercel, where React is bundled
-    // and not on disk ("Cannot find module 'react'"). Same as apps/app.
+    // and not on disk ("Cannot find module 'react'"). Same as apps/goatside.
     alias: [
       {
         find: /^use-sync-external-store\/shim\/with-selector(\.js)?$/,

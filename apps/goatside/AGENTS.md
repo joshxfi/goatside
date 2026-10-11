@@ -1,4 +1,4 @@
-# apps/app
+# apps/goatside
 
 The app people self-host: TanStack Start (React 19, TanStack Router and Query), built with
 Nitro for Vercel. One owner per deploy, signed in with env credentials. See the root
@@ -75,7 +75,7 @@ and call `resetDb` in `beforeEach`. Write a failing test before fixing a ledger 
 ## UI
 
 Components come from `@workspace/ui/components/*`; add new shadcn ones with
-`pnpm dlx shadcn@latest add <name> -c apps/app` (they land in `packages/ui`). Motion only
+`pnpm dlx shadcn@latest add <name> -c apps/goatside` (they land in `packages/ui`). Motion only
 explains a change: new entries grow in, deleted ones fold out, figures count to new values.
 The coin flip is for rare moments (sign-in, loading); account cards lean toward the mouse
 (`useTilt`), as a hint that they open; the composer gets no decorative motion; nothing

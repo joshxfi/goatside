@@ -17,7 +17,7 @@ todos.json
 # typescript
 *.tsbuildinfo
 
-# env (copy apps/app/.env.example to .env.local)
+# env (copy apps/goatside/.env.example to .env.local)
 !.env.example
 
 # vercel / nitro

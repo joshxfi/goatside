@@ -65,7 +65,7 @@ accounts, Node 22.12 or newer, [pnpm](https://pnpm.io) and the
    (`turso db show goatside --url`) and a token (`turso db tokens create goatside`).
 3. Apply the migrations:
    `TURSO_DATABASE_URL=<url> TURSO_AUTH_TOKEN=<token> pnpm db:migrate`.
-4. Import your fork in Vercel with **Root Directory** set to `apps/app`.
+4. Import your fork in Vercel with **Root Directory** set to `apps/goatside`.
 5. Add `GOATSIDE_USERNAME`, `GOATSIDE_PASSWORD` (12 or more characters),
    `SESSION_SECRET` (`openssl rand -base64 32`), `TURSO_DATABASE_URL` and
    `TURSO_AUTH_TOKEN` as environment variables.
@@ -83,7 +83,7 @@ database.
 
 ```sh
 pnpm install
-cp apps/app/.env.example apps/app/.env.local   # then fill it in
+cp apps/goatside/.env.example apps/goatside/.env.local   # then fill it in
 pnpm dev          # local DB on :8080, app on :3000, landing on :3001
 pnpm db:migrate   # first run, and after schema changes
 ```
@@ -106,14 +106,14 @@ pnpm --filter @workspace/ai eval   # live filing evals (needs AI_GATEWAY_API_KEY
 Add shadcn components from an app directory. They're installed into `packages/ui`:
 
 ```sh
-pnpm dlx shadcn@latest add drawer -c apps/app
+pnpm dlx shadcn@latest add drawer -c apps/goatside
 ```
 
 ## Project layout
 
 | Path            | What                                                          |
 | --------------- | ------------------------------------------------------------- |
-| `apps/app`      | The app you self-host (TanStack Start, deployed to Vercel)    |
+| `apps/goatside` | The app you self-host (TanStack Start, deployed to Vercel)    |
 | `apps/web`      | The landing page and docs (TanStack Start + Fumadocs)         |
 | `packages/core` | Pure TS: the entry parser, account matching, money, dates     |
 | `packages/db`   | Drizzle schema and migrations for Turso (libSQL)              |

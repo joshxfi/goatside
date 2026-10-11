@@ -2,14 +2,14 @@
 
 The agent's judgment, through Vercel AI Gateway and the AI SDK: TypeSafe Jev decisions
 for filing entries, and the ask-mode system prompt. Model calls are wired up in
-`apps/app/src/server/agent.server.ts` and `ask.server.ts`; this package holds the
+`apps/goatside/src/server/agent.server.ts` and `ask.server.ts`; this package holds the
 questions, thresholds and pure resolution logic. See the root `AGENTS.md` for repo-wide
 rules.
 
 ```sh
 pnpm --filter @workspace/ai test     # unit tests with AI SDK mock models, no network
 pnpm --filter @workspace/ai eval     # live evals against the real models (paid; needs
-                                     # AI_GATEWAY_API_KEY in apps/app/.env.local)
+                                     # AI_GATEWAY_API_KEY in apps/goatside/.env.local)
 pnpm --filter @workspace/ai eval:people   # also eval:duplicates, eval:accounts
 ```
 

@@ -1,7 +1,7 @@
 # packages/auth
 
 Single-account auth with Web Crypto and no dependencies, in one small file (`src/index.ts`). The app wires it
-up in `apps/app/src/server/session.ts` (cookies, throttling, the sign-in route). See the
+up in `apps/goatside/src/server/session.ts` (cookies, throttling, the sign-in route). See the
 root `AGENTS.md` for repo-wide rules.
 
 ```sh
@@ -29,6 +29,6 @@ device skips both until it fails more than 10 times in a day.
   Nitro does.
 - **Any change to the token format signs everyone out.** Say so in the commit and the
   docs (`apps/web/content/docs/self-hosting/security.mdx`).
-- If `SESSION_TTL_MS` changes, also change `PAGE_MAX_AGE_MS` in `apps/app/public/sw.js`,
+- If `SESSION_TTL_MS` changes, also change `PAGE_MAX_AGE_MS` in `apps/goatside/public/sw.js`,
   which stops showing offline pages older than a session.
 - Every behavior here has a test in `src/index.test.ts`; add one with any change.

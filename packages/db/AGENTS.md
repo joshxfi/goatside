@@ -33,7 +33,7 @@ doesn't read `.env.local`. Always pass the URL explicitly.
    applies migrations after its checks, while Vercel deploys the same push on its own, so
    for a minute or two both the old and the new code can run against either schema.
 3. Apply the migration to the local dev DB on `:8080` with the URL passed explicitly, and
-   run `pnpm test`: the `apps/app` tests apply every migration to a fresh database.
+   run `pnpm test`: the `apps/goatside` tests apply every migration to a fresh database.
 4. Never run migrations against a remote Turso database unless asked. Production gets
    them from CI (`migrate` job) or the owner's own `pnpm db:migrate`.
 5. Update any docs that describe the tables (`apps/web/content/docs`).

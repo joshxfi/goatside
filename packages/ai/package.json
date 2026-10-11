@@ -6,10 +6,10 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "eval": "tsx --env-file-if-exists=../../apps/app/.env.local evals/categorize.ts && tsx --env-file-if-exists=../../apps/app/.env.local evals/people.ts && tsx --env-file-if-exists=../../apps/app/.env.local evals/duplicates.ts && tsx --env-file-if-exists=../../apps/app/.env.local evals/accounts.ts",
-    "eval:people": "tsx --env-file-if-exists=../../apps/app/.env.local evals/people.ts",
-    "eval:duplicates": "tsx --env-file-if-exists=../../apps/app/.env.local evals/duplicates.ts",
-    "eval:accounts": "tsx --env-file-if-exists=../../apps/app/.env.local evals/accounts.ts"
+    "eval": "tsx --env-file-if-exists=../../apps/goatside/.env.local evals/categorize.ts && tsx --env-file-if-exists=../../apps/goatside/.env.local evals/people.ts && tsx --env-file-if-exists=../../apps/goatside/.env.local evals/duplicates.ts && tsx --env-file-if-exists=../../apps/goatside/.env.local evals/accounts.ts",
+    "eval:people": "tsx --env-file-if-exists=../../apps/goatside/.env.local evals/people.ts",
+    "eval:duplicates": "tsx --env-file-if-exists=../../apps/goatside/.env.local evals/duplicates.ts",
+    "eval:accounts": "tsx --env-file-if-exists=../../apps/goatside/.env.local evals/accounts.ts"
   },
   "exports": {
     "./*": "./src/*.ts"

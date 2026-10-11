@@ -459,7 +459,7 @@ function Deploy() {
           ["Turso", "One free database for your ledger."],
           [
             "Vercel",
-            "Import your fork with Root Directory apps/app and add five variables.",
+            "Import your fork with Root Directory apps/goatside and add five variables.",
           ],
         ].map(([title, text], i) => (
           <li

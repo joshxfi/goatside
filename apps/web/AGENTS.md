@@ -1,7 +1,7 @@
 # apps/web
 
 The project's landing page and docs: TanStack Start with Fumadocs, built with Nitro. Only
-the canonical project deploys it; self-hosters deploy `apps/app`. See the root `AGENTS.md`
+the canonical project deploys it; self-hosters deploy `apps/goatside`. See the root `AGENTS.md`
 for repo-wide rules, including the copy and design rules, which matter most here.
 
 ## Commands
@@ -23,7 +23,7 @@ pnpm --filter web build
   the app doesn't have.
 - `content/docs/`: the docs, in MDX. Sidebar order and sections come from `meta.json` in
   each folder; add new pages there. `self-hosting/` is the guide self-hosters follow, so it
-  must match `apps/app/.env.example`, `apps/app/src/server/env.ts` and the root
+  must match `apps/goatside/.env.example`, `apps/goatside/src/server/env.ts` and the root
   `package.json` scripts.
 - `src/lib/source.ts`: the Fumadocs source. `routes/docs/` renders pages,
   `routes/docs/{$}[.]md.ts` serves raw Markdown, and `routes/llms[.]txt.ts` /

@@ -29,7 +29,7 @@ Import as `@workspace/ui/components/<name>`, `@workspace/ui/lib/<name>`,
 ## Rules
 
 - **Add components with the shadcn CLI from an app directory**, not by hand:
-  `pnpm dlx shadcn@latest add <name> -c apps/app`. They're installed here. Edit them
+  `pnpm dlx shadcn@latest add <name> -c apps/goatside`. They're installed here. Edit them
   afterwards to match the theme.
 - **Use the tokens, not raw colors.** Money in is `text-income-foreground` / `bg-income`,
   money out is `text-expense-foreground` / `bg-expense`. `gold`, `silver` and `bronze` are

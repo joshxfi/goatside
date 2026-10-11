@@ -107,7 +107,7 @@
   /*
    * Category series, validated with the dataviz palette checker (CVD and
    * normal-vision separation, both modes). No red or green: those mean money
-   * out / money in. Order matters, see apps/app/src/lib/series.ts.
+   * out / money in. Order matters, see apps/goatside/src/lib/series.ts.
    */
   --series-1: #2a78d6;
   --series-2: #eda100;
@@ -296,7 +296,7 @@
   /*
    * Something new arriving in place (a question card, a chat message): a
    * short settle, no flourish. CSS, so it runs off the main thread; exits
-   * and collapses use Motion (apps/app/src/components/motion.tsx).
+   * and collapses use Motion (apps/goatside/src/components/motion.tsx).
    */
   .enter-rise {
     transition:
