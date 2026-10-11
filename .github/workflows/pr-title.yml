@@ -1,0 +1,35 @@
+name: PR title
+
+on:
+  pull_request_target:
+    types: [opened, reopened, edited]
+
+jobs:
+  # Pull requests are squash-merged, so the title becomes the commit on main
+  # that release-please reads. It has to be a Conventional Commit.
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            revert
+            docs
+            chore
+            refactor
+            style
+            test
+            build
+            ci
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            Start the subject of "{title}" with a lowercase letter, like
+            "fix(app): keep the outbox order after a retry".

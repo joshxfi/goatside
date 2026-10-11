@@ -1,0 +1,25 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # Keeps a release pull request open with the next version and its changelog,
+  # built from the Conventional Commits on main. Merging it tags the version
+  # and publishes the GitHub release.
+  release-please:
+    # Forks are people's own deploys; only the main repo cuts releases.
+    if: github.repository == 'joshxfi/goatside'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@v5
+        with:
+          # A token in RELEASE_PLEASE_TOKEN lets CI run on the release pull
+          # request; GitHub's own token can't start other workflows.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
