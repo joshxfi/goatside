@@ -20,7 +20,7 @@ import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
 import { AccountCard, balanceText } from "@/components/account-card"
 import { AccountDrawer, AccountForm } from "@/components/account-form"
-import { PageHeader } from "@/components/app-shell"
+import { PageFrame, PageHeader } from "@/components/app-shell"
 import { ImportStatement } from "@/components/import-statement"
 import { Figure } from "@/components/motion"
 import { EntryDrawer } from "@/components/transaction-drawer"
@@ -70,9 +70,9 @@ function Account() {
     ?.thisMonth ?? { in: 0, out: 0 }
 
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-none lg:px-8 lg:pt-6">
+    <PageFrame width="default">
       <PageHeader title={account.name} viewer={viewer} back="/accounts" />
-      <div className="grid grid-cols-1 gap-6 lg:mx-auto lg:w-full lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-4 sm:flex-row">
             <AccountCard
@@ -120,7 +120,7 @@ function Account() {
           <Manage data={data} isDefault={isDefault} />
         </aside>
       </div>
-    </div>
+    </PageFrame>
   )
 }
 
@@ -360,9 +360,7 @@ function History({ data }: { data: AccountDetail }) {
   }
   return (
     <section aria-label="History" className="flex flex-col gap-3">
-      <h2 className="px-1 text-sm font-medium text-muted-foreground">
-        History
-      </h2>
+      <h2 className="text-sm font-medium text-muted-foreground">History</h2>
       <ul className="flex flex-col divide-y rounded-2xl border bg-card">
         {history.map((row) => {
           const iou = row.person
@@ -424,7 +422,7 @@ function History({ data }: { data: AccountDetail }) {
                   >
                     {formatPeso(row.change, { sign: row.change > 0 })}
                   </span>
-                  <span className="figure text-[11px] text-muted-foreground">
+                  <span className="figure text-xs text-muted-foreground">
                     {after}
                   </span>
                 </span>

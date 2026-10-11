@@ -58,7 +58,7 @@ function Home() {
   const hasPeople = data.people.length > 0
 
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col lg:max-w-[90rem] lg:px-8">
+    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col lg:mx-0 lg:max-w-[90rem] lg:px-8">
       <div className="px-4 pt-[max(env(safe-area-inset-top),1rem)] lg:sticky lg:top-0 lg:z-30 lg:bg-background/90 lg:px-0 lg:py-4 lg:backdrop-blur-md">
         <MonthHeader month={data.month} today={data.today} viewer={viewer}>
           {/* One instance: a header bar on desktop, the bottom dock on phones. */}
@@ -103,7 +103,7 @@ function Home() {
           <KpiRow view={data} />
           <AccountsStrip view={data} />
           <Overview view={data} />
-          <div className="grid gap-4 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <ChangesCard view={data} />
             <LargestCard view={data} onSelect={setSelected} />
             <RecentCard view={data} onSelect={setSelected} />
@@ -111,7 +111,7 @@ function Home() {
           {(hasPeople || hasRepeats) && (
             <div
               className={cn(
-                "grid gap-4",
+                "grid grid-cols-1 gap-4",
                 hasPeople && hasRepeats && "xl:grid-cols-2"
               )}
             >

@@ -21,7 +21,7 @@ import { cn } from "@workspace/ui/lib/utils"
 import { AccountCard } from "@/components/account-card"
 import { AccountDrawer, AccountForm } from "@/components/account-form"
 import { useAgent } from "@/components/agent-provider"
-import { PageHeader } from "@/components/app-shell"
+import { PageFrame, PageHeader } from "@/components/app-shell"
 import { KIND_SECTIONS, owedOn } from "@/lib/accounts"
 import { shortDate } from "@/lib/format"
 import { accountsQuery, monthQuery } from "@/lib/queries"
@@ -59,7 +59,7 @@ function Accounts() {
     .reduce((s, a) => s + owedOn(a.balance), 0)
 
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-none lg:px-8 lg:pt-6">
+    <PageFrame width="default">
       <PageHeader
         title="Accounts"
         viewer={viewer}
@@ -73,11 +73,11 @@ function Accounts() {
           )
         }
       />
-      <div className="flex flex-col gap-8 lg:mx-auto lg:w-full lg:max-w-5xl">
+      <div className="flex flex-col gap-8">
         {open.length ? (
           <>
             <dl className="grid grid-cols-2 gap-2 lg:grid-cols-3 lg:gap-4">
-              <Stat label="In banks, wallets and cash" value={held} />
+              <Stat label="In your accounts" value={held} />
               <Stat label="Owed on cards" value={owed} />
               <Stat
                 label="Net"
@@ -97,11 +97,11 @@ function Accounts() {
                 >
                   <h2
                     id={`accounts-${kind}`}
-                    className="px-1 text-sm font-medium text-muted-foreground"
+                    className="text-sm font-medium text-muted-foreground"
                   >
                     {title}
                   </h2>
-                  <ul className="grid gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+                  <ul className="grid grid-cols-1 gap-x-4 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
                     {list.map((a) => (
                       <li key={a.id} className="flex flex-col gap-1.5">
                         <Link
@@ -150,7 +150,7 @@ function Accounts() {
         )}
       </div>
       <AddAccount open={adding} onClose={() => setAdding(false)} />
-    </div>
+    </PageFrame>
   )
 }
 
@@ -267,9 +267,7 @@ function Archived({ list }: { list: AccountsOverview["accounts"] }) {
   })
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="px-1 text-sm font-medium text-muted-foreground">
-        Archived
-      </h2>
+      <h2 className="text-sm font-medium text-muted-foreground">Archived</h2>
       <ul className="flex flex-col divide-y rounded-2xl border bg-card">
         {list.map((a) => (
           <li key={a.id} className="flex items-center gap-3 px-4 py-2.5">
@@ -295,7 +293,7 @@ function Archived({ list }: { list: AccountsOverview["accounts"] }) {
 function Empty({ onAdd }: { onAdd: () => void }) {
   const { ask } = useAgent()
   return (
-    <section className="flex flex-col items-center gap-3 rounded-2xl border border-dashed px-6 py-10 text-center lg:mx-auto lg:max-w-lg">
+    <section className="flex flex-col items-center gap-3 rounded-2xl border border-dashed px-6 py-10 text-center lg:max-w-lg">
       <CoinMark className="size-10 text-muted-foreground" />
       <p className="font-display text-2xl">Where does your money sit?</p>
       <p className="text-sm text-muted-foreground">

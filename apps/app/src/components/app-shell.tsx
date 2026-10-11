@@ -183,6 +183,40 @@ export function DesktopSidebarTrigger({ className }: { className?: string }) {
 }
 
 /** Header for pages other than the overview. */
+const PAGE_WIDTHS = {
+  /** Tables and dashboards. */
+  wide: "lg:max-w-[90rem]",
+  default: "lg:max-w-5xl",
+  /** A single list. */
+  narrow: "lg:max-w-3xl",
+}
+
+/**
+ * Every page but the overview: the same gutters and top spacing as the
+ * overview, with the header in the same column as the content, so titles,
+ * content and header buttons line up from page to page.
+ */
+export function PageFrame({
+  width = "default",
+  children,
+}: {
+  width?: keyof typeof PAGE_WIDTHS
+  children: React.ReactNode
+}) {
+  return (
+    <div className="flex min-h-svh w-full flex-col px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:px-8 lg:pt-4">
+      <div
+        className={cn(
+          "mx-auto flex w-full max-w-md min-w-0 flex-col gap-6 lg:mx-0",
+          PAGE_WIDTHS[width]
+        )}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
 export function PageHeader({
   title,
   viewer,
@@ -196,7 +230,7 @@ export function PageHeader({
   action?: React.ReactNode
 }) {
   return (
-    <header className="flex items-center justify-between gap-3">
+    <header className="flex items-center justify-between gap-3 lg:min-h-10">
       <div className="flex items-center gap-2">
         <DesktopSidebarTrigger />
         <Link

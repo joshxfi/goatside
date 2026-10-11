@@ -19,7 +19,7 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
-import { PageHeader } from "@/components/app-shell"
+import { PageFrame, PageHeader } from "@/components/app-shell"
 import { IouDrawer } from "@/components/iou-form"
 import { AnimatePresence, CollapseItem, Figure } from "@/components/motion"
 import { EntryDrawer } from "@/components/transaction-drawer"
@@ -57,9 +57,9 @@ function Person() {
   if (!person) return null
 
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-none lg:px-8 lg:pt-6">
+    <PageFrame width="default">
       <PageHeader title={person.name} viewer={viewer} back="/people" />
-      <div className="grid grid-cols-1 gap-6 lg:mx-auto lg:w-full lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <div className="flex flex-col gap-6">
           <Balance key={`${person.id}:${person.owed}`} person={person} />
           <History person={person} />
@@ -69,7 +69,7 @@ function Person() {
           <Manage person={person} />
         </aside>
       </div>
-    </div>
+    </PageFrame>
   )
 }
 
@@ -118,10 +118,14 @@ function Balance({ person }: { person: PersonDetail }) {
 
   return (
     <section className="flex flex-col gap-4 rounded-2xl border bg-card p-5">
-      <div className="flex flex-col gap-1">
-        <h1 className="font-display text-4xl leading-none">{person.name}</h1>
+      <div className="flex flex-col gap-2">
+        {/* The page header already names them; this says which way. */}
         <p className="text-sm text-muted-foreground">
-          {square ? "You're square." : owesYou ? "owes you" : "you owe"}
+          {square
+            ? `You and ${person.name} are square.`
+            : owesYou
+              ? `${person.name} owes you`
+              : `You owe ${person.name}`}
         </p>
         {!square && (
           <p
@@ -258,7 +262,7 @@ function History({ person }: { person: PersonDetail }) {
     <section aria-labelledby="history-heading" className="flex flex-col gap-3">
       <h2
         id="history-heading"
-        className="px-1 text-sm font-medium text-muted-foreground"
+        className="text-sm font-medium text-muted-foreground"
       >
         History
       </h2>

@@ -38,7 +38,7 @@ import {
 } from "@workspace/ui/components/select"
 import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
-import { PageHeader } from "@/components/app-shell"
+import { PageFrame, PageHeader } from "@/components/app-shell"
 import { capitalize, shortDate } from "@/lib/format"
 import { useInstall } from "@/lib/offline"
 import { categoriesQuery } from "@/lib/queries"
@@ -70,7 +70,6 @@ function useRefresh() {
     Promise.all([
       queryClient.invalidateQueries({ queryKey: ["categories"] }),
       queryClient.invalidateQueries({ queryKey: ["ledger"] }),
-      queryClient.invalidateQueries({ queryKey: ["ledger"] }),
     ])
 }
 
@@ -81,13 +80,13 @@ function Settings() {
   const [suggesting, setSuggesting] = useState<Category | null>(null)
 
   return (
-    <div className="mx-auto flex min-h-svh max-w-md flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-none lg:px-8 lg:pt-6">
+    <PageFrame width="default">
       <PageHeader title="Settings" viewer={viewer} />
-      <div className="flex flex-col gap-8 lg:mx-auto lg:w-full lg:max-w-4xl">
+      <div className="flex flex-col gap-8">
         <p className="text-sm text-muted-foreground">
           Your categories teach the agent how you file things.
         </p>
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           {(["expense", "income"] as const).map((kind) => (
             <CategorySection
               key={kind}
@@ -98,7 +97,7 @@ function Settings() {
             />
           ))}
         </div>
-        <div className="grid gap-8 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
           <TimeZone current={data.timeZone} />
           <InstallApp />
         </div>
@@ -118,7 +117,7 @@ function Settings() {
         category={suggesting}
         onClose={() => setSuggesting(null)}
       />
-    </div>
+    </PageFrame>
   )
 }
 
@@ -139,10 +138,7 @@ function CategorySection({
 
   return (
     <section aria-labelledby={headingId} className="flex flex-col gap-3">
-      <h2
-        id={headingId}
-        className="px-1 text-sm font-medium text-muted-foreground"
-      >
+      <h2 id={headingId} className="text-sm font-medium text-muted-foreground">
         {kind === "expense" ? "Spending categories" : "Income categories"}
       </h2>
       <ul className="flex flex-col divide-y rounded-2xl border bg-card">
@@ -619,9 +615,7 @@ function TimeZone({ current }: { current: string }) {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="px-1 text-sm font-medium text-muted-foreground">
-        Time zone
-      </h2>
+      <h2 className="text-sm font-medium text-muted-foreground">Time zone</h2>
       <div className="flex items-center justify-between gap-4 rounded-2xl border bg-card px-4 py-3">
         <p className="text-sm text-muted-foreground">
           Decides which day an entry lands on, and when a month starts.
@@ -664,9 +658,7 @@ function InstallApp() {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="px-1 text-sm font-medium text-muted-foreground">
-        Home screen
-      </h2>
+      <h2 className="text-sm font-medium text-muted-foreground">Home screen</h2>
       <div className="flex items-center justify-between gap-4 rounded-2xl border bg-card px-4 py-3">
         <p className="text-sm text-muted-foreground">{text}</p>
         {state === "prompt" && (

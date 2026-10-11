@@ -7,7 +7,7 @@ import { addMonths } from "@workspace/core/dates"
 import { formatPeso } from "@workspace/core/money"
 import { buttonVariants } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
-import { PageHeader } from "@/components/app-shell"
+import { PageFrame, PageHeader } from "@/components/app-shell"
 import { TransactionDrawer } from "@/components/transaction-drawer"
 import { TransactionsTable } from "@/components/transactions-table"
 import { monthLabel } from "@/lib/format"
@@ -49,7 +49,7 @@ function Transactions() {
   const [selected, setSelected] = useState<LedgerTxn | null>(null)
 
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-6 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-none lg:px-8 lg:pt-6">
+    <PageFrame width="wide">
       <PageHeader title="Transactions" viewer={viewer} />
       <div className="flex flex-col gap-4">
         <PeriodPicker view={data} period={period} />
@@ -75,7 +75,7 @@ function Transactions() {
         accounts={data.accounts}
         onClose={() => setSelected(null)}
       />
-    </div>
+    </PageFrame>
   )
 }
 

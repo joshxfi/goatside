@@ -6,7 +6,7 @@ import { formatPeso } from "@workspace/core/money"
 import { CoinMark } from "@workspace/ui/components/brand"
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
-import { PageHeader } from "@/components/app-shell"
+import { PageFrame, PageHeader } from "@/components/app-shell"
 import { IouDrawer } from "@/components/iou-form"
 import { Figure } from "@/components/motion"
 import { shortDate } from "@/lib/format"
@@ -30,7 +30,7 @@ function People() {
     .reduce((s, p) => s - p.owed, 0)
 
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-none lg:px-8 lg:pt-6">
+    <PageFrame width="narrow">
       <PageHeader
         title="People"
         viewer={viewer}
@@ -42,7 +42,7 @@ function People() {
         }
       />
       <IouDrawer open={adding} onClose={() => setAdding(false)} />
-      <div className="flex flex-col gap-6 lg:mx-auto lg:w-full lg:max-w-3xl">
+      <div className="flex flex-col gap-6">
         <p className="text-sm text-muted-foreground">
           Loans, repayments and shared bills, kept apart from your spending.
         </p>
@@ -124,6 +124,6 @@ function People() {
           </section>
         )}
       </div>
-    </div>
+    </PageFrame>
   )
 }
