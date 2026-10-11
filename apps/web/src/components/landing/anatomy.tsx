@@ -51,7 +51,7 @@ const EXAMPLES: Example[] = [
     outcome: { asks: false, text: "Filed. Nothing to ask." },
   },
   {
-    line: "500 from tita",
+    line: "500 from mom",
     parts: [
       { label: "Amount", value: "₱500", source: "code" },
       { label: "Date", value: "Today", source: "code" },
@@ -66,11 +66,11 @@ const EXAMPLES: Example[] = [
     ],
     outcome: {
       asks: true,
-      text: 'Saved with its best guess. Then it asks: Was ₱500 for "From tita" money out or in?',
+      text: 'Saved with its best guess. Then it asks: Was ₱500 for "From mom" money out or in?',
     },
   },
   {
-    line: "120 kape",
+    line: "120 matcha",
     parts: [
       { label: "Amount", value: "₱120", source: "code" },
       { label: "Date", value: "Today", source: "code" },
@@ -79,7 +79,7 @@ const EXAMPLES: Example[] = [
         label: "Money out, Food",
         value: "From your past entries",
         source: "memory",
-        note: 'You filed "kape" under Food before, so Goatside doesn\'t ask the model at all.',
+        note: 'You filed "matcha" under Food before, so Goatside doesn\'t ask the model at all.',
       },
     ],
     outcome: { asks: false, text: "Filed the way you did last time." },

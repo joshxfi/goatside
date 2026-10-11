@@ -72,7 +72,7 @@ const SCENARIOS: Scenario[] = [
     expect: [{ tool: "balances", input: { person: "mara" } }],
   },
   {
-    name: "taglish owe",
+    name: "owe, another language",
     turns: ["magkano utang ko kay ben?"],
     expect: [{ tool: "balances", input: { person: "ben" } }],
   },
@@ -168,7 +168,7 @@ const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    name: "taglish repay",
+    name: "repay, another language",
     turns: ["nagbayad si ben ng 300"],
     expect: [
       {
