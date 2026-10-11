@@ -214,6 +214,36 @@ export async function resolveQuestionsFor(
   await settleStatus(db, transactionId)
 }
 
+/**
+ * After the owner changes an amount by hand: open questions answer against
+ * the line they were asked about, so re-filing it uses the new amount.
+ */
+export async function rescaleQuestions(
+  db: Db,
+  transactionId: string,
+  { amount, share }: { amount: number; share: number }
+) {
+  const open = await db
+    .select({ id: questions.id, context: questions.context })
+    .from(questions)
+    .where(
+      and(
+        eq(questions.transactionId, transactionId),
+        isNull(questions.resolvedAt)
+      )
+    )
+  for (const q of open) {
+    const context = q.context as Partial<LineContext> | null
+    if (!context?.line) continue
+    await db
+      .update(questions)
+      .set({
+        context: { ...context, line: { ...context.line, amount, share } },
+      })
+      .where(eq(questions.id, q.id))
+  }
+}
+
 export class AnswerError extends Error {}
 
 /** The account with this name, created (with the next color) if new. */

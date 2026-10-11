@@ -115,6 +115,17 @@ One responsive page, split by CSS breakpoints so the server renders the right la
 - **Opens offline.** `public/sw.js`, registered in production builds only. Built assets come from the cache once seen; pages go to the network first (4s, then the kept copy), and each page that loads is kept, so the overview opens with no signal. A page never opened gets `offline.html`. Server functions and `/api/ask` always go to the network. Signing out deletes the kept pages.
 - **Logs offline.** Every log goes through an outbox in `localStorage` (`src/lib/outbox.ts`) before it's sent, so a dropped connection or a reload can't lose it. Waiting entries show in the feed as "Waiting to sync" (tap to remove), the composer says so, and they're sent oldest first when the connection returns, the app comes back to the foreground, or every 30s. Each carries an id chosen on the phone (the server saves an id once, so resending is safe) and the time it was typed (so "yesterday" keeps its meaning, and the server never dates an entry in the future). Asking the agent needs a connection.
 
+### 2.4.3 Editing an entry by hand (as built)
+
+The edit drawer covers everything the agent decides, so no fix needs a model or a retyped entry. "Amounts stay as typed" means the model never changes a number; the owner can. Changes stay in the form until Save (`editTransaction` in `ledger.server.ts`), and amount, type and person edits toast with Undo.
+
+- **Amount**, unsigned: the type sets the direction. On a split bill the field is the whole bill; your share and the others' IOUs are re-divided evenly (`shares()`, odd centavos to you), and the hint shows who pays what. Open questions on the entry are updated to the new amount, so answering one later re-files with it.
+- **Type**: Spent, Received or Transfer, for your own entries (not IOUs or split bills). Switching direction clears a category that no longer fits; a transfer needs two different accounts; a transfer turned into money in is filed where it arrived. Changing the type closes the agent's direction, transfer, relation and category questions.
+- **Repeats every month**, for spending and income: what the pace projection and the Repeats card count.
+- **With**: which person an IOU is with. A repayment can't pay back more than was owed (the same rule as settling up).
+- **Split bills move together**: the others' shares follow its bill, description and date, and deleting your share deletes theirs (one Undo restores all).
+- Every change is a correction (field, old, new), and an edited row is confirmed, so its category, direction and repeats teach the next categorization.
+
 ### 2.5 Small touches
 
 - **Quick-repeat chips** above the composer show your top 3–5 most frequent entries for the current time of day.

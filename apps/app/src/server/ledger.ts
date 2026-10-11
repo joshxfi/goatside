@@ -1,12 +1,15 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
+import { MAX_CENTAVOS } from "@workspace/core/money"
 import {
+  EditError,
   editTransaction,
   logText,
   monthView,
   setDeleted,
   PERIODS,
   settleWith,
+  splitOf,
   transactionsView,
   trendView,
 } from "./ledger.server"
@@ -19,6 +22,7 @@ export type {
   LedgerTxn,
   MonthView,
   Period,
+  SplitView,
   TransactionsView,
   TrendView,
 } from "./ledger.server"
@@ -70,6 +74,7 @@ export const restoreTransactions = createServerFn({ method: "POST" })
   .validator(IDS)
   .handler(({ data }) => setDeleted(data.ids, false))
 
+/** The owner's own edit of one entry. No model involved. */
 export const updateTransaction = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(
@@ -80,9 +85,29 @@ export const updateTransaction = createServerFn({ method: "POST" })
       localDate: DATE.optional(),
       accountId: z.uuid().nullable().optional(),
       toAccountId: z.uuid().optional(),
+      /** Centavos, unsigned. For a split, the whole bill. */
+      amount: z.number().int().positive().max(MAX_CENTAVOS).optional(),
+      kind: z.enum(["expense", "income", "transfer"]).optional(),
+      recurring: z.boolean().optional(),
+      personId: z.uuid().optional(),
     })
   )
-  .handler(({ data }) => editTransaction(data))
+  .handler(async ({ data }) => {
+    try {
+      await editTransaction(data)
+      return { ok: true as const }
+    } catch (error) {
+      if (error instanceof EditError)
+        return { ok: false as const, message: error.message }
+      throw error
+    }
+  })
+
+/** A split bill's total and the others' shares, for the edit drawer. */
+export const getSplit = createServerFn()
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid() }))
+  .handler(({ data }) => splitOf(data.id))
 
 /** The owner's answer to one of the agent's questions. */
 export const answerQuestion = createServerFn({ method: "POST" })

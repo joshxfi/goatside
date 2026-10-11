@@ -51,15 +51,18 @@ export function CollapseItem({
   const clip = (on: boolean) => {
     if (ref.current) ref.current.style.overflow = on ? "hidden" : ""
   }
+  // The same values either way, so the server's HTML (which can't know
+  // the preference) matches; reduced motion just snaps the height.
+  const snap = reduce ? { height: { duration: 0 } } : {}
   const props = {
     className,
-    initial: reduce ? { opacity: 0 } : { opacity: 0, height: 0 },
-    animate: reduce
-      ? { opacity: 1 }
-      : { opacity: 1, height: "auto", transition: { duration: 0.25 } },
-    exit: reduce
-      ? { opacity: 0 }
-      : { opacity: 0, height: 0, transition: { duration: 0.2 } },
+    initial: { opacity: 0, height: 0 },
+    animate: {
+      opacity: 1,
+      height: "auto",
+      transition: { duration: 0.25, ...snap },
+    },
+    exit: { opacity: 0, height: 0, transition: { duration: 0.2, ...snap } },
     onAnimationStart: () => clip(true),
     onAnimationComplete: () => clip(false),
     children,
