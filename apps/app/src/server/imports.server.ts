@@ -399,8 +399,10 @@ export async function commitImport(
 
   for (const row of preview.rows) {
     let decision = input.decisions[row.index]!
-    // Imported meanwhile (a second tab, a resend): nothing to do.
-    if (row.status === "imported") decision = { action: "skip" }
+    // Imported meanwhile (a second tab, a resend), or a 0.00 line (some
+    // banks print reversed holds that way): nothing to save.
+    if (row.status === "imported" || row.amount === 0)
+      decision = { action: "skip" }
     if (!allowed(row, decision)) {
       throw new ImportError("The statement changed since you reviewed it.")
     }

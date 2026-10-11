@@ -345,6 +345,17 @@ describe("statement imports", () => {
     })
   })
 
+  it("skips rows of 0.00", async () => {
+    const bank = await createAccount({ name: "GoTyme", kind: "bank" })
+    const input = bankStatement(bank.id, [
+      [day, "Card hold released", 0],
+      [day, "Qr Payment", -18_000],
+    ])
+    const result = await decide(input, [{ action: "new" }, { action: "new" }])
+    expect(result.added).toBe(1)
+    expect((await live()).map((r) => r.amount)).toEqual([-18_000])
+  })
+
   it("refuses a choice the preview didn't offer", async () => {
     const bank = await createAccount({ name: "GoTyme", kind: "bank" })
     const input = bankStatement(bank.id, [[day, "Qr Payment", -18_000]])
