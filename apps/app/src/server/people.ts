@@ -1,8 +1,11 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { authMiddleware } from "./session"
+import { MAX_CENTAVOS } from "@workspace/core/money"
 import {
   PeopleError,
+  addIou,
+  addPerson,
   draftReminder,
   mergePeople,
   peopleOverview,
@@ -51,3 +54,23 @@ export const remindPerson = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ id: z.uuid() }))
   .handler(({ data }) => attempt(() => draftReminder(data.id)))
+
+export const createPerson = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ name: z.string().trim().min(1).max(60) }))
+  .handler(({ data }) => attempt(() => addPerson(data)))
+
+/** A new IOU, typed by hand. */
+export const recordIou = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(
+    z.object({
+      personId: z.uuid(),
+      type: z.enum(["lent", "borrowed"]),
+      amount: z.number().int().positive().max(MAX_CENTAVOS),
+      description: z.string().max(200),
+      localDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      accountId: z.uuid().nullable(),
+    })
+  )
+  .handler(({ data }) => attempt(() => addIou(data)))

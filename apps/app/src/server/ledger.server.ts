@@ -437,10 +437,33 @@ export async function setDeleted(ids: string[], deleted: boolean) {
 export class EditError extends Error {}
 
 type Row = typeof transactions.$inferSelect
-const OWN_KINDS = ["expense", "income", "transfer"] as const
-type OwnKind = (typeof OWN_KINDS)[number]
-const isOwnKind = (kind: Row["kind"]): kind is OwnKind =>
-  (OWN_KINDS as readonly string[]).includes(kind)
+type NewRow = typeof transactions.$inferInsert
+
+/**
+ * An entry's type as the owner sees it. "lent" and "borrowed" are IOU rows
+ * (`lend`) by sign: you paid for or lent them, or they did for you.
+ */
+export const ENTRY_TYPES = [
+  "expense",
+  "income",
+  "transfer",
+  "lent",
+  "borrowed",
+] as const
+export type EntryType = (typeof ENTRY_TYPES)[number] | "settle"
+
+const typeOf = (row: Pick<Row, "kind" | "amount">): EntryType =>
+  row.kind === "lend" ? (row.amount < 0 ? "lent" : "borrowed") : row.kind
+
+/** Money out of your pocket (or owed out), as the row's sign. */
+const signOf = (type: EntryType, was: number) =>
+  type === "income" || type === "borrowed"
+    ? 1
+    : type === "settle"
+      ? Math.sign(was) || 1
+      : -1
+
+const MAX_WAYS = 30
 
 /**
  * The others' IOU rows of a split bill whose share `row` is: same entry,
@@ -465,6 +488,22 @@ async function splitRows(db: Db, row: Row) {
     .orderBy(asc(transactions.createdAt), asc(transactions.id))
 }
 
+/** For someone's share of a split: the owner's share it belongs to. */
+async function splitOwner(db: Db, row: Row) {
+  if (row.kind !== "lend" || !row.entryId) return null
+  const owner = await db.query.transactions.findFirst({
+    where: and(
+      isNull(transactions.deletedAt),
+      eq(transactions.entryId, row.entryId),
+      eq(transactions.kind, "expense"),
+      gte(transactions.split, 2),
+      eq(transactions.description, row.description),
+      eq(transactions.localDate, row.localDate)
+    ),
+  })
+  return owner ?? null
+}
+
 /** The whole bill: your share, the others' IOUs, and any unnamed shares. */
 function billOf(row: Row, others: Row[]) {
   const ways = row.split ?? 1
@@ -476,15 +515,19 @@ function billOf(row: Row, others: Row[]) {
   )
 }
 
-/** A split bill as the edit drawer shows it: the total and who pays what. */
+/**
+ * A split bill as the edit drawer shows it, from either side: the total,
+ * who pays what, and the rows that go with it. Null when it isn't split.
+ */
 export async function splitOf(id: string) {
   const db = getDb()
   const row = await db.query.transactions.findFirst({
-    where: eq(transactions.id, id),
+    where: and(eq(transactions.id, id), isNull(transactions.deletedAt)),
   })
   if (!row) return null
-  const others = await splitRows(db, row)
-  if (!row.split || row.split < 2) return null
+  const owner = row.kind === "lend" ? await splitOwner(db, row) : row
+  if (!owner?.split || owner.split < 2) return null
+  const others = await splitRows(db, owner)
   const names = others.length
     ? await db
         .select({ id: people.id, name: people.name })
@@ -498,10 +541,14 @@ export async function splitOf(id: string) {
     : []
   const nameOf = new Map(names.map((p) => [p.id, p.name]))
   return {
-    bill: billOf(row, others),
-    ways: row.split,
+    /** "own" when `id` is your share; "share" when it's someone else's. */
+    role: owner.id === row.id ? ("own" as const) : ("share" as const),
+    ownerId: owner.id,
+    bill: billOf(owner, others),
+    ways: owner.split,
     ids: others.map((o) => o.id),
     people: others.map((o) => ({
+      id: o.personId ?? "",
       name: nameOf.get(o.personId ?? "") ?? "Someone",
       amount: Math.abs(o.amount),
     })),
@@ -526,11 +573,19 @@ async function owedWith(db: Db, personId: string, row: Row, amount: number) {
   return -(Number(sum?.total ?? 0) + amount)
 }
 
+const sameList = (a: string[], b: string[]) =>
+  a.length === b.length && a.every((x, i) => x === b[i])
+
 /**
  * Applies the owner's own edits and records them as corrections. Nothing
  * here goes through a model: the owner's word is final, within what keeps
- * the books whole (a split's other shares follow its bill, a repayment
- * can't pay back more than was owed).
+ * the books whole.
+ *
+ * An entry is a line: your row, plus the others' IOU rows when it's a
+ * split bill. Its type, people and ways decide those rows, the way
+ * `planRows` does for a typed line: a split is your share and theirs,
+ * "lent" is all theirs, "just me" is all yours. Changing any of them
+ * re-plans the line; your row keeps its id, questions and history.
  */
 export async function editTransaction(data: {
   id: string
@@ -539,10 +594,15 @@ export async function editTransaction(data: {
   localDate?: string
   accountId?: string | null
   toAccountId?: string | null
-  /** Centavos, unsigned; the kind keeps its direction. A split's whole bill. */
+  /** Centavos, unsigned; the type sets the direction. A split's whole bill. */
   amount?: number
-  kind?: OwnKind
+  type?: (typeof ENTRY_TYPES)[number]
+  /** Who shares a bill (spending), or who an IOU is with (lent, borrowed). */
+  people?: string[]
+  /** How many ways a bill splits, you included; 1 is just you. */
+  ways?: number
   recurring?: boolean
+  /** Who a repayment, or one person's share of a split, is with. */
   personId?: string
 }) {
   const db = getDb()
@@ -560,28 +620,96 @@ export async function editTransaction(data: {
     if (!exists) throw new EditError("That account is gone.")
   }
 
-  const kind = data.kind ?? current.kind
-  const kindChanged = kind !== current.kind
-  if (kindChanged) {
-    if (!isOwnKind(current.kind))
-      throw new EditError("An IOU stays an IOU. Delete it and log it again.")
-    if (current.split && current.split > 1)
-      throw new EditError("A split bill stays spending.")
-  }
-  const transfer = kind === "transfer"
-  if (data.toAccountId !== undefined && !transfer)
-    throw new EditError("Only a transfer has a second account.")
+  // Where the entry stands now.
+  const was = typeOf(current)
+  const others = await splitRows(db, current)
+  const share = Boolean(await splitOwner(db, current))
+  const wasPeople =
+    current.kind === "lend" && current.personId
+      ? [current.personId]
+      : others.flatMap((o) => o.personId ?? [])
+  const wasWays = current.split && current.split > 1 ? current.split : 1
+  const wasWhole =
+    wasWays > 1 ? billOf(current, others) : Math.abs(current.amount)
 
-  const changes: Partial<typeof transactions.$inferInsert> = {}
+  // Where the owner wants it.
+  const type: EntryType = data.type ?? was
+  const regroup =
+    data.type !== undefined ||
+    data.people !== undefined ||
+    data.ways !== undefined
+  if (regroup && (was === "settle" || share)) {
+    throw new EditError(
+      was === "settle"
+        ? "A repayment stays a repayment."
+        : "This is someone's share of a split bill. Open your share to change the split."
+    )
+  }
+  let who =
+    data.people ??
+    (data.personId && (type === "lent" || type === "borrowed")
+      ? [data.personId]
+      : type === was
+        ? wasPeople
+        : type === "lent" || type === "borrowed"
+          ? wasPeople.slice(0, 1)
+          : [])
+  who = [...new Set(who)]
+  if (type === "income" || type === "transfer") who = []
+  const ways =
+    type === "expense"
+      ? (data.ways ?? (type === was ? wasWays : who.length + 1))
+      : 1
+  if (type === "expense" && ways < who.length + 1)
+    throw new EditError(
+      `Split ${ways} ways, there's room for ${ways - 1} others.`
+    )
+  if (ways > MAX_WAYS) throw new EditError(`Split at most ${MAX_WAYS} ways.`)
+  if ((type === "lent" || type === "borrowed") && who.length !== 1)
+    throw new EditError(
+      type === "lent" ? "Pick who you lent it to." : "Pick who lent it."
+    )
+  if (who.length) {
+    const found = await db
+      .select({ id: people.id })
+      .from(people)
+      .where(inArray(people.id, who))
+    if (found.length !== who.length) throw new EditError("That person is gone.")
+  }
+  const reshaped = type !== was || ways !== wasWays || !sameList(who, wasPeople)
+
+  const whole = data.amount ?? wasWhole
+  if (ways > 1 && whole < ways)
+    throw new EditError(`Too small to split ${ways} ways.`)
+  const sign = signOf(type, current.amount)
+  // Re-divide only when something about the split changed, so shares the
+  // owner set one by one stay as they are.
+  const parts =
+    reshaped || whole !== wasWhole
+      ? ways > 1
+        ? shares(whole, ways)
+        : [whole]
+      : null
+  const size = parts ? (parts[0] ?? whole) : Math.abs(current.amount)
+  const amount = sign * size
+
+  const changes: Partial<NewRow> = {}
+  if (amount !== current.amount) changes.amount = amount
+  if (type !== was)
+    changes.kind = type === "lent" || type === "borrowed" ? "lend" : type
+  const split = ways > 1 ? ways : null
+  if (split !== current.split && (type === "expense" || current.split !== null))
+    changes.split = split
 
   // Accounts. Turning a transfer into money in files it where it arrived.
-  let accountId =
+  const transfer = type === "transfer"
+  const accountId =
     data.accountId !== undefined
       ? data.accountId
-      : kindChanged && current.kind === "transfer" && kind === "income"
+      : was === "transfer" && type === "income"
         ? current.toAccountId
         : current.accountId
-  let toAccountId = transfer
+  const toAccountId = transfer
     ? data.toAccountId !== undefined
       ? data.toAccountId
       : current.toAccountId
@@ -590,71 +718,57 @@ export async function editTransaction(data: {
     throw new EditError("A transfer needs both accounts.")
   if (transfer && accountId === toAccountId)
     throw new EditError("Pick two different accounts.")
+  if (data.toAccountId !== undefined && !transfer)
+    throw new EditError("Only a transfer has a second account.")
   if (accountId !== current.accountId) changes.accountId = accountId
   if (toAccountId !== current.toAccountId) changes.toAccountId = toAccountId
 
-  // Category: none on a transfer; one that fits the direction otherwise.
-  let categoryId =
-    data.categoryId !== undefined ? data.categoryId : current.categoryId
-  if (transfer || kind === "lend" || kind === "settle") categoryId = null
-  else if (kindChanged && data.categoryId === undefined) categoryId = null
+  // Category: only spending and income have one, and it fits the direction.
+  const categorized = type === "expense" || type === "income"
+  let categoryId = categorized
+    ? data.categoryId !== undefined
+      ? data.categoryId
+      : type === was
+        ? current.categoryId
+        : null
+    : null
   if (categoryId) {
     const category = await db.query.categories.findFirst({
       where: eq(categories.id, categoryId),
       columns: { kind: true },
     })
     if (!category) throw new EditError("That category is gone.")
-    if (category.kind !== kind)
+    if (category.kind !== type)
       throw new EditError("That category doesn't fit this entry.")
   }
   if (categoryId !== current.categoryId) changes.categoryId = categoryId
 
-  // Amount: the sign comes from the kind, never from the edit.
-  const others = await splitRows(db, current)
-  const ways = current.split && current.split > 1 ? current.split : null
-  const sign =
-    kind === "income"
-      ? 1
-      : kind === "expense" || kind === "transfer"
-        ? -1
-        : Math.sign(current.amount) || -1
-  let parts: number[] | null = null
-  if (data.amount !== undefined && ways) {
-    if (data.amount < ways)
-      throw new EditError(`A bill split ${ways} ways is at least ₱0.0${ways}.`)
-    if (data.amount !== billOf(current, others))
-      parts = shares(data.amount, ways)
-  }
-  // A split row holds your share of the bill, not the bill.
-  const size = ways
-    ? (parts?.[0] ?? Math.abs(current.amount))
-    : (data.amount ?? Math.abs(current.amount))
-  const amount = sign * size
-  if (amount !== current.amount) changes.amount = amount
+  if (data.recurring !== undefined && !categorized)
+    throw new EditError("Only spending and income repeat.")
+  const recurring = categorized ? (data.recurring ?? current.recurring) : false
+  if (recurring !== current.recurring) changes.recurring = recurring
 
-  if (data.recurring !== undefined) {
-    if (kind !== "expense" && kind !== "income")
-      throw new EditError("Only spending and income repeat.")
-    if (data.recurring !== current.recurring) changes.recurring = data.recurring
-  }
-  if (transfer && current.recurring) changes.recurring = false
-  if (kindChanged) changes.kind = kind
-
-  let personId = current.personId
-  if (data.personId !== undefined && data.personId !== current.personId) {
-    if (kind !== "lend" && kind !== "settle")
-      throw new EditError("Only an IOU is with someone.")
-    const person = await db.query.people.findFirst({
+  // Who the row itself is with: the IOU's person, or nobody.
+  const personId =
+    type === "lent" || type === "borrowed"
+      ? (who[0] ?? null)
+      : type === "settle" || share
+        ? (data.personId ?? current.personId)
+        : null
+  if (data.personId && !personId)
+    throw new EditError("Only an IOU is with someone.")
+  if (data.personId && personId === data.personId) {
+    const exists = await db.query.people.findFirst({
       where: eq(people.id, data.personId),
       columns: { id: true },
     })
-    if (!person) throw new EditError("That person is gone.")
-    personId = changes.personId = data.personId
+    if (!exists) throw new EditError("That person is gone.")
   }
+  if (personId !== current.personId) changes.personId = personId
 
   // A repayment can't pay back more than was owed.
   if (
-    kind === "settle" &&
+    type === "settle" &&
     personId &&
     (changes.amount !== undefined || changes.personId !== undefined)
   ) {
@@ -675,52 +789,158 @@ export async function editTransaction(data: {
     if (next !== undefined && next !== current[field]) changes[field] = next
   }
 
-  const changed = Object.keys(changes) as (keyof typeof changes)[]
-  if (!changed.length) return
+  // The others' rows: one IOU per person sharing the bill.
+  const theirs =
+    type === "expense" && ways > 1
+      ? who.map((id, i) => ({
+          personId: id,
+          amount: parts ? -(parts[i + 1] ?? 0) : null,
+        }))
+      : []
+  const plannedOthers = reshaped || parts !== null
+  if (!Object.keys(changes).length && !plannedOthers) return
+
+  // New rows of a line need an entry to belong to.
+  let entryId = current.entryId
+  if (theirs.length > others.length && !entryId) {
+    const [entry] = await db
+      .insert(entries)
+      .values({
+        rawText: changes.description ?? current.description,
+        mode: "log",
+      })
+      .returning({ id: entries.id })
+    entryId = changes.entryId = entry?.id ?? null
+  }
 
   await db.update(transactions).set(changes).where(eq(transactions.id, data.id))
 
-  // The others' shares of a split follow its bill, wording and date.
+  // Keep the others' rows in step: same wording, date and account as yours.
+  const line = {
+    description: changes.description ?? current.description,
+    localDate: changes.localDate ?? current.localDate,
+    accountId: accountId ?? null,
+  }
   for (const [i, other] of others.entries()) {
-    const follow: Partial<typeof transactions.$inferInsert> = {}
-    const part = parts?.[i + 1]
-    if (part !== undefined) follow.amount = -part
-    if (changes.description !== undefined)
-      follow.description = changes.description
-    if (changes.localDate !== undefined) follow.localDate = changes.localDate
+    const next = theirs[i]
+    if (!next) {
+      await db
+        .update(transactions)
+        .set({ deletedAt: new Date() })
+        .where(eq(transactions.id, other.id))
+      continue
+    }
+    const follow: Partial<NewRow> = {}
+    if (next.personId !== other.personId) follow.personId = next.personId
+    if (next.amount !== null && next.amount !== other.amount)
+      follow.amount = next.amount
+    for (const key of ["description", "localDate", "accountId"] as const)
+      if (line[key] !== other[key]) follow[key] = line[key] as never
     if (Object.keys(follow).length)
       await db
         .update(transactions)
         .set(follow)
         .where(eq(transactions.id, other.id))
   }
-
-  // Open questions still read the old amount; give them the new one.
-  if (changes.amount !== undefined) {
-    const whole = ways ? (data.amount ?? billOf(current, others)) : size
-    await rescaleQuestions(db, data.id, { amount: whole, share: size })
+  const added = theirs.slice(others.length)
+  if (added.length) {
+    await db.insert(transactions).values(
+      added.map((t) => ({
+        entryId,
+        kind: "lend" as const,
+        amount: t.amount ?? 0,
+        personId: t.personId,
+        ...line,
+        status: "confirmed" as const,
+        // Not newer than your row, so "undo" in the composer doesn't take
+        // the whole bill back for an edit.
+        createdAt: current.createdAt,
+      }))
+    )
   }
+
+  // Open questions still read the old line; give them the new one.
+  if (changes.amount !== undefined)
+    await rescaleQuestions(db, data.id, { amount: whole, share: size })
   // Answered by hand: the owner picked these, so stop asking.
   await resolveQuestionsFor(db, data.id, [
-    ...(changes.categoryId !== undefined || kindChanged
+    ...(changes.categoryId !== undefined || type !== was
       ? (["category"] as const)
       : []),
     ...(changes.accountId !== undefined ? (["account"] as const) : []),
-    ...(kindChanged ? (["direction", "transfer", "relation"] as const) : []),
+    ...(reshaped ? (["direction", "transfer", "relation"] as const) : []),
   ])
   // Confirmed rows teach the categorizer; corrections keep the history.
-  await db.insert(corrections).values(
-    changed.map((field) => ({
-      transactionId: data.id,
-      field,
-      fromValue: stringOf(current[field]),
-      toValue: stringOf(changes[field]),
-    }))
+  const changed = (Object.keys(changes) as (keyof NewRow)[]).filter(
+    (field) => field !== "entryId"
   )
+  const history: (typeof corrections.$inferInsert)[] = changed.map((field) => ({
+    transactionId: data.id,
+    field,
+    fromValue: stringOf(current[field as keyof Row]),
+    toValue: stringOf(changes[field]),
+  }))
+  if (!sameList(who, wasPeople) && type === "expense")
+    history.push({
+      transactionId: data.id,
+      field: "people",
+      fromValue: wasPeople.join(","),
+      toValue: who.join(","),
+    })
+  if (history.length) await db.insert(corrections).values(history)
 }
 
 const stringOf = (value: unknown) =>
-  value === null || value === undefined ? null : String(value)
+  value === null || value === undefined
+    ? null
+    : value instanceof Date
+      ? value.toISOString()
+      : String(value)
+
+/** One entry with what the edit drawer needs, for pages without a month. */
+export async function transactionFor(id: string) {
+  const db = getDb()
+  const [row] = await fetchTransactions(
+    db,
+    and(eq(transactions.id, id), isNull(transactions.deletedAt))
+  )
+  return row ? toLedgerTxn(row) : null
+}
+
+/** What the edit drawer offers: categories, open accounts and people. */
+export async function editorChoices() {
+  const db = getDb()
+  const [cats, book, open, everyone] = await Promise.all([
+    db
+      .select({
+        id: categories.id,
+        name: categories.name,
+        emoji: categories.emoji,
+        kind: categories.kind,
+      })
+      .from(categories)
+      .where(eq(categories.archived, false))
+      .orderBy(categories.kind, categories.sort),
+    accountBook(db),
+    db
+      .select({ id: accounts.id, name: accounts.name, color: accounts.color })
+      .from(accounts)
+      .where(eq(accounts.archived, false))
+      .orderBy(accounts.sort, accounts.name),
+    db
+      .select({ id: people.id, name: people.name })
+      .from(people)
+      .orderBy(people.name),
+  ])
+  return {
+    /** The owner's date, for new entries' defaults. */
+    today: await today(db),
+    categories: cats,
+    accounts: open,
+    defaultAccountId: book.defaultAccountId,
+    people: everyone,
+  }
+}
 
 const TREND_CATEGORIES = 4
 

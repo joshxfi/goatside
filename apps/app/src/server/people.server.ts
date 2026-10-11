@@ -1,17 +1,18 @@
 /**
- * People: balances, IOU history, names and nicknames, merging duplicates,
- * and a drafted reminder. Server-only.
+ * People: balances, IOU history, adding people and IOUs by hand, names and
+ * nicknames, merging duplicates, and a drafted reminder. Server-only.
  */
 import { generateText } from "ai"
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm"
 import { formatPeso } from "@workspace/core/money"
 import { schema } from "@workspace/db"
 import { peopleWithBalances } from "./agent.server"
+import { matchPerson } from "./ask-people.server"
 import { serverEnv } from "./env"
 import { today } from "./ledger.server"
 import { aiEnabled, getDb } from "./services"
 
-const { people, transactions } = schema
+const { accounts, people, transactions } = schema
 
 export class PeopleError extends Error {}
 
@@ -137,6 +138,66 @@ export async function updatePerson(input: {
     .update(people)
     .set({ ...(name && { name }), ...(aliases && { aliases }) })
     .where(eq(people.id, input.id))
+}
+
+/**
+ * Someone new, or the person already going by that name or nickname, so
+ * "mars" finds Mara instead of adding her twice.
+ */
+export async function addPerson(input: { name: string }) {
+  const db = getDb()
+  const name = clean(input.name)
+  if (!name) throw new PeopleError("That needs a name.")
+  const known = matchPerson(await peopleWithBalances(db), name)
+  if (known) return { id: known.id, name: known.name, existed: true }
+  const [created] = await db
+    .insert(people)
+    .values({ name })
+    .returning({ id: people.id })
+  if (!created) throw new PeopleError("Couldn't add that person.")
+  return { id: created.id, name, existed: false }
+}
+
+/**
+ * An IOU typed into the form, saved as given: you lent them money or paid
+ * for them, or they did for you. No model reads it.
+ */
+export async function addIou(input: {
+  personId: string
+  type: "lent" | "borrowed"
+  amount: number
+  description: string
+  localDate: string
+  accountId: string | null
+}) {
+  const db = getDb()
+  const person = await db.query.people.findFirst({
+    where: eq(people.id, input.personId),
+    columns: { id: true },
+  })
+  if (!person) throw new PeopleError("That person no longer exists.")
+  if (input.accountId) {
+    const account = await db.query.accounts.findFirst({
+      where: eq(accounts.id, input.accountId),
+      columns: { id: true },
+    })
+    if (!account) throw new PeopleError("That account is gone.")
+  }
+  if (input.localDate > (await today(db)))
+    throw new PeopleError("That date is in the future.")
+  const [row] = await db
+    .insert(transactions)
+    .values({
+      kind: "lend",
+      amount: input.type === "lent" ? -input.amount : input.amount,
+      personId: person.id,
+      localDate: input.localDate,
+      description: clean(input.description),
+      accountId: input.accountId,
+      status: "confirmed",
+    })
+    .returning({ id: transactions.id })
+  return { id: row?.id ?? null }
 }
 
 /**

@@ -117,14 +117,17 @@ One responsive page, split by CSS breakpoints so the server renders the right la
 
 ### 2.4.3 Editing an entry by hand (as built)
 
-The edit drawer covers everything the agent decides, so no fix needs a model or a retyped entry. "Amounts stay as typed" means the model never changes a number; the owner can. Changes stay in the form until Save (`editTransaction` in `ledger.server.ts`), and amount, type and person edits toast with Undo.
+The edit drawer covers everything the agent decides, so no fix needs a model or a retyped entry. "Amounts stay as typed" means the model never changes a number; the owner can. Changes stay in the form until Save (`editTransaction` in `ledger.server.ts`), and amount, type and people edits toast with Undo. It opens from the feed, the overview cards, Transactions, and the history on a person's or an account's page (`EntryDrawer` loads the entry by id).
 
-- **Amount**, unsigned: the type sets the direction. On a split bill the field is the whole bill; your share and the others' IOUs are re-divided evenly (`shares()`, odd centavos to you), and the hint shows who pays what. Open questions on the entry are updated to the new amount, so answering one later re-files with it.
-- **Type**: Spent, Received or Transfer, for your own entries (not IOUs or split bills). Switching direction clears a category that no longer fits; a transfer needs two different accounts; a transfer turned into money in is filed where it arrived. Changing the type closes the agent's direction, transfer, relation and category questions.
+- **A line is your row plus the others' IOUs.** Its type, people and ways decide those rows the way `planRows` does for a typed line, and changing any of them re-plans it: your row keeps its id, questions and history, the others' rows are updated in place, added (same entry, same `createdAt`, so the composer's "undo" still takes the whole line) or soft-deleted.
+- **Type**: Spent, Received, Transfer, Lent or Borrowed, for anything but a repayment or someone's share of a split. So a split can become "just me" or "I paid it all for Ben", an IOU can become your own spending or money received, and back. Switching direction clears a category that no longer fits; a transfer needs two different accounts; a transfer turned into money in is filed where it arrived. Changing it closes the agent's direction, transfer, relation and category questions.
+- **Split with** (spending): pick people, or "Add someone" (a name or nickname that matches someone picks them). **Ways** counts you in; more ways than people leaves unnamed shares, as "split 4" does. The hint shows who pays what.
+- **Amount**, unsigned: the type sets the direction. On a split it's the whole bill, re-divided evenly (`shares()`, odd centavos to you) only when the bill or the split changed, so shares set one by one stay.
+- **Lent to / Borrowed from / With**: who an IOU or a repayment is with. Someone's share of a split edits just that share. A repayment can't pay back more than was owed (the same rule as settling up).
 - **Repeats every month**, for spending and income: what the pace projection and the Repeats card count.
-- **With**: which person an IOU is with. A repayment can't pay back more than was owed (the same rule as settling up).
-- **Split bills move together**: the others' shares follow its bill, description and date, and deleting your share deletes theirs (one Undo restores all).
-- Every change is a correction (field, old, new), and an edited row is confirmed, so its category, direction and repeats teach the next categorization.
+- **Split bills move together**: the others' shares follow its description, date and account, and deleting your share deletes theirs (one Undo restores all).
+- **Add an IOU** (People, and a person's page): I lent or paid for them / they lent or paid for me, who (or someone new), amount, what for, account (the default when lending, none when they paid), date. Saved as typed, no model involved.
+- Open questions on the entry get the new amount, so answering one later re-files with it. Every change is a correction (field, old, new, plus `people` for a split's sharers), and an edited row is confirmed, so its category, direction and repeats teach the next categorization.
 
 ### 2.5 Small touches
 

@@ -1,10 +1,13 @@
+import { useState } from "react"
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { Link, createFileRoute } from "@tanstack/react-router"
-import { ChevronRightIcon } from "lucide-react"
+import { ChevronRightIcon, PlusIcon } from "lucide-react"
 import { formatPeso } from "@workspace/core/money"
 import { CoinMark } from "@workspace/ui/components/brand"
+import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
 import { PageHeader } from "@/components/app-shell"
+import { IouDrawer } from "@/components/iou-form"
 import { Figure } from "@/components/motion"
 import { shortDate } from "@/lib/format"
 import { peopleQuery } from "@/lib/queries"
@@ -18,6 +21,7 @@ export const Route = createFileRoute("/_app/people/")({
 function People() {
   const { viewer } = Route.useRouteContext()
   const { data: people } = useSuspenseQuery(peopleQuery())
+  const [adding, setAdding] = useState(false)
   const owedToYou = people
     .filter((p) => p.owed > 0)
     .reduce((s, p) => s + p.owed, 0)
@@ -27,7 +31,17 @@ function People() {
 
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-none lg:px-8 lg:pt-6">
-      <PageHeader title="People" viewer={viewer} />
+      <PageHeader
+        title="People"
+        viewer={viewer}
+        action={
+          <Button variant="outline" onClick={() => setAdding(true)}>
+            <PlusIcon />
+            Add an IOU
+          </Button>
+        }
+      />
+      <IouDrawer open={adding} onClose={() => setAdding(false)} />
       <div className="flex flex-col gap-6 lg:mx-auto lg:w-full lg:max-w-3xl">
         <p className="text-sm text-muted-foreground">
           Loans, repayments and shared bills, kept apart from your spending.

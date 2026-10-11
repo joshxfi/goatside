@@ -5,7 +5,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import { createFileRoute, notFound, useRouter } from "@tanstack/react-router"
-import { CopyIcon, MergeIcon, SendIcon, XIcon } from "lucide-react"
+import { CopyIcon, MergeIcon, PlusIcon, SendIcon, XIcon } from "lucide-react"
 import { formatPeso, parseAmount } from "@workspace/core/money"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -20,7 +20,9 @@ import { Input } from "@workspace/ui/components/input"
 import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
 import { PageHeader } from "@/components/app-shell"
+import { IouDrawer } from "@/components/iou-form"
 import { AnimatePresence, CollapseItem, Figure } from "@/components/motion"
+import { EntryDrawer } from "@/components/transaction-drawer"
 import { capitalize, iouLabel, shortDate } from "@/lib/format"
 import { peopleQuery, personQuery } from "@/lib/queries"
 import { deleteTransactions, settleUp } from "@/server/ledger"
@@ -79,6 +81,7 @@ function Balance({ person }: { person: PersonDetail }) {
   const refresh = useRefresh()
   const [part, setPart] = useState("")
   const [reminder, setReminder] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
   const owesYou = person.owed > 0
   const square = person.owed === 0
 
@@ -136,6 +139,19 @@ function Balance({ person }: { person: PersonDetail }) {
         )}
       </div>
 
+      <IouDrawer
+        open={adding}
+        personId={person.id}
+        onClose={() => setAdding(false)}
+      />
+      {square && (
+        <div>
+          <Button variant="outline" onClick={() => setAdding(true)}>
+            <PlusIcon />
+            Add an IOU
+          </Button>
+        </div>
+      )}
       {!square && (
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -170,6 +186,10 @@ function Balance({ person }: { person: PersonDetail }) {
               Record part
             </Button>
           </form>
+          <Button variant="ghost" onClick={() => setAdding(true)}>
+            <PlusIcon />
+            Add an IOU
+          </Button>
           {owesYou && (
             <Button
               variant="ghost"
@@ -237,6 +257,7 @@ function Balance({ person }: { person: PersonDetail }) {
 }
 
 function History({ person }: { person: PersonDetail }) {
+  const [open, setOpen] = useState<string | null>(null)
   return (
     <section aria-labelledby="history-heading" className="flex flex-col gap-3">
       <h2
@@ -250,7 +271,12 @@ function History({ person }: { person: PersonDetail }) {
           <AnimatePresence initial={false}>
             {person.history.map((h) => (
               <CollapseItem key={h.id}>
-                <div className="flex items-center gap-3 px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setOpen(h.id)}
+                  aria-label={`${capitalize(h.description) || "IOU"}, ${iouLabel(h.kind, h.amount, person.name)}, ${formatPeso(Math.abs(h.amount))}. Edit`}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors [@media(hover:hover)]:hover:bg-muted/60"
+                >
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate">
                       {capitalize(h.description) || "IOU"}
@@ -270,7 +296,7 @@ function History({ person }: { person: PersonDetail }) {
                         : `${h.owedAfter > 0 ? "owes" : "you owe"} ${formatPeso(Math.abs(h.owedAfter))} after`}
                     </span>
                   </span>
-                </div>
+                </button>
               </CollapseItem>
             ))}
           </AnimatePresence>
@@ -280,6 +306,7 @@ function History({ person }: { person: PersonDetail }) {
           No IOUs with {person.name} yet.
         </p>
       )}
+      <EntryDrawer id={open} onClose={() => setOpen(null)} />
     </section>
   )
 }

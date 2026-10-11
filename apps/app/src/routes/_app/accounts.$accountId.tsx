@@ -21,6 +21,7 @@ import { AccountCard, balanceText } from "@/components/account-card"
 import { AccountDrawer, AccountForm } from "@/components/account-form"
 import { PageHeader } from "@/components/app-shell"
 import { Figure } from "@/components/motion"
+import { EntryDrawer } from "@/components/transaction-drawer"
 import { owedOn } from "@/lib/accounts"
 import { capitalize, iouLabel, shortDate } from "@/lib/format"
 import { accountQuery, accountsQuery, monthQuery } from "@/lib/queries"
@@ -308,6 +309,7 @@ function Manage({
 
 function History({ data }: { data: AccountDetail }) {
   const { history, account } = data
+  const [open, setOpen] = useState<string | null>(null)
   const card = account.kind === "credit_card"
   if (!history.length) {
     return (
@@ -336,52 +338,58 @@ function History({ data }: { data: AccountDetail }) {
             ? `${formatPeso(owedOn(row.balanceAfter))} owed`
             : formatPeso(row.balanceAfter)
           return (
-            <li key={row.id} className="flex items-center gap-3 px-4 py-2.5">
-              <span
-                aria-hidden
-                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted"
+            <li key={row.id}>
+              <button
+                type="button"
+                onClick={() => setOpen(row.id)}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors [@media(hover:hover)]:hover:bg-muted/60"
               >
-                {transfer ? (
-                  <ArrowLeftRightIcon className="size-4 text-muted-foreground" />
-                ) : iou ? (
-                  "🤝"
-                ) : (
-                  (row.category?.emoji ?? "·")
-                )}
-              </span>
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate">{title}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {shortDate(row.localDate)}
-                  {" · "}
-                  {transfer
-                    ? row.change > 0
-                      ? `from ${row.other ?? "another account"}`
-                      : `to ${row.other ?? "another account"}`
-                    : (iou ?? row.category?.name ?? "Uncategorized")}
-                </span>
-              </span>
-              <span className="flex shrink-0 flex-col items-end">
                 <span
-                  className={cn(
-                    "figure font-display text-lg",
-                    !transfer &&
-                      !iou &&
-                      row.change > 0 &&
-                      "text-income-foreground",
-                    !transfer &&
-                      !iou &&
-                      row.change < 0 &&
-                      "text-expense-foreground",
-                    (transfer || iou) && "text-muted-foreground"
-                  )}
+                  aria-hidden
+                  className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted"
                 >
-                  {formatPeso(row.change, { sign: row.change > 0 })}
+                  {transfer ? (
+                    <ArrowLeftRightIcon className="size-4 text-muted-foreground" />
+                  ) : iou ? (
+                    "🤝"
+                  ) : (
+                    (row.category?.emoji ?? "·")
+                  )}
                 </span>
-                <span className="figure text-[11px] text-muted-foreground">
-                  {after}
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate">{title}</span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    {shortDate(row.localDate)}
+                    {" · "}
+                    {transfer
+                      ? row.change > 0
+                        ? `from ${row.other ?? "another account"}`
+                        : `to ${row.other ?? "another account"}`
+                      : (iou ?? row.category?.name ?? "Uncategorized")}
+                  </span>
                 </span>
-              </span>
+                <span className="flex shrink-0 flex-col items-end">
+                  <span
+                    className={cn(
+                      "figure font-display text-lg",
+                      !transfer &&
+                        !iou &&
+                        row.change > 0 &&
+                        "text-income-foreground",
+                      !transfer &&
+                        !iou &&
+                        row.change < 0 &&
+                        "text-expense-foreground",
+                      (transfer || iou) && "text-muted-foreground"
+                    )}
+                  >
+                    {formatPeso(row.change, { sign: row.change > 0 })}
+                  </span>
+                  <span className="figure text-[11px] text-muted-foreground">
+                    {after}
+                  </span>
+                </span>
+              </button>
             </li>
           )
         })}
@@ -391,6 +399,7 @@ function History({ data }: { data: AccountDetail }) {
           Showing the latest {history.length}.
         </p>
       )}
+      <EntryDrawer id={open} onClose={() => setOpen(null)} />
     </section>
   )
 }

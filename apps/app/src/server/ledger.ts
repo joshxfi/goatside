@@ -2,8 +2,11 @@ import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { MAX_CENTAVOS } from "@workspace/core/money"
 import {
+  ENTRY_TYPES,
   EditError,
   editTransaction,
+  editorChoices,
+  transactionFor,
   logText,
   monthView,
   setDeleted,
@@ -87,7 +90,11 @@ export const updateTransaction = createServerFn({ method: "POST" })
       toAccountId: z.uuid().optional(),
       /** Centavos, unsigned. For a split, the whole bill. */
       amount: z.number().int().positive().max(MAX_CENTAVOS).optional(),
-      kind: z.enum(["expense", "income", "transfer"]).optional(),
+      type: z.enum(ENTRY_TYPES).optional(),
+      /** Who shares the bill, or who the IOU is with. */
+      people: z.array(z.uuid()).max(29).optional(),
+      /** Ways the bill splits, you included. */
+      ways: z.number().int().min(1).max(30).optional(),
       recurring: z.boolean().optional(),
       personId: z.uuid().optional(),
     })
@@ -102,6 +109,23 @@ export const updateTransaction = createServerFn({ method: "POST" })
       throw error
     }
   })
+
+/** One entry and the drawer's choices, for pages that list entries. */
+export const getTransaction = createServerFn()
+  .middleware([authMiddleware])
+  .validator(z.object({ id: z.uuid() }))
+  .handler(async ({ data }) => {
+    const [txn, choices] = await Promise.all([
+      transactionFor(data.id),
+      editorChoices(),
+    ])
+    return txn ? { txn, ...choices } : null
+  })
+
+/** Categories, open accounts, people and today, for forms off the month. */
+export const getEditorChoices = createServerFn()
+  .middleware([authMiddleware])
+  .handler(() => editorChoices())
 
 /** A split bill's total and the others' shares, for the edit drawer. */
 export const getSplit = createServerFn()
