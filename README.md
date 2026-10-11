@@ -10,6 +10,8 @@ It's built for one person. There's no hosted service: you deploy your own copy
 to Vercel, with your own Turso database and AI Gateway key. It has exactly one
 account, whose username and password you set in its environment.
 
+Amounts are in one currency you pick in Settings. It starts as Philippine pesos.
+
 > Early development. The docs, including the full self-hosting guide, are in
 > [`apps/web/content/docs`](./apps/web/content/docs).
 
@@ -59,7 +61,7 @@ account, whose username and password you set in its environment.
   there; it drafts a friendly payment reminder for someone who owes you; your
   frequent entries become one-tap chips above the composer.
 - **Answering you.** Type a question instead of an amount ("how much on food this
-  month?", "sino may utang sakin?") and DeepSeek V4.1 Flash answers from your ledger
+  month?", "who owes me money?") and DeepSeek V4.1 Flash answers from your ledger
   with read-only tools.
 
 **What leaves your instance:** entry text and amounts (to TypeSafe, for categorizing,

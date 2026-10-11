@@ -117,7 +117,7 @@ export type ImportDecision =
   | { action: "link" }
   | { action: "transfer"; accountId: string }
 
-/** A typed amount a little off what was charged: within ₱20 or 5%. */
+/** A typed amount a little off what was charged: within 20.00 or 5%. */
 const near = (a: number, b: number) =>
   Math.sign(a) === Math.sign(b) &&
   Math.abs(a - b) <= Math.max(2_000, Math.round(Math.abs(a) * 0.05))

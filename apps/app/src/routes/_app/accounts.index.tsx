@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query"
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { PlusIcon, MessageCircleQuestionMarkIcon } from "lucide-react"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { CoinMark } from "@workspace/ui/components/brand"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -121,13 +121,13 @@ function Accounts() {
                               {a.thisMonth.in > 0 && (
                                 <span className="text-income-foreground">
                                   {" "}
-                                  +{formatPeso(a.thisMonth.in)} in
+                                  +{formatMoney(a.thisMonth.in)} in
                                 </span>
                               )}
                               {a.thisMonth.out > 0 && (
                                 <span className="text-expense-foreground">
                                   {" "}
-                                  −{formatPeso(a.thisMonth.out)} out
+                                  −{formatMoney(a.thisMonth.out)} out
                                 </span>
                               )}
                             </>
@@ -166,7 +166,7 @@ function Stat({
   return (
     <div className={cn("rounded-2xl border bg-card px-4 py-3", className)}>
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="figure font-display text-3xl">{formatPeso(value)}</dd>
+      <dd className="figure font-display text-3xl">{formatMoney(value)}</dd>
     </div>
   )
 }
@@ -273,7 +273,7 @@ function Archived({ list }: { list: AccountsOverview["accounts"] }) {
           <li key={a.id} className="flex items-center gap-3 px-4 py-2.5">
             <span className="min-w-0 flex-1 truncate">{a.name}</span>
             <span className="figure text-sm text-muted-foreground">
-              {formatPeso(a.balance)}
+              {formatMoney(a.balance)}
             </span>
             <Button
               size="sm"

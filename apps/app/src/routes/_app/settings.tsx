@@ -5,7 +5,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useRouter } from "@tanstack/react-router"
 import {
   DownloadIcon,
   EyeIcon,
@@ -14,7 +14,11 @@ import {
   MoreHorizontalIcon,
   SearchIcon,
 } from "lucide-react"
-import { formatPeso } from "@workspace/core/money"
+import {
+  COMMON_CURRENCIES,
+  currencyName,
+  formatMoney,
+} from "@workspace/core/money"
 import { Button } from "@workspace/ui/components/button"
 import {
   Drawer,
@@ -50,6 +54,7 @@ import {
   editCategory,
   getRefileSuggestions,
   mergeCategories,
+  updateCurrency,
   updateTimeZone,
 } from "@/server/settings"
 
@@ -98,6 +103,7 @@ function Settings() {
           ))}
         </div>
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <Currency current={data.currency} />
           <TimeZone current={data.timeZone} />
           <InstallApp />
         </div>
@@ -246,7 +252,7 @@ function CategoryRow({
       <span className="figure shrink-0 text-right text-xs text-muted-foreground">
         {category.count ? (
           <>
-            {category.count} · {formatPeso(category.total)}
+            {category.count} · {formatMoney(category.total)}
           </>
         ) : (
           "unused"
@@ -555,7 +561,7 @@ function Suggestions({
                       </span>
                     </span>
                     <span className="figure text-sm">
-                      {formatPeso(Math.abs(r.amount))}
+                      {formatMoney(Math.abs(r.amount))}
                     </span>
                   </label>
                 </li>
@@ -635,6 +641,58 @@ function TimeZone({ current }: { current: string }) {
             {zones.map((z) => (
               <SelectItem key={z} value={z}>
                 {z.replace("_", " ")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </section>
+  )
+}
+
+function Currency({ current }: { current: string }) {
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  const codes: string[] = COMMON_CURRENCIES.includes(
+    current as (typeof COMMON_CURRENCIES)[number]
+  )
+    ? [...COMMON_CURRENCIES]
+    : [current, ...COMMON_CURRENCIES]
+  const items = codes
+    .map((code) => ({ value: code, label: `${currencyName(code)} (${code})` }))
+    .toSorted((a, b) => a.label.localeCompare(b.label))
+  const save = useMutation({
+    mutationFn: (currency: string) => updateCurrency({ data: { currency } }),
+    onSuccess: async (result, currency) => {
+      if (!result.ok) return toast(result.message)
+      // The layout reads the currency from the route context and remounts.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["categories"] }),
+        router.invalidate(),
+      ])
+      toast(`Amounts now show in ${currencyName(currency)}.`)
+    },
+  })
+
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-sm font-medium text-muted-foreground">Currency</h2>
+      <div className="flex items-center justify-between gap-4 rounded-2xl border bg-card px-4 py-3">
+        <p className="text-sm text-muted-foreground">
+          Every amount shows in it. Changing it doesn't convert anything.
+        </p>
+        <Select
+          value={current}
+          onValueChange={(value) => value && save.mutate(String(value))}
+          items={items}
+        >
+          <SelectTrigger className="h-9 w-52 shrink-0" aria-label="Currency">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {items.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
               </SelectItem>
             ))}
           </SelectContent>

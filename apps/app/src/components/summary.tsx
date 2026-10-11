@@ -1,4 +1,4 @@
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
 import { Figure } from "@/components/motion"
 import { monthName } from "@/lib/format"
@@ -25,7 +25,7 @@ export function Summary({ view }: { view: MonthView }) {
                 diff <= 0 ? "text-income-foreground" : "text-expense-foreground"
               )}
             >
-              {formatPeso(Math.abs(diff))} {diff <= 0 ? "less" : "more"}
+              {formatMoney(Math.abs(diff))} {diff <= 0 ? "less" : "more"}
             </span>{" "}
             than {isCurrent ? "this point in" : ""} {monthName(previous.month)}
           </p>

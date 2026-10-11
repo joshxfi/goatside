@@ -17,7 +17,7 @@ import { and, between, desc, eq, inArray, isNull, sql } from "drizzle-orm"
 import { z } from "zod"
 import { askInstructions } from "@workspace/ai/ask"
 import { DEFAULT_TIME_ZONE, todayIn } from "@workspace/core/dates"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { type Db, schema } from "@workspace/db"
 import { ACCOUNT_KIND_LABELS } from "@workspace/core/accounts"
 import { accountBook } from "./agent.server"
@@ -30,6 +30,7 @@ import {
 import { peopleTools } from "./ask-people.server"
 import { serverEnv } from "./env"
 import { getDb } from "./services"
+import { loadCurrency } from "./settings.server"
 
 const { accounts, categories, settings, transactions } = schema
 
@@ -46,10 +47,9 @@ const DIRECTION = z
   .default("both")
   .describe("out = spending, in = money received")
 
-const pesos = (centavos: number) => Math.round(centavos) / 100
-const money = (centavos: number) => ({
-  pesos: pesos(centavos),
-  text: formatPeso(centavos),
+const money = (cents: number) => ({
+  value: Math.round(cents) / 100,
+  text: formatMoney(cents),
 })
 
 async function ledgerRows(
@@ -285,10 +285,11 @@ function explain(error: unknown) {
  * tools, and the approval gate. Shared by the route and the eval.
  */
 export async function askAgent(db: Db) {
-  const [timeZone, active, book] = await Promise.all([
+  const [timeZone, currency, active, book] = await Promise.all([
     db.query.settings
       .findFirst({ where: eq(settings.id, 1), columns: { timeZone: true } })
       .then((row) => row?.timeZone ?? DEFAULT_TIME_ZONE),
+    loadCurrency(db),
     db
       .select({ name: categories.name, kind: categories.kind })
       .from(categories)
@@ -300,6 +301,7 @@ export async function askAgent(db: Db) {
     system: askInstructions({
       today: todayIn(timeZone),
       timeZone,
+      currency,
       categories: active,
       accounts: book.known.map((a) => ({
         name: a.name,

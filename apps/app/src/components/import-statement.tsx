@@ -1,7 +1,7 @@
 import { useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { FileTextIcon, LockIcon } from "lucide-react"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import {
   type StatementResult,
   type StatementRow,
@@ -419,7 +419,7 @@ function Amount({ value, muted }: { value: number; muted?: boolean }) {
             : "text-expense-foreground"
       )}
     >
-      {formatPeso(value, { sign: value > 0 })}
+      {formatMoney(value, { sign: value > 0 })}
     </span>
   )
 }
@@ -596,14 +596,14 @@ function Review({
     const linking = decisions[row.index]!.action === "link"
     const changes = [
       match.amount !== row.amount &&
-        `its amount becomes ${formatPeso(Math.abs(row.amount))}`,
+        `its amount becomes ${formatMoney(Math.abs(row.amount))}`,
       match.accountName && `it moves from ${match.accountName}`,
     ].filter(Boolean)
     return rowItem(
       row,
       <>
         maybe "{match.description || "an entry"}",{" "}
-        {formatPeso(Math.abs(match.amount))},{" "}
+        {formatMoney(Math.abs(match.amount))},{" "}
         {when(match.localDate, row.localDate)}
         {match.accountName && ` on ${match.accountName}`}
       </>,

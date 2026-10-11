@@ -1,4 +1,4 @@
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
 import { dayLabel } from "@/lib/format"
 import type { MonthView } from "@/server/ledger"
@@ -23,7 +23,7 @@ export function DailyBars({
       <ul className="flex h-20 items-end gap-[3px]">
         {daily.map((d) => {
           const future = d.date > today
-          const label = `${dayLabel(d.date, today)}: ${formatPeso(d.out)} spent`
+          const label = `${dayLabel(d.date, today)}: ${formatMoney(d.out)} spent`
           return (
             <li
               key={d.date}

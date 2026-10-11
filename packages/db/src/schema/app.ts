@@ -1,6 +1,6 @@
 /**
  * Goatside's tables. One deploy belongs to one person, so there are no
- * user ids. Money is integer centavos, always PHP. `local_date`
+ * user ids. Money is integer cents of the owner's currency. `local_date`
  * ("YYYY-MM-DD" in the owner's timezone) decides which day/month a
  * transaction belongs to; `created_at` orders within a day.
  */
@@ -30,6 +30,8 @@ export const settings = sqliteTable(
   {
     id: integer("id").primaryKey().default(1),
     timeZone: text("time_zone").notNull().default("Asia/Manila"),
+    /** ISO 4217 code every amount is shown in. Amounts are never converted. */
+    currency: text("currency").notNull().default("PHP"),
     /** Where entries that name no account are filed; null leaves them unfiled. */
     defaultAccountId: text("default_account_id"),
     createdAt: createdAt(),
@@ -115,7 +117,7 @@ export const accounts = sqliteTable(
       .default(sql`'[]'`),
     /** Last four digits, shown on the card. */
     last4: text("last4"),
-    /** Credit cards only, centavos. */
+    /** Credit cards only, cents. */
     creditLimit: integer("credit_limit"),
     opening: integer("opening").notNull().default(0),
     sort: integer("sort").notNull().default(0),
@@ -160,7 +162,7 @@ export const transactions = sqliteTable(
       onDelete: "set null",
     }),
     kind: text("kind", { enum: TRANSACTION_KINDS }).notNull(),
-    /** Signed centavos: negative is money out. For splits, this is your share. */
+    /** Signed cents: negative is money out. For splits, this is your share. */
     amount: integer("amount").notNull(),
     localDate: text("local_date").notNull(),
     description: text("description").notNull().default(""),

@@ -11,7 +11,7 @@ import { Chart } from "@tanstack/charts/react"
 import { scaleBand } from "@tanstack/charts/scales/band"
 import { scaleLinear } from "@tanstack/charts/scales/linear"
 import { tooltip } from "@tanstack/charts/tooltip"
-import { formatPeso, formatPesoCompact } from "@workspace/core/money"
+import { formatMoney, formatMoneyCompact } from "@workspace/core/money"
 import {
   RANKED,
   SAMPLE_MONTHS,
@@ -44,7 +44,7 @@ const RING_ORDER = [NAMED[0], NAMED[1], NAMED[3], NAMED[2], OTHER].filter(
 const SURFACE = "var(--card)"
 
 const moneyAxis = {
-  ticks: { count: 4, format: (value: number) => formatPesoCompact(value) },
+  ticks: { count: 4, format: (value: number) => formatMoneyCompact(value) },
 }
 
 const cumulative = (values: number[]) =>
@@ -124,11 +124,11 @@ export function PaceChart({ view }: { view: SampleMonth }) {
           const day = point.datum.day
           const lines = [`Day ${day}`]
           const now = thisMonth[day - 1]
-          if (now) lines.push(`${current}: ${formatPeso(now.total)}`)
+          if (now) lines.push(`${current}: ${formatMoney(now.total)}`)
           const then = lastMonth[day - 1]
-          if (then) lines.push(`${before}: ${formatPeso(then.total)}`)
+          if (then) lines.push(`${before}: ${formatMoney(then.total)}`)
           if (ahead && day === ahead.days) {
-            lines.push(`Projected: ${formatPeso(ahead.total)}`)
+            lines.push(`Projected: ${formatMoney(ahead.total)}`)
           }
           return lines.join("\n")
         },
@@ -207,7 +207,7 @@ export function SpendingDonut({
         use: tooltip,
         format: (point) => {
           const share = total ? Math.round((point.datum.out / total) * 100) : 0
-          return `${point.datum.name}: ${formatPeso(point.datum.out)} (${share}%)`
+          return `${point.datum.name}: ${formatMoney(point.datum.out)} (${share}%)`
         },
       },
     })
@@ -225,7 +225,7 @@ export function SpendingDonut({
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
         <span className="text-xs text-muted-foreground">Spent</span>
         <span className="figure font-display text-3xl leading-none">
-          {formatPesoCompact(total)}
+          {formatMoneyCompact(total)}
         </span>
       </div>
     </div>
@@ -314,7 +314,7 @@ export function CalendarHeatmap({ view }: { view: SampleMonth }) {
         format: (point) =>
           point.datum.future
             ? `${monthName(view.month)} ${point.datum.day}`
-            : `${monthName(view.month)} ${point.datum.day}: ${point.datum.out ? formatPeso(point.datum.out) : "nothing spent"}`,
+            : `${monthName(view.month)} ${point.datum.day}: ${point.datum.out ? formatMoney(point.datum.out) : "nothing spent"}`,
       },
     })
   }, [view])
@@ -399,14 +399,14 @@ export function TrendChart({ selected }: { selected: string }) {
           const month = points[0]?.datum.month ?? ""
           const total = points.reduce((sum, p) => sum + p.datum.out, 0)
           return [
-            `${monthName(month)} · ${formatPeso(total)}`,
+            `${monthName(month)} · ${formatMoney(total)}`,
             ...points
               .toSorted(
                 (a, b) =>
                   STACK_ORDER.indexOf(a.datum.category) -
                   STACK_ORDER.indexOf(b.datum.category)
               )
-              .map((p) => `${p.datum.category}: ${formatPeso(p.datum.out)}`),
+              .map((p) => `${p.datum.category}: ${formatMoney(p.datum.out)}`),
           ].join("\n")
         },
       },

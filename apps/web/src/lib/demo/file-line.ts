@@ -156,7 +156,7 @@ export interface DemoRow {
   detail: string
   /** An emoji, or "transfer" / "iou" for the app's icons. */
   icon: string
-  /** Signed centavos, cash flow from your side. */
+  /** Signed cents, cash flow from your side. */
   amount: number
   /** IOUs and transfers aren't spending or income, so they stay quiet. */
   tone: "in" | "out" | "quiet"

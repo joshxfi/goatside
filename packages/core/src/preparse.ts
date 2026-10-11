@@ -4,7 +4,7 @@
  * leaves the meaning (category, merchant, people) to the AI.
  */
 
-import { type Centavos, parseAmount } from "./money"
+import { CURRENCY_MARK, type Cents, parseAmount } from "./money"
 import {
   type LocalDate,
   addDays,
@@ -22,9 +22,9 @@ export interface DraftLine {
   /** True when the line had no +/− and we assumed money out. */
   signInferred: boolean
   /** The full amount as typed. */
-  amount: Centavos
+  amount: Cents
   /** Your share: `amount` divided by `split`, or `amount` when not split. */
-  share: Centavos
+  share: Cents
   split: number | null
   /** What's left after removing the amount, date and split words. */
   description: string
@@ -183,13 +183,18 @@ const SPLIT_PATTERN = new RegExp(
   "iu"
 )
 
-// Sign, optional currency, then the amount. "p" only counts when glued to digits.
-const LEADING_AMOUNT =
-  /^([+-])?\s*(?:₱|php\s*|p(?=[\d.]))?\s*(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d*\.?\d+)(k)?(?=$|[\s,;:!)])/i
+// Sign, optional currency ("$", "usd"), then the amount. "p" only counts when
+// glued to digits.
+const LEADING_AMOUNT = new RegExp(
+  `^([+-])?\\s*(?:${CURRENCY_MARK}\\s*|p(?=[\\d.]))?\\s*(\\d{1,3}(?:,\\d{3})+(?:\\.\\d+)?|\\d*\\.?\\d+)(k)?(?=$|[\\s,;:!)])`,
+  "iu"
+)
 
 // Further entries on the same line must start with a sign: "-500 lunch, -120 coffee".
-const SEGMENT_BREAK =
-  /\s*(?:[,;\n]|\band\b)\s*(?=[+-]\s*(?:₱|php\s*|p)?\s*[\d.])/i
+const SEGMENT_BREAK = new RegExp(
+  `\\s*(?:[,;\\n]|\\band\\b)\\s*(?=[+-]\\s*(?:${CURRENCY_MARK}|p)?\\s*[\\d.])`,
+  "iu"
+)
 
 function normalize(text: string): string {
   return text

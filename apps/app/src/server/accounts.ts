@@ -23,7 +23,7 @@ export type {
 } from "./accounts.server"
 
 const MONTH = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)
-/** Centavos, within what a personal ledger plausibly holds. */
+/** Cents, within what a personal ledger plausibly holds. */
 const MONEY = z.number().int().min(-1e13).max(1e13)
 const fields = {
   name: z.string().trim().min(1).max(40),

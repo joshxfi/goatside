@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { isValidDate } from "@workspace/core/dates"
-import { MAX_CENTAVOS } from "@workspace/core/money"
+import { MAX_CENTS } from "@workspace/core/money"
 import {
   ImportError,
   commitImport,
@@ -26,13 +26,13 @@ const DATE = z
     const [y, m, day] = d.split("-").map(Number)
     return isValidDate(y!, m!, day!)
   }, "Not a real date")
-const AMOUNT = z.number().int().min(-MAX_CENTAVOS).max(MAX_CENTAVOS)
+const AMOUNT = z.number().int().min(-MAX_CENTS).max(MAX_CENTS)
 /** Balances can sit past a single entry's limit, so allow ten times. */
 const BALANCE = z
   .number()
   .int()
-  .min(-MAX_CENTAVOS * 10)
-  .max(MAX_CENTAVOS * 10)
+  .min(-MAX_CENTS * 10)
+  .max(MAX_CENTS * 10)
 const MAX_ROWS = 2000
 
 const statement = {

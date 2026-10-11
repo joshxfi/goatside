@@ -9,7 +9,7 @@ import { type ToolApprovalStatus, tool } from "ai"
 import { and, between, desc, eq, inArray, isNull, sql } from "drizzle-orm"
 import { z } from "zod"
 import { ACCOUNT_KIND_LABELS } from "@workspace/core/accounts"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { preparse } from "@workspace/core/preparse"
 import { type Db, schema } from "@workspace/db"
 import { type SavedLine, peopleWithBalances } from "./agent.server"
@@ -56,7 +56,7 @@ const FILTER = z.object({
     .number()
     .positive()
     .optional()
-    .describe("Exact amount in pesos, e.g. 500"),
+    .describe("Exact amount in the owner's currency, e.g. 500"),
   direction: z.enum(["out", "in", "both"]).default("both"),
   person: z
     .string()
@@ -92,8 +92,14 @@ const NEW_ACCOUNT = z.object({
     .number()
     .min(0)
     .optional()
-    .describe("Pesos it holds now; for a credit card, what's owed now"),
-  creditLimit: z.number().positive().optional().describe("Credit cards, pesos"),
+    .describe(
+      "What it holds now in the owner's currency; for a credit card, what's owed now"
+    ),
+  creditLimit: z
+    .number()
+    .positive()
+    .optional()
+    .describe("Credit cards, in the owner's currency"),
   last4: z
     .string()
     .regex(/^\d{4}$/)
@@ -111,10 +117,12 @@ const BALANCE = z.object({
   balance: z
     .number()
     .min(0)
-    .describe("Pesos it holds now; for a credit card, what's owed now"),
+    .describe(
+      "What it holds now in the owner's currency; for a credit card, what's owed now"
+    ),
 })
 
-const centavos = (pesos: number) => Math.round(pesos * 100)
+const cents = (value: number) => Math.round(value * 100)
 
 /** An open account by name or nickname, with its balance. */
 async function findAccount(db: Db, name: string) {
@@ -126,11 +134,11 @@ async function findAccount(db: Db, name: string) {
   )
 }
 
-/** "₱1,200" or "₱1,200 owed" for a card. */
+/** "₱1,200", or "₱1,200 owed" for a card. */
 const reads = (a: { kind: string; balance: number }) =>
   a.kind === "credit_card"
-    ? `${formatPeso(Math.max(0, -a.balance))} owed`
-    : formatPeso(a.balance)
+    ? `${formatMoney(Math.max(0, -a.balance))} owed`
+    : formatMoney(a.balance)
 
 type Kind = (typeof schema.TRANSACTION_KINDS)[number]
 /** The owner's own spending and income: what categories apply to. */
@@ -261,7 +269,7 @@ function listed(rows: Match[]) {
     .slice(0, LISTED)
     .map(
       (r) =>
-        `${label(r)} (${r.localDate.slice(5)}, ${formatPeso(Math.abs(r.amount))})`
+        `${label(r)} (${r.localDate.slice(5)}, ${formatMoney(Math.abs(r.amount))})`
     )
     .join("; ")
   return rows.length > LISTED
@@ -382,12 +390,12 @@ export function actionTools(db: Db) {
         if (await findAccount(db, input.name))
           return { done: false, message: `${input.name} is already set up.` }
         const card = input.kind === "credit_card"
-        const balance = centavos(input.balance ?? 0)
+        const balance = cents(input.balance ?? 0)
         const { id } = await createAccount({
           name: input.name,
           kind: input.kind,
           last4: input.last4 ?? null,
-          creditLimit: input.creditLimit ? centavos(input.creditLimit) : null,
+          creditLimit: input.creditLimit ? cents(input.creditLimit) : null,
           balance: card ? -balance : balance,
           aliases: input.aliases,
         })
@@ -408,7 +416,7 @@ export function actionTools(db: Db) {
         if (!found)
           return { done: false, message: `No account called ${account}.` }
         const value =
-          found.kind === "credit_card" ? -centavos(balance) : centavos(balance)
+          found.kind === "credit_card" ? -cents(balance) : cents(balance)
         await setBalance(db, found.id, value)
         return {
           done: true,
@@ -506,9 +514,9 @@ export function actionApprovals(db: Db) {
           const sign = l.signInferred ? "" : l.direction === "in" ? "+" : "−"
           const split =
             l.split && l.split > 1
-              ? `, split ${l.split} ways, your share ${formatPeso(l.share)}`
+              ? `, split ${l.split} ways, your share ${formatMoney(l.share)}`
               : ""
-          return `${sign}${formatPeso(l.amount)} ${l.description || "untitled"} (${l.localDate}${split})`
+          return `${sign}${formatMoney(l.amount)} ${l.description || "untitled"} (${l.localDate}${split})`
         })
         .join("; ")
       return { type: "user-approval" as const, reason: `Log ${lines}` }
@@ -534,24 +542,24 @@ const ASKED: Record<SavedLine["questions"][number], string> = {
 
 /** A saved line as the model should report it. */
 function savedLine(line: SavedLine, names: Map<string, string>) {
-  const peso = formatPeso(Math.abs(line.amount))
+  const money = formatMoney(Math.abs(line.amount))
   const who = line.people.join(" and ")
   const category = line.categoryId
     ? (names.get(line.categoryId) ?? "a category")
     : "no category yet"
   const what = line.transfer
-    ? `${peso} moved from ${line.transfer.from} to ${line.transfer.to} (a transfer, not spending)`
+    ? `${money} moved from ${line.transfer.from} to ${line.transfer.to} (a transfer, not spending)`
     : line.relation === "shared"
-      ? `${line.description}: the owner's share ${peso} filed under ${category}; ${who} ${line.people.length === 1 ? "owes" : "each owe"} the owner their share`
+      ? `${line.description}: the owner's share ${money} filed under ${category}; ${who} ${line.people.length === 1 ? "owes" : "each owe"} the owner their share`
       : line.relation === "lent"
-        ? `${who} owe${line.people.length === 1 ? "s" : ""} the owner ${peso} (${line.description})`
+        ? `${who} owe${line.people.length === 1 ? "s" : ""} the owner ${money} (${line.description})`
         : line.relation === "borrowed"
-          ? `the owner owes ${who} ${peso} (${line.description})`
+          ? `the owner owes ${who} ${money} (${line.description})`
           : line.relation === "repaid_me"
-            ? `${who} paid the owner back ${peso}`
+            ? `${who} paid the owner back ${money}`
             : line.relation === "i_repaid"
-              ? `the owner paid ${who} back ${peso}`
-              : `${line.amount < 0 ? "spent" : "received"} ${peso}, ${line.description || "untitled"}, filed under ${category}`
+              ? `the owner paid ${who} back ${money}`
+              : `${line.amount < 0 ? "spent" : "received"} ${money}, ${line.description || "untitled"}, filed under ${category}`
   return {
     what,
     ...(line.account && !line.transfer && { account: line.account }),
@@ -568,12 +576,12 @@ function accountApprovals(db: Db) {
       if (await findAccount(db, input.name))
         return denied(`${input.name} is already one of the owner's accounts.`)
       const card = input.kind === "credit_card"
-      const balance = centavos(input.balance ?? 0)
+      const balance = cents(input.balance ?? 0)
       const details = [
         card
-          ? `${formatPeso(balance)} owed`
-          : `${formatPeso(balance)} in it now`,
-        input.creditLimit && `${formatPeso(centavos(input.creditLimit))} limit`,
+          ? `${formatMoney(balance)} owed`
+          : `${formatMoney(balance)} in it now`,
+        input.creditLimit && `${formatMoney(cents(input.creditLimit))} limit`,
         input.last4 && `ending ${input.last4}`,
         input.aliases?.length &&
           `also called ${input.aliases.map((a) => `"${a}"`).join(", ")}`,
@@ -591,8 +599,8 @@ function accountApprovals(db: Db) {
         )
       const value =
         found.kind === "credit_card"
-          ? -centavos(input.balance)
-          : centavos(input.balance)
+          ? -cents(input.balance)
+          : cents(input.balance)
       if (value === found.balance)
         return denied(`${found.name} already reads ${reads(found)}.`)
       return {

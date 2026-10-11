@@ -24,7 +24,7 @@ import {
   Trash2Icon,
   XIcon,
 } from "lucide-react"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { Button } from "@workspace/ui/components/button"
 import {
   DropdownMenu,
@@ -268,8 +268,8 @@ const columns = helper.columns([
           )}
         >
           {isTransfer(txn)
-            ? formatPeso(Math.abs(amount))
-            : formatPeso(amount, { sign: amount > 0 })}
+            ? formatMoney(Math.abs(amount))
+            : formatMoney(amount, { sign: amount > 0 })}
         </span>
       )
     },
@@ -801,7 +801,8 @@ export function TransactionsTable({
           {filtered
             ? `${pageIndex * pageSize + 1}–${Math.min((pageIndex + 1) * pageSize, filtered)} of ${filtered}`
             : "0 results"}
-          {counted.length > 0 && ` · net ${formatPeso(net, { sign: net > 0 })}`}
+          {counted.length > 0 &&
+            ` · net ${formatMoney(net, { sign: net > 0 })}`}
         </span>
         <span className="ml-auto flex gap-1">
           <Button

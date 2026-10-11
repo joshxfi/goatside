@@ -7,7 +7,7 @@ import { ArrowLeftRightIcon } from "lucide-react"
 import { CoinMark } from "@workspace/ui/components/brand"
 import { cn } from "@workspace/ui/lib/utils"
 import { addDays } from "@workspace/core/dates"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import type { DemoRow } from "@/lib/demo/file-line"
 
 const weekdayDate = new Intl.DateTimeFormat("en-PH", {
@@ -105,8 +105,8 @@ export function FeedRow({
         )}
       >
         {row.icon === "transfer"
-          ? formatPeso(Math.abs(row.amount))
-          : formatPeso(row.amount, { sign: row.amount > 0 })}
+          ? formatMoney(Math.abs(row.amount))
+          : formatMoney(row.amount, { sign: row.amount > 0 })}
       </span>
     </div>
   )

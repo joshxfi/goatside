@@ -15,7 +15,7 @@ import {
 
 const model = process.env.DECISION_MODEL ?? DEFAULT_DECISION_MODEL
 
-/** The owner's people, with what each owes them (centavos). */
+/** The owner's people, with what each owes them (cents). */
 const KNOWN = [
   { id: "mara", name: "Mara", aliases: [], balance: 0 },
   { id: "ben", name: "Ben", aliases: [], balance: -100000 },

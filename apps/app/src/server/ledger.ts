@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
-import { MAX_CENTAVOS } from "@workspace/core/money"
+import { MAX_CENTS } from "@workspace/core/money"
 import {
   ENTRY_TYPES,
   EditError,
@@ -90,8 +90,8 @@ export const updateTransaction = createServerFn({ method: "POST" })
       localDate: DATE.optional(),
       accountId: z.uuid().nullable().optional(),
       toAccountId: z.uuid().optional(),
-      /** Centavos, unsigned. For a split, the whole bill. */
-      amount: z.number().int().positive().max(MAX_CENTAVOS).optional(),
+      /** Cents, unsigned. For a split, the whole bill. */
+      amount: z.number().int().positive().max(MAX_CENTS).optional(),
       type: z.enum(ENTRY_TYPES).optional(),
       /** Who shares the bill, or who the IOU is with. */
       people: z.array(z.uuid()).max(29).optional(),
@@ -156,7 +156,7 @@ export const settleUp = createServerFn({ method: "POST" })
   .validator(
     z.object({
       personId: z.uuid(),
-      /** Centavos; omit to settle the whole balance. */
+      /** Cents; omit to settle the whole balance. */
       amount: z.number().int().positive().optional(),
     })
   )

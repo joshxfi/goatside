@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { ScrollArea, ScrollBar } from "@workspace/ui/components/scroll-area"
 import { AccountCard } from "@/components/account-card"
 import { owedOn } from "@/lib/accounts"
@@ -26,7 +26,9 @@ export function AccountsStrip({ view }: { view: MonthView }) {
           className="text-sm font-medium text-muted-foreground"
         >
           Accounts{" "}
-          <span className="figure font-normal">· {formatPeso(net)} in all</span>
+          <span className="figure font-normal">
+            · {formatMoney(net)} in all
+          </span>
         </h2>
         <Link
           to="/accounts"

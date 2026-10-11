@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query"
 import { createFileRoute, notFound, useRouter } from "@tanstack/react-router"
 import { CopyIcon, MergeIcon, PlusIcon, SendIcon, XIcon } from "lucide-react"
-import { formatPeso, parseAmount } from "@workspace/core/money"
+import { formatMoney, parseAmount } from "@workspace/core/money"
 import { Button } from "@workspace/ui/components/button"
 import {
   DropdownMenu,
@@ -90,7 +90,7 @@ function Balance({ person }: { person: PersonDetail }) {
       if (!result.id) return
       const id = result.id
       toast(
-        `Recorded ${formatPeso(Math.abs(result.amount))} ${result.amount > 0 ? "from" : "to"} ${person.name}.`,
+        `Recorded ${formatMoney(Math.abs(result.amount))} ${result.amount > 0 ? "from" : "to"} ${person.name}.`,
         {
           action: {
             label: "Undo",
@@ -274,7 +274,7 @@ function History({ person }: { person: PersonDetail }) {
                 <button
                   type="button"
                   onClick={() => setOpen(h.id)}
-                  aria-label={`${capitalize(h.description) || "IOU"}, ${iouLabel(h.kind, h.amount, person.name)}, ${formatPeso(Math.abs(h.amount))}. Edit`}
+                  aria-label={`${capitalize(h.description) || "IOU"}, ${iouLabel(h.kind, h.amount, person.name)}, ${formatMoney(Math.abs(h.amount))}. Edit`}
                   className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors [@media(hover:hover)]:hover:bg-muted/60"
                 >
                   <span className="flex min-w-0 flex-1 flex-col">
@@ -288,12 +288,12 @@ function History({ person }: { person: PersonDetail }) {
                   </span>
                   <span className="flex flex-col items-end">
                     <span className="figure font-display text-lg">
-                      {formatPeso(h.amount, { sign: h.amount > 0 })}
+                      {formatMoney(h.amount, { sign: h.amount > 0 })}
                     </span>
                     <span className="figure text-xs text-muted-foreground">
                       {h.owedAfter === 0
                         ? "square after"
-                        : `${h.owedAfter > 0 ? "owes" : "you owe"} ${formatPeso(Math.abs(h.owedAfter))} after`}
+                        : `${h.owedAfter > 0 ? "owes" : "you owe"} ${formatMoney(Math.abs(h.owedAfter))} after`}
                     </span>
                   </span>
                 </button>
@@ -311,7 +311,7 @@ function History({ person }: { person: PersonDetail }) {
   )
 }
 
-/** Names Goatside should also read as this person: "mars", "kuya ben". */
+/** Names Goatside should also read as this person: "dani", "boss". */
 function Nicknames({ person }: { person: PersonDetail }) {
   const refresh = useRefresh()
   const [draft, setDraft] = useState("")
@@ -330,8 +330,8 @@ function Nicknames({ person }: { person: PersonDetail }) {
       <div className="flex flex-col gap-0.5">
         <h2 className="text-sm font-medium">Nicknames</h2>
         <p className="text-xs text-muted-foreground">
-          Goatside matches these in what you type, so "paid by mars" goes to{" "}
-          {person.name}.
+          Goatside matches these in what you type, so a line with a nickname
+          goes to {person.name}.
         </p>
       </div>
       {person.aliases.length > 0 && (

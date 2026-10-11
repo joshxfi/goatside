@@ -2,6 +2,11 @@
  * Categories and preferences. Server-only.
  */
 import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm"
+import {
+  DEFAULT_CURRENCY,
+  isCurrency,
+  setCurrency,
+} from "@workspace/core/money"
 import { type Db, schema } from "@workspace/db"
 import { getDb } from "./services"
 
@@ -32,6 +37,7 @@ export async function categoriesWithStats() {
   const byId = new Map(usage.map((u) => [u.categoryId, u]))
   return {
     timeZone: prefs?.timeZone ?? "Asia/Manila",
+    currency: prefs?.currency ?? DEFAULT_CURRENCY,
     categories: rows.map((c) => {
       const u = byId.get(c.id)
       return {
@@ -182,6 +188,37 @@ export async function setTimeZone(timeZone: string) {
     .insert(settings)
     .values({ id: 1, timeZone })
     .onConflictDoUpdate({ target: settings.id, set: { timeZone } })
+}
+
+const CURRENCY_TTL_MS = 30_000
+let known: { currency: string; at: number } | undefined
+
+/**
+ * Reads the owner's currency and points `formatMoney` at it, so amounts the
+ * server writes into text (answers, reminders, prompts) use it. Re-reads at
+ * most every 30 seconds. One owner per deploy, so every request agrees.
+ */
+export async function loadCurrency(db: Db): Promise<string> {
+  if (!known || Date.now() - known.at > CURRENCY_TTL_MS) {
+    const row = await db.query.settings.findFirst({
+      where: eq(settings.id, 1),
+      columns: { currency: true },
+    })
+    known = { currency: row?.currency ?? DEFAULT_CURRENCY, at: Date.now() }
+  }
+  setCurrency(known.currency)
+  return known.currency
+}
+
+/** Every amount shows in this currency from now on. Nothing is converted. */
+export async function saveCurrency(currency: string) {
+  if (!isCurrency(currency)) throw new SettingsError("That isn't a currency.")
+  await getDb()
+    .insert(settings)
+    .values({ id: 1, currency })
+    .onConflictDoUpdate({ target: settings.id, set: { currency } })
+  known = { currency, at: Date.now() }
+  setCurrency(currency)
 }
 
 /** Re-files the given transactions into a category (used after suggestions). */

@@ -4,7 +4,7 @@
  */
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
 import {
   CalendarHeatmap,
@@ -96,7 +96,7 @@ export function KpiRow({ view }: { view: MonthView }) {
                     : "text-expense-foreground"
                 )}
               >
-                {formatPeso(Math.abs(diff))} {diff <= 0 ? "less" : "more"}
+                {formatMoney(Math.abs(diff))} {diff <= 0 ? "less" : "more"}
               </span>{" "}
               than {isCurrent ? "this point in " : ""}
               {monthName(previous.month)}
@@ -132,7 +132,7 @@ export function KpiRow({ view }: { view: MonthView }) {
         }
         note={
           biggest.out > 0
-            ? `Biggest day: ${dayLabel(biggest.date, view.today)}, ${formatPeso(biggest.out)}`
+            ? `Biggest day: ${dayLabel(biggest.date, view.today)}, ${formatMoney(biggest.out)}`
             : "Nothing spent yet"
         }
       />
@@ -237,7 +237,7 @@ export function SpendingBreakdown({
                   >
                     <span aria-hidden>{c.emoji}</span>
                     <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                    <span className="figure">{formatPeso(c.out)}</span>
+                    <span className="figure">{formatMoney(c.out)}</span>
                   </li>
                 ))}
               </ul>
@@ -276,7 +276,7 @@ function ShareRow({
         <span className="figure text-xs text-muted-foreground">
           {Math.round(share * 100)}%
         </span>
-        <span className="figure">{formatPeso(out)}</span>
+        <span className="figure">{formatMoney(out)}</span>
       </div>
       <div className="h-1 overflow-hidden rounded-full bg-muted">
         <div
@@ -304,14 +304,14 @@ export function Overview({ view }: { view: MonthView }) {
             <>
               Heading for{" "}
               <span className="figure font-medium text-foreground">
-                {formatPeso(ahead.total)}
+                {formatMoney(ahead.total)}
               </span>{" "}
               by the end of {monthName(view.month)}
               {view.previous.hasData && (
                 <>
                   {" "}
                   · {monthName(view.previous.month)} ended at{" "}
-                  {formatPeso(view.previous.daily.reduce((s, d) => s + d, 0))}
+                  {formatMoney(view.previous.daily.reduce((s, d) => s + d, 0))}
                 </>
               )}
             </>
@@ -448,7 +448,7 @@ export function RepeatsCard({
   return (
     <Card
       title="Repeats"
-      description={`${formatPeso(total)} this month in subscriptions and bills`}
+      description={`${formatMoney(total)} this month in subscriptions and bills`}
     >
       <ul className="-mx-2 flex flex-col">
         {repeats.map((t) => (
@@ -463,7 +463,7 @@ export function RepeatsCard({
                 {t.description || t.category?.name}
               </span>
               <span className="figure text-muted-foreground">
-                {formatPeso(-t.amount)}
+                {formatMoney(-t.amount)}
               </span>
             </button>
           </li>
@@ -496,7 +496,7 @@ export function ChangesCard({ view }: { view: MonthView }) {
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate">{c.name}</span>
                   <span className="figure text-xs text-muted-foreground">
-                    {formatPeso(c.now)} vs {formatPeso(c.before)}
+                    {formatMoney(c.now)} vs {formatMoney(c.before)}
                   </span>
                 </span>
                 <span
@@ -506,7 +506,7 @@ export function ChangesCard({ view }: { view: MonthView }) {
                     up ? "text-expense-foreground" : "text-income-foreground"
                   )}
                 >
-                  {up ? "↑" : "↓"} {formatPeso(Math.abs(c.delta))}
+                  {up ? "↑" : "↓"} {formatMoney(Math.abs(c.delta))}
                 </span>
               </li>
             )
@@ -564,7 +564,7 @@ function TxnLine({
                 : "text-expense-foreground"
           )}
         >
-          {formatPeso(txn.amount, { sign: txn.amount > 0 })}
+          {formatMoney(txn.amount, { sign: txn.amount > 0 })}
         </span>
       </button>
     </CollapseItem>

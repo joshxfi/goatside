@@ -20,14 +20,16 @@ in its category a moment later.
 The amount comes first, and code reads it exactly as typed. The agent never changes a
 number.
 
-| You type                  | Amount    |
-| ------------------------- | --------- |
-| `500`                     | ₱500      |
-| `1,250.50`                | ₱1,250.50 |
-| `1.5k`                    | ₱1,500    |
-| `₱500`, `php 500`, `p500` | ₱500      |
+| You type          | Amount    |
+| ----------------- | --------- |
+| `500`             | ₱500      |
+| `1,250.50`        | ₱1,250.50 |
+| `1.5k`            | ₱1,500    |
+| `₱500`, `php 500` | ₱500      |
 
-Amounts are in pesos, up to two decimal places.
+Every amount is in your currency, up to two decimal places. Pick the currency in
+**Settings**. It starts as Philippine pesos, which the examples here use. A currency sign
+or code in front of the number, like `$20` or `usd 20`, is skipped, not converted.
 
 ## Money in or out
 
@@ -41,7 +43,7 @@ Goatside dates an entry today unless the line says otherwise:
 
 | You type                                          | Date                                            |
 | ------------------------------------------------- | ----------------------------------------------- |
-| `yesterday`, `yday`, `kahapon`                    | Yesterday                                       |
+| `yesterday`, `yday`                               | Yesterday                                       |
 | `3 days ago`                                      | Three days back                                 |
 | `friday`, `on fri`                                | The most recent Friday, or today if it's Friday |
 | `last friday`                                     | The Friday before today                         |

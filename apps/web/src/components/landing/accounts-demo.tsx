@@ -10,7 +10,7 @@ import {
 import { cn } from "@workspace/ui/lib/utils"
 import { cardBackground } from "@workspace/ui/lib/account-colors"
 import { ACCOUNT_KIND_LABELS, type AccountKind } from "@workspace/core/accounts"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { DEMO_ACCOUNTS, fileText } from "@/lib/demo/file-line"
 import { TODAY } from "@/lib/demo/sample-months"
 import type { DemoRow } from "@/lib/demo/file-line"
@@ -99,7 +99,7 @@ export function AccountsDemo() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <span className="figure font-display text-2xl leading-none md:text-3xl">
-                  {formatPeso(card ? -balance : balance)}
+                  {formatMoney(card ? -balance : balance)}
                   {card && (
                     <span className="ml-1 font-sans text-xs text-white/70">
                       owed
@@ -124,7 +124,7 @@ export function AccountsDemo() {
         <div className="flex items-baseline justify-between gap-3 text-sm">
           <span className="text-muted-foreground">Net across accounts</span>
           <span className="figure font-display text-2xl">
-            {formatPeso(total)}
+            {formatMoney(total)}
           </span>
         </div>
         {moved && (

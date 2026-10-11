@@ -15,7 +15,7 @@ import { scaleBand } from "@tanstack/charts/scales/band"
 import { scaleLinear } from "@tanstack/charts/scales/linear"
 import { tooltip } from "@tanstack/charts/tooltip"
 import { daysInMonth } from "@workspace/core/dates"
-import { formatPeso, formatPesoCompact } from "@workspace/core/money"
+import { formatMoney, formatMoneyCompact } from "@workspace/core/money"
 import { monthName } from "@/lib/format"
 import { OTHER, RING_ORDER, STACK_ORDER, seriesColors } from "@/lib/series"
 import type { MonthView, TrendView } from "@/server/ledger"
@@ -24,7 +24,7 @@ import type { MonthView, TrendView } from "@/server/ledger"
 const SURFACE = "var(--card)"
 
 const moneyAxis = {
-  ticks: { count: 4, format: (value: number) => formatPesoCompact(value) },
+  ticks: { count: 4, format: (value: number) => formatMoneyCompact(value) },
 }
 
 /** Running totals: [1, 2, 3] → [1, 3, 6]. */
@@ -50,7 +50,7 @@ export function projection(view: MonthView) {
     .reduce((sum, t) => sum - t.amount, 0)
   const everydayRate = Math.max(view.totals.out - repeating, 0) / day
   const total = view.totals.out + everydayRate * (days - day)
-  // Whole pesos: a projection is an estimate, not a receipt.
+  // Whole units: a projection is an estimate, not a receipt.
   return { day, days, total: Math.round(total / 100) * 100 }
 }
 
@@ -150,11 +150,11 @@ export function PaceChart({
           const day = point.datum.day
           const lines = [`Day ${day}`]
           const now = thisMonth[day - 1]
-          if (now) lines.push(`${current}: ${formatPeso(now.total)}`)
+          if (now) lines.push(`${current}: ${formatMoney(now.total)}`)
           const then = lastMonth[day - 1]
-          if (then) lines.push(`${previous}: ${formatPeso(then.total)}`)
+          if (then) lines.push(`${previous}: ${formatMoney(then.total)}`)
           if (ahead && day === ahead.days) {
-            lines.push(`Projected: ${formatPeso(ahead.total)}`)
+            lines.push(`Projected: ${formatMoney(ahead.total)}`)
           }
           return lines.join("\n")
         },
@@ -218,7 +218,7 @@ export function DailyChart({ view }: { view: MonthView }) {
       tooltip: {
         use: tooltip,
         format: (point) =>
-          `${monthName(view.month)} ${point.datum.day}: ${formatPeso(point.datum.out)}`,
+          `${monthName(view.month)} ${point.datum.day}: ${formatMoney(point.datum.out)}`,
       },
     })
   }, [view])
@@ -312,7 +312,7 @@ export function SpendingDonut({
         use: tooltip,
         format: (point) => {
           const share = total ? Math.round((point.datum.out / total) * 100) : 0
-          return `${point.datum.name}: ${formatPeso(point.datum.out)} (${share}%)`
+          return `${point.datum.name}: ${formatMoney(point.datum.out)} (${share}%)`
         },
       },
     })
@@ -330,7 +330,7 @@ export function SpendingDonut({
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
         <span className="text-xs text-muted-foreground">Spent</span>
         <span className="figure font-display text-3xl leading-none">
-          {formatPesoCompact(total)}
+          {formatMoneyCompact(total)}
         </span>
       </div>
     </div>
@@ -423,7 +423,7 @@ export function CalendarHeatmap({ view }: { view: MonthView }) {
         format: (point) =>
           point.datum.future
             ? `${monthName(view.month)} ${point.datum.day}`
-            : `${monthName(view.month)} ${point.datum.day}: ${point.datum.out ? formatPeso(point.datum.out) : "nothing spent"}`,
+            : `${monthName(view.month)} ${point.datum.day}: ${point.datum.out ? formatMoney(point.datum.out) : "nothing spent"}`,
       },
     })
   }, [view])
@@ -496,9 +496,9 @@ export function CashFlowChart({ trend }: { trend: TrendView }) {
           const net = m.in - m.out
           return [
             monthName(m.month),
-            `In: ${formatPeso(m.in)}`,
-            `Out: ${formatPeso(m.out)}`,
-            `Net: ${formatPeso(net, { sign: true })}`,
+            `In: ${formatMoney(m.in)}`,
+            `Out: ${formatMoney(m.out)}`,
+            `Net: ${formatMoney(net, { sign: true })}`,
           ].join("\n")
         },
       },
@@ -551,7 +551,7 @@ export function TrendChart({ trend }: { trend: TrendView }) {
           const month = points[0]?.datum.month ?? ""
           const total = points.reduce((sum, p) => sum + p.datum.out, 0)
           return [
-            `${monthName(month)} · ${formatPeso(total)}`,
+            `${monthName(month)} · ${formatMoney(total)}`,
             // Same order as the legend, not the stack's top-down order.
             ...points
               .toSorted(
@@ -559,7 +559,7 @@ export function TrendChart({ trend }: { trend: TrendView }) {
                   order.indexOf(a.datum.category) -
                   order.indexOf(b.datum.category)
               )
-              .map((p) => `${p.datum.category}: ${formatPeso(p.datum.out)}`),
+              .map((p) => `${p.datum.category}: ${formatMoney(p.datum.out)}`),
           ].join("\n")
         },
       },

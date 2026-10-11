@@ -4,7 +4,7 @@
  * it's really the same payment (coffee two days running isn't).
  */
 import { type Experimental_DecisionModel, experimental_decide } from "ai"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 
 /** At or above this, the owner is asked whether it's a repeat. */
 export const LIKELY_DUPLICATE = 0.7
@@ -13,7 +13,7 @@ export const OBVIOUS_WINDOW_MIN = 15
 
 export interface EarlierEntry {
   description: string
-  /** Signed centavos. */
+  /** Signed cents. */
   amount: number
   localDate: string
   minutesAgo: number
@@ -52,12 +52,12 @@ export async function askDuplicate(
     state: {
       new_entry: {
         text: line.description || "(no description)",
-        amount: formatPeso(line.amount),
+        amount: formatMoney(line.amount),
         date: line.localDate,
       },
       earlier_entry: {
         text: earlier.description || "(no description)",
-        amount: formatPeso(earlier.amount),
+        amount: formatMoney(earlier.amount),
         date: earlier.localDate,
       },
       time_between_logging: ago(earlier.minutesAgo).replace(" ago", ""),

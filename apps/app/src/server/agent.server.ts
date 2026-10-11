@@ -163,7 +163,7 @@ export async function categoryOptions(db: Db): Promise<CategoryOption[]> {
   }))
 }
 
-/** Everyone the owner has, with what they owe (centavos; negative: owner owes). */
+/** Everyone the owner has, with what they owe (cents; negative: owner owes). */
 export async function peopleWithBalances(db: Db) {
   const [rows, sums] = await Promise.all([
     db

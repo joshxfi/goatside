@@ -26,6 +26,9 @@ describe("preparse: amounts and sign", () => {
     ["-₱89 spotify", "out", 8_900, "spotify"],
     ["-php 89 spotify", "out", 8_900, "spotify"],
     ["-p89 spotify", "out", 8_900, "spotify"],
+    ["-$20 lunch", "out", 2_000, "lunch"],
+    ["-usd 20 lunch", "out", 2_000, "lunch"],
+    ["+€1.5k refund", "in", 150_000, "refund"],
     ["− 500 lunch", "out", 50_000, "lunch"],
     ["+ 20k salary", "in", 2_000_000, "salary"],
     ["-500", "out", 50_000, ""],
@@ -71,6 +74,12 @@ describe("preparse: several entries in one line", () => {
   it("splits on 'and' and newlines too", () => {
     expect(lines("-500 lunch and +100 change")).toHaveLength(2)
     expect(lines("-500 lunch\n-50 parking")).toHaveLength(2)
+  })
+
+  it("splits before a currency mark", () => {
+    const [a, b] = lines("-$12 lunch, -$4.50 coffee")
+    expect(a).toMatchObject({ amount: 1_200, description: "lunch" })
+    expect(b).toMatchObject({ amount: 450, description: "coffee" })
   })
 
   it("keeps commas inside a description", () => {
@@ -134,7 +143,7 @@ describe("preparse: splits", () => {
     })
   })
 
-  it("rounds the share to the centavo", () => {
+  it("rounds the share to the cent", () => {
     expect(line("-100 snacks split 3 ways")).toMatchObject({
       share: 3_333,
       split: 3,

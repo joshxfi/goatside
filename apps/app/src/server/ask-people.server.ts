@@ -8,7 +8,7 @@
 import { tool } from "ai"
 import { and, between, desc, eq, inArray, isNull } from "drizzle-orm"
 import { z } from "zod"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { type Db, schema } from "@workspace/db"
 import { accountBook, peopleWithBalances } from "./agent.server"
 import { today } from "./ledger.server"
@@ -26,11 +26,11 @@ const DATE = z
 
 type Person = Awaited<ReturnType<typeof peopleWithBalances>>[number]
 
-const money = (centavos: number) => ({
-  pesos: Math.round(centavos) / 100,
-  text: formatPeso(centavos),
+const money = (cents: number) => ({
+  value: Math.round(cents) / 100,
+  text: formatMoney(cents),
 })
-const centavos = (pesos: number) => Math.round(pesos * 100)
+const cents = (value: number) => Math.round(value * 100)
 
 /** "Mara's", "kay Ben", "  JUDE " → the name to look up. */
 function nameKey(name: string) {
@@ -72,9 +72,9 @@ const display = (name: string) =>
 export function standing(p: Pick<Person, "name" | "owed">, toOwner = false) {
   const owner = toOwner ? "you" : "the owner"
   return p.owed > 0
-    ? `${p.name} owes ${owner} ${formatPeso(p.owed)}`
+    ? `${p.name} owes ${owner} ${formatMoney(p.owed)}`
     : p.owed < 0
-      ? `${owner} ${toOwner ? "owe" : "owes"} ${p.name} ${formatPeso(-p.owed)}`
+      ? `${owner} ${toOwner ? "owe" : "owes"} ${p.name} ${formatMoney(-p.owed)}`
       : toOwner
         ? `you and ${p.name} are square`
         : `${p.name} and the owner are square`
@@ -221,7 +221,7 @@ const NEW_IOU = z.object({
     .describe(
       "lent: the owner lent them money or paid for something of theirs. borrowed: they lent the owner money or paid for something of the owner's"
     ),
-  amount: z.number().positive().describe("Pesos"),
+  amount: z.number().positive().describe("In the owner's currency"),
   description: z
     .string()
     .max(80)
@@ -244,7 +244,7 @@ const SETTLE = z.object({
     .positive()
     .optional()
     .describe(
-      "Pesos, as the owner said it. Omit only when they paid all of it"
+      "The amount as the owner said it. Omit only when they paid all of it"
     ),
   date: DATE.optional().describe("Omit for today"),
   account: z
@@ -290,7 +290,7 @@ async function planIou(db: Db, input: z.infer<typeof NEW_IOU>) {
   const found = matchPerson(everyone, input.person)
   const name = found?.name ?? display(nameKey(input.person))
   if (!name) return { ok: false, reason: "That needs a name." } as const
-  const amount = centavos(input.amount)
+  const amount = cents(input.amount)
   // Lending moves the owner's money; when someone pays for the owner,
   // none of the owner's accounts moved unless the owner named one.
   const account = await accountFor(
@@ -320,8 +320,8 @@ async function planIou(db: Db, input: z.infer<typeof NEW_IOU>) {
       },
       card: [
         input.type === "lent"
-          ? `Lent ${name} ${formatPeso(amount)}`
-          : `Borrowed ${formatPeso(amount)} from ${name}`,
+          ? `Lent ${name} ${formatMoney(amount)}`
+          : `Borrowed ${formatMoney(amount)} from ${name}`,
         input.description && `for ${input.description.trim()}`,
         `(${on(date, todayIs)}${account.value.name ? `, ${account.value.name}` : ""})`,
       ]
@@ -355,11 +355,11 @@ async function planSettle(db: Db, input: z.infer<typeof SETTLE>) {
       reason: `${standing(found)}, so ${input.paidBy === "them" ? `${found.name} paying the owner` : `the owner paying ${found.name}`} isn't a repayment. If it's a new loan, use recordIou; otherwise check with the owner.`,
     } as const
   const balance = Math.abs(owed)
-  const size = input.amount ? centavos(input.amount) : balance
+  const size = input.amount ? cents(input.amount) : balance
   if (size > balance)
     return {
       ok: false,
-      reason: `That's more than the ${formatPeso(balance)} on record (${standing(found)}). Ask the owner whether the extra is a new loan.`,
+      reason: `That's more than the ${formatMoney(balance)} on record (${standing(found)}). Ask the owner whether the extra is a new loan.`,
     } as const
   const account = await accountFor(db, input.account, "default")
   if (!account.ok) return account
@@ -381,7 +381,7 @@ async function planSettle(db: Db, input: z.infer<typeof SETTLE>) {
         accountId: account.value.id,
         status: "confirmed" as const,
       },
-      card: `${theyOwe ? `${found.name} paid you ${formatPeso(size)}` : `You paid ${found.name} ${formatPeso(size)}`} (${on(date, todayIs)}${account.value.name ? `, ${account.value.name}` : ""})`,
+      card: `${theyOwe ? `${found.name} paid you ${formatMoney(size)}` : `You paid ${found.name} ${formatMoney(size)}`} (${on(date, todayIs)}${account.value.name ? `, ${account.value.name}` : ""})`,
       after: full
         ? `Then you're square.`
         : `Then ${standing({ name: found.name, owed: owed - (theyOwe ? size : -size) }, true)}.`,

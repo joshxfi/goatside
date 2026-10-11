@@ -67,7 +67,7 @@ export async function accountBalances(db: Db) {
     last4: a.last4,
     creditLimit: a.creditLimit,
     archived: a.archived,
-    /** Centavos. Negative on a credit card is what's owed. */
+    /** Cents. Negative on a credit card is what's owed. */
     balance: a.opening + (totals.get(a.id) ?? 0),
   }))
 }
@@ -233,7 +233,7 @@ export async function createAccount(data: {
   color?: Color
   last4?: string | null
   creditLimit?: number | null
-  /** Centavos. For a credit card, negative means owed. */
+  /** Cents. For a credit card, negative means owed. */
   balance?: number
   aliases?: string[]
 }) {

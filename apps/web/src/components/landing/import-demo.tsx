@@ -7,7 +7,7 @@ import {
   RotateCcwIcon,
 } from "lucide-react"
 import { cn } from "@workspace/ui/lib/utils"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { AnswerButton, DemoCard } from "./ui"
 
 interface Row {
@@ -112,7 +112,7 @@ export function ImportDemo() {
           <Group title="Maybe logged">
             <RowItem
               row={MAYBE}
-              note={`maybe "${MAYBE.typed}", ${formatPeso(Math.abs(MAYBE.typedAmount))}, same day`}
+              note={`maybe "${MAYBE.typed}", ${formatMoney(Math.abs(MAYBE.typedAmount))}, same day`}
             >
               <div className="flex gap-1.5">
                 <AnswerButton
@@ -133,7 +133,7 @@ export function ImportDemo() {
               {same && (
                 <p className="text-xs text-muted-foreground">
                   Linking it, its amount becomes{" "}
-                  {formatPeso(Math.abs(MAYBE.amount))}.
+                  {formatMoney(Math.abs(MAYBE.amount))}.
                 </p>
               )}
             </RowItem>
@@ -230,7 +230,7 @@ function RowItem({
               : "text-expense-foreground"
         )}
       >
-        {formatPeso(row.amount, { sign: row.amount > 0 })}
+        {formatMoney(row.amount, { sign: row.amount > 0 })}
       </span>
     </li>
   )

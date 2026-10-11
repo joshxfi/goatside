@@ -34,8 +34,11 @@ every push, and applies migrations on `main` when the repo has database secrets.
 
 ## Rules that apply everywhere
 
-- **Money is integer centavos**, always PHP. `₱180` is `18000`. Signs are cash flow from the
+- **Money is integer cents** of the owner's currency, set in Settings (PHP by default).
+  `₱180` is `18000`. Nothing converts between currencies. Signs are cash flow from the
   owner's side: money out is negative. Never round-trip money through floats.
+- **Format money with `formatMoney`.** It follows the owner's currency: the app layout
+  sets it, and `authMiddleware` sets it for server functions. Never hardcode `₱`.
 - **One owner per deploy.** There are no user ids; don't add multi-tenant code.
 - **Soft delete** (`deleted_at`) everywhere. Every ledger query filters it out.
 - **The model never changes an amount.** Code parses amounts; the agent adds meaning.

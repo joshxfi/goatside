@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { ArrowUpIcon, CloudOffIcon } from "lucide-react"
 import { toast } from "@workspace/ui/components/sonner"
 import { type Preparsed, preparse } from "@workspace/core/preparse"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
 import { swatch } from "@/lib/accounts"
 import { dayLabel } from "@/lib/format"
@@ -295,7 +295,7 @@ function Picks({
                 : "text-expense-foreground"
             )}
           >
-            {formatPeso(pick.amount, { sign: pick.amount > 0 })}
+            {formatMoney(pick.amount, { sign: pick.amount > 0 })}
           </span>
         </button>
       ))}
@@ -322,8 +322,8 @@ function Preview({ parsed, view }: { parsed: Preparsed; view: MonthView }) {
           )}
         >
           {line.signInferred
-            ? formatPeso(line.share)
-            : formatPeso(line.direction === "in" ? line.share : -line.share, {
+            ? formatMoney(line.share)
+            : formatMoney(line.direction === "in" ? line.share : -line.share, {
                 sign: line.direction === "in",
               })}
         </span>
@@ -332,7 +332,7 @@ function Preview({ parsed, view }: { parsed: Preparsed; view: MonthView }) {
         )}
         {line.split && (
           <span className="text-muted-foreground">
-            (your ⅟{line.split} of {formatPeso(line.amount)})
+            (your ⅟{line.split} of {formatMoney(line.amount)})
           </span>
         )}
         <span className="text-muted-foreground">
@@ -379,9 +379,9 @@ function describe(
   if (!first) return "Logged."
   if (rest.length) return `Logged ${saved.length} entries.`
   if (first.transfer) {
-    return `Moved ${formatPeso(Math.abs(first.amount))} from ${first.transfer.from} to ${first.transfer.to}`
+    return `Moved ${formatMoney(Math.abs(first.amount))} from ${first.transfer.from} to ${first.transfer.to}`
   }
-  const amount = formatPeso(first.amount, { sign: first.amount > 0 })
+  const amount = formatMoney(first.amount, { sign: first.amount > 0 })
   const who = first.people.join(" and ")
   const between: Record<string, string> = {
     lent: `lent to ${who}`,

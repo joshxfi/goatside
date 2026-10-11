@@ -14,7 +14,7 @@ import {
   type Experimental_DecisionQuestion,
   experimental_decide,
 } from "ai"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import type { Direction } from "@workspace/core/preparse"
 import type { AccountQuestionDraft } from "./accounts"
 import {
@@ -45,7 +45,7 @@ export interface CategoryOption {
 
 export interface LineInput {
   description: string
-  /** Absolute amount in centavos. */
+  /** Absolute amount in cents. */
   amount: number
   /** From an explicit + or −; null when the owner didn't say. */
   direction: Direction | null
@@ -196,7 +196,7 @@ export async function askModel(
     model,
     state: {
       entry: line.description || "(no description)",
-      amount: formatPeso(line.amount),
+      amount: formatMoney(line.amount),
     },
     questions,
     abortSignal,

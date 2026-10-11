@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { ArrowLeftRightIcon, CloudOffIcon } from "lucide-react"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { CoinMark } from "@workspace/ui/components/brand"
 import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
@@ -42,7 +42,7 @@ export function Feed({
                 <h3 className="flex items-baseline justify-between px-1 text-xs font-medium text-muted-foreground">
                   <span>{dayLabel(date, view.today)}</span>
                   {out > 0 && (
-                    <span className="figure">{formatPeso(-out)}</span>
+                    <span className="figure">{formatMoney(-out)}</span>
                   )}
                 </h3>
                 <ul className="flex flex-col">
@@ -181,8 +181,8 @@ function TransactionRow({
         )}
       >
         {transfer
-          ? formatPeso(Math.abs(txn.amount))
-          : formatPeso(txn.amount, { sign: txn.amount > 0 })}
+          ? formatMoney(Math.abs(txn.amount))
+          : formatMoney(txn.amount, { sign: txn.amount > 0 })}
       </span>
     </button>
   )

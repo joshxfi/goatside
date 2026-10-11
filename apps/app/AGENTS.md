@@ -30,7 +30,7 @@ TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter app eval:ask
 ## Rules
 
 - **Every server function needs `authMiddleware`** and a Zod validator with bounded money
-  (`MAX_CENTAVOS`). An expected refusal throws a typed error (`EditError`,
+  (`MAX_CENTS`). An expected refusal throws a typed error (`EditError`,
   `AccountError`, …) that the wrapper turns into `{ ok: false, message }`; anything else
   throws.
 - **Keep request-scoped APIs (cookies, headers) in the wrappers**, never in

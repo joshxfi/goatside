@@ -1,4 +1,5 @@
 import { Outlet, createFileRoute, redirect } from "@tanstack/react-router"
+import { setCurrency } from "@workspace/core/money"
 import { SidebarInset, SidebarProvider } from "@workspace/ui/components/sidebar"
 import { AgentProvider } from "@/components/agent-provider"
 import { AppSidebar } from "@/components/app-shell"
@@ -19,8 +20,11 @@ export const Route = createFileRoute("/_app")({
 /** Sidebar on desktop; on phones the sidebar stays closed and pages stand alone. */
 function AppLayout() {
   const { viewer } = Route.useRouteContext()
+  // Before anything below renders an amount. Changing the currency remounts
+  // the tree (the key), so nothing keeps an amount formatted the old way.
+  setCurrency(viewer.currency)
   return (
-    <MotionProvider>
+    <MotionProvider key={viewer.currency}>
       <OutboxSync />
       <AgentProvider enabled={viewer.ai}>
         <SidebarProvider defaultOpen={viewer.sidebarOpen}>

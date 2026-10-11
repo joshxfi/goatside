@@ -15,8 +15,10 @@ pnpm --filter @workspace/core typecheck
   reads the sign, amount, date words and "split N", and decides log, ask or undo. A line
   is logged only if it **starts with an amount**; an extra entry after a comma needs a
   signed amount (`250 lunch, -120 coffee`). Anything else is ask mode.
-- `money.ts`: `parseAmount` (`500`, `1.5k`, `1,250.50`, `₱`/`php`), `formatPeso`, and
-  `MAX_CENTAVOS`. Everything is integer centavos.
+- `money.ts`: `parseAmount` (`500`, `1.5k`, `1,250.50`), `formatMoney` and
+  `formatMoneyCompact` in the current currency (`setCurrency`, PHP by default),
+  `CURRENCY_MARK` for a sign or code typed before an amount (`$20`, `php 500`), and
+  `MAX_CENTS`. Everything is integer cents, hundredths of the currency.
 - `dates.ts`: `local_date` strings (`YYYY-MM-DD` in the owner's timezone), with
   `todayIn(timeZone)`, `addDays`, `monthRange`, and the rest. No `Date` math on local dates.
 - `accounts.ts`: `scanAccounts` finds the owner's accounts in a line (longest name first,

@@ -2,7 +2,7 @@ import { useRef, useState } from "react"
 import { CornerDownLeftIcon } from "lucide-react"
 import { cn } from "@workspace/ui/lib/utils"
 import type { AccountKind } from "@workspace/core/accounts"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import {
   type DemoQuestion,
   type DemoRow,
@@ -17,7 +17,7 @@ const EXAMPLES = [
   "+18000 client payment",
   "2400 dinner with nini and daniel split 3",
   "1000 cash in gcash from bpi",
-  "500 from tita",
+  "500 from mom",
   "1500 groceries using unionbank",
   "89 spotify via bpi card",
   "350 lunch yesterday",
@@ -139,13 +139,13 @@ export function LiveComposer() {
           <div className="flex flex-col gap-1">
             <span className="text-sm text-muted-foreground">October</span>
             <span className="figure font-display text-4xl leading-none text-expense-foreground">
-              {formatPeso(spent)}
+              {formatMoney(spent)}
             </span>
             <span className="text-xs text-muted-foreground">spent so far</span>
           </div>
           <div className="flex flex-col items-end gap-1 text-right">
             <span className="figure font-display text-2xl leading-none text-income-foreground">
-              {formatPeso(received)}
+              {formatMoney(received)}
             </span>
             <span className="text-xs text-muted-foreground">in</span>
           </div>
@@ -238,7 +238,7 @@ function QuestionCard({
   onAnswer: (value: "in" | "out" | AccountKind | "none") => void
 }) {
   const figure = (
-    <span className="figure font-medium">{formatPeso(question.amount)}</span>
+    <span className="figure font-medium">{formatMoney(question.amount)}</span>
   )
   return (
     <div className="enter-rise flex flex-col gap-2.5 rounded-2xl border bg-card p-3 shadow-[0_8px_24px_-8px_oklch(0_0_0/18%)]">

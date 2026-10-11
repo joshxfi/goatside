@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { ArrowUpIcon, CheckIcon, Undo2Icon } from "lucide-react"
 import { cn } from "@workspace/ui/lib/utils"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { SAMPLE_MONTHS } from "@/lib/demo/sample-months"
 import { AnswerButton, DemoCard } from "./ui"
 
@@ -20,17 +20,17 @@ interface Script {
 const SCRIPTS: Script[] = [
   {
     ask: "how much on food this month?",
-    answer: `${formatPeso(spentOn(october, "Food"))} on food so far this October. All of September came to ${formatPeso(spentOn(september, "Food"))}, so you're on pace to spend about the same.`,
+    answer: `${formatMoney(spentOn(october, "Food"))} on food so far this October. All of September came to ${formatMoney(spentOn(september, "Food"))}, so you're on pace to spend about the same.`,
   },
   {
-    ask: "sino may utang sakin?",
+    ask: "who owes me money?",
     answer:
-      "Dalawa. Si Nini, ₱1,800, ₱1,000 na pinahiram mo noong Huwebes at ₱800 sa dinner. Si Daniel naman, ₱800 para sa dinner din.",
+      "Two people. Nini owes you ₱1,800: ₱1,000 you lent on Thursday and ₱800 for dinner. Daniel owes ₱800 for the same dinner.",
   },
   {
     ask: "biggest expenses this month?",
     answer:
-      "Your three biggest this October: ₱3,345 for Meralco on the 5th, ₱3,180 for groceries on the 10th, and ₱2,590 for shoes on the 13th.",
+      "Your three biggest this October: ₱3,345 for the electric bill on the 5th, ₱3,180 for groceries on the 10th, and ₱2,590 for shoes on the 13th.",
   },
   {
     ask: "move all grab rides this month to Transport",
@@ -38,7 +38,7 @@ const SCRIPTS: Script[] = [
     approval: {
       title: "Move 3 entries to 🚕 Transport",
       entries: [
-        "Grab bgc · Oct 2 · ₱180",
+        "Grab to the gym · Oct 2 · ₱180",
         "Grab home · Oct 9 · ₱215",
         "Grab to work · Oct 15 · ₱160",
       ],
@@ -152,7 +152,7 @@ export function AskDemo() {
       >
         {messages.length === 0 && (
           <p className="m-auto max-w-64 text-center text-sm text-muted-foreground">
-            Ask about your money in your own words, in English or Taglish.
+            Ask about your money in your own words, in any language.
           </p>
         )}
         {messages.map((m) => {

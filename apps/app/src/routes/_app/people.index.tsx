@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { Link, createFileRoute } from "@tanstack/react-router"
 import { ChevronRightIcon, PlusIcon } from "lucide-react"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { CoinMark } from "@workspace/ui/components/brand"
 import { Button } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
@@ -97,7 +97,7 @@ function People() {
                         p.owed === 0 && "text-muted-foreground"
                       )}
                     >
-                      {p.owed === 0 ? "Square" : formatPeso(Math.abs(p.owed))}
+                      {p.owed === 0 ? "Square" : formatMoney(Math.abs(p.owed))}
                     </span>
                     {p.owed !== 0 && (
                       <span className="text-xs text-muted-foreground">

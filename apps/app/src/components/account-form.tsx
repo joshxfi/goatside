@@ -1,5 +1,5 @@
 import { useId, useState } from "react"
-import { formatPeso, parseAmount } from "@workspace/core/money"
+import { formatMoney, parseAmount } from "@workspace/core/money"
 import { Button } from "@workspace/ui/components/button"
 import {
   Drawer,
@@ -241,7 +241,7 @@ export function AccountForm({
           />
           {limitValue ? (
             <p className="text-xs text-muted-foreground">
-              {formatPeso(limitValue)}
+              {formatMoney(limitValue)}
             </p>
           ) : null}
         </div>

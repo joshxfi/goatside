@@ -4,7 +4,7 @@ import { Link, createFileRoute } from "@tanstack/react-router"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { z } from "zod"
 import { addMonths } from "@workspace/core/dates"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { buttonVariants } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
 import { PageFrame, PageHeader } from "@/components/app-shell"
@@ -176,11 +176,11 @@ function PeriodSummary({ view }: { view: TransactionsView }) {
 
   return (
     <dl className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-4">
-      <Stat label="Spent" value={formatPeso(spent)} tone="expense" />
-      <Stat label="Received" value={formatPeso(received)} tone="income" />
+      <Stat label="Spent" value={formatMoney(spent)} tone="expense" />
+      <Stat label="Received" value={formatMoney(received)} tone="income" />
       <Stat
         label="Net"
-        value={formatPeso(net, { sign: true })}
+        value={formatMoney(net, { sign: true })}
         tone={net >= 0 ? "income" : "expense"}
       />
       <Stat label="Entries" value={String(view.transactions.length)} />

@@ -174,7 +174,7 @@ describe("planRows", () => {
     expect(owedBy([lent, repaid])).toBe(0)
   })
 
-  it("never loses a centavo when dividing", () => {
+  it("never loses a cent when dividing", () => {
     expect(shares(100, 3)).toEqual([34, 33, 33])
     expect(
       planRows(

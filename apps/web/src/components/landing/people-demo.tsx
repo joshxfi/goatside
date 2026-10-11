@@ -1,14 +1,14 @@
 import { useState } from "react"
 import { CheckIcon, CopyIcon, SendIcon } from "lucide-react"
 import { cn } from "@workspace/ui/lib/utils"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { AnswerButton, DemoCard } from "./ui"
 
 const SPLIT_LINE = "2400 dinner with nini and daniel split 3"
 
 interface Person {
   name: string
-  /** What they owe you, in centavos; negative if you owe them. */
+  /** What they owe you, in cents; negative if you owe them. */
   owes: number
   history: { label: string; phrase: string }[]
 }
@@ -61,7 +61,7 @@ export function PeopleDemo() {
   function remind(person: Person) {
     setCopied(false)
     setReminder(
-      `Hi ${person.name}! Just a heads-up, you still owe me ${formatPeso(person.owes)}. That's ${person.history.map((h) => h.phrase).join(", and ")}. No rush, whenever you can. Thanks!`
+      `Hi ${person.name}! Just a heads-up, you still owe me ${formatMoney(person.owes)}. That's ${person.history.map((h) => h.phrase).join(", and ")}. No rush, whenever you can. Thanks!`
     )
   }
 
@@ -121,7 +121,7 @@ export function PeopleDemo() {
               >
                 {person.owes > 0 ? (
                   <>
-                    {formatPeso(person.owes)}
+                    {formatMoney(person.owes)}
                     <span className="block font-sans text-xs text-muted-foreground">
                       owes you
                     </span>

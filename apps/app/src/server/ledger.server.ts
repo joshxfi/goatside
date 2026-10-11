@@ -389,7 +389,7 @@ async function savedEntry(db: Db, id: string) {
 /** Records that a person and the owner are square. */
 /**
  * Records a repayment between the owner and a person: the whole balance,
- * or `part` centavos of it (capped at the balance).
+ * or `part` cents of it (capped at the balance).
  */
 export async function settleWith(personId: string, part?: number) {
   const db = getDb()
@@ -625,7 +625,7 @@ export async function editTransaction(data: {
   localDate?: string
   accountId?: string | null
   toAccountId?: string | null
-  /** Centavos, unsigned; the type sets the direction. A split's whole bill. */
+  /** Cents, unsigned; the type sets the direction. A split's whole bill. */
   amount?: number
   type?: (typeof ENTRY_TYPES)[number]
   /** Who shares a bill (spending), or who an IOU is with (lent, borrowed). */

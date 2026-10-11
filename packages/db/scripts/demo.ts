@@ -39,7 +39,7 @@ function random() {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296
 }
 const pick = <T>(items: T[]) => items[Math.floor(random() * items.length)] as T
-/** Centavos for a whole-peso amount between `min` and `max` pesos, in ₱5 steps. */
+/** Cents for a whole-peso amount between `min` and `max` pesos, in ₱5 steps. */
 const between = (min: number, max: number) =>
   Math.round((min + random() * (max - min)) / 5) * 5 * 100
 

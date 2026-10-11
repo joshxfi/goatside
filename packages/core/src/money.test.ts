@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest"
-import { formatPeso, formatPesoCompact, parseAmount } from "./money"
+import {
+  currencyName,
+  currencySymbol,
+  formatMoney,
+  formatMoneyCompact,
+  isCurrency,
+  parseAmount,
+} from "./money"
 import { addMonths, daysInMonth, monthRange, todayIn } from "./dates"
 
 describe("parseAmount", () => {
@@ -12,8 +19,8 @@ describe("parseAmount", () => {
     ["1.5k", 150_000],
     ["2K", 200_000],
     ["1.2345k", 123_450],
-  ])("%s → %d", (input, centavos) => {
-    expect(parseAmount(input)).toBe(centavos)
+  ])("%s → %d", (input, cents) => {
+    expect(parseAmount(input)).toBe(cents)
   })
 
   it.each(["0", "0.00", "abc", "1.234", "12,34", "", "1e5", "-5"])(
@@ -24,23 +31,47 @@ describe("parseAmount", () => {
   )
 })
 
-describe("formatPeso", () => {
+describe("formatMoney", () => {
   it("drops decimals for whole amounts", () => {
-    expect(formatPeso(50_000)).toBe("₱500")
-    expect(formatPeso(125_050)).toBe("₱1,250.50")
+    expect(formatMoney(50_000)).toBe("₱500")
+    expect(formatMoney(125_050)).toBe("₱1,250.50")
   })
 
   it("signs", () => {
-    expect(formatPeso(-50_000)).toBe("−₱500")
-    expect(formatPeso(50_000, { sign: true })).toBe("+₱500")
-    expect(formatPeso(0, { sign: true })).toBe("₱0")
+    expect(formatMoney(-50_000)).toBe("−₱500")
+    expect(formatMoney(50_000, { sign: true })).toBe("+₱500")
+    expect(formatMoney(0, { sign: true })).toBe("₱0")
   })
 
   it("compacts", () => {
-    expect(formatPesoCompact(50_000)).toBe("₱500")
-    expect(formatPesoCompact(1_234_500)).toBe("₱12k")
-    expect(formatPesoCompact(123_400)).toBe("₱1.2k")
-    expect(formatPesoCompact(150_000_000)).toBe("₱1.5M")
+    expect(formatMoneyCompact(50_000)).toBe("₱500")
+    expect(formatMoneyCompact(1_234_500)).toBe("₱12k")
+    expect(formatMoneyCompact(123_400)).toBe("₱1.2k")
+    expect(formatMoneyCompact(150_000_000)).toBe("₱1.5M")
+  })
+
+  it("follows the currency", () => {
+    expect(formatMoney(125_050, { currency: "USD" })).toBe("$1,250.50")
+    expect(formatMoney(-50_000, { currency: "EUR" })).toBe("−€500")
+    expect(formatMoney(50_000, { currency: "CHF" })).toBe("CHF\u00a0500")
+    expect(formatMoneyCompact(123_400, { currency: "GBP" })).toBe("£1.2k")
+    expect(formatMoneyCompact(-123_400, { currency: "CHF" })).toBe(
+      "−CHF\u00a01.2k"
+    )
+  })
+
+  it("rounds currencies without decimals", () => {
+    expect(formatMoney(125_050, { currency: "JPY" })).toBe("¥1,251")
+  })
+
+  it("names currencies", () => {
+    expect(currencySymbol("PHP")).toBe("₱")
+    expect(currencySymbol("CHF")).toBe("CHF")
+    expect(currencyName("PHP")).toBe("Philippine peso")
+    expect(currencyName("USD")).toBe("US dollar")
+    expect(isCurrency("EUR")).toBe(true)
+    expect(isCurrency("eur")).toBe(false)
+    expect(isCurrency("XYZ")).toBe(false)
   })
 })
 

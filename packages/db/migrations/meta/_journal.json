@@ -8,6 +8,13 @@
       "when": 1791721542799,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1791725529672,
+      "tag": "0001_currency",
+      "breakpoints": true
     }
   ]
 }

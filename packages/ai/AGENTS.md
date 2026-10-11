@@ -20,7 +20,7 @@ pnpm --filter @workspace/ai eval:people   # also eval:duplicates, eval:accounts
   `AUTO_CATEGORY`, `RECURRING`) and otherwise saves a best guess plus a question.
 - `people.ts`: who's involved and how (`own`, `lent`, `borrowed`, `repaid_me`,
   `i_repaid`, `shared`); `planRows` turns that into transaction rows, `shares` splits a
-  bill with the odd centavos going to the owner.
+  bill with the odd cents going to the owner.
 - `accounts.ts`: transfer or spending, and what an unknown account name is.
 - `duplicates.ts`: same payment entered twice.
 - `refile.ts`: which recent entries fit a newly added category.

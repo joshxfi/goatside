@@ -49,7 +49,7 @@ function random(seed: number) {
   }
 }
 
-/** Pesos to centavos, rounded to the nearest ₱5 like real prices. */
+/** Pesos to cents, rounded to the nearest ₱5 like real prices. */
 const pesos = (value: number) => Math.round(value / 5) * 5 * 100
 
 function buildMonth(month: string, seed: number): SampleMonth {

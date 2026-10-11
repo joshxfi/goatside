@@ -22,6 +22,7 @@ import {
 } from "@workspace/auth"
 import { schema, seedDefaults } from "@workspace/db"
 import { aiEnabled, authConfig, getDb } from "./services"
+import { loadCurrency } from "./settings.server"
 
 const RENEW_WHEN_LEFT_MS = 15 * 24 * 60 * 60 * 1000
 const THROTTLE_WINDOW_MS = 15 * 60 * 1000
@@ -70,6 +71,7 @@ export const getViewer = createServerFn().handler(async () => {
     ? {
         username: authConfig().username,
         ai: aiEnabled(),
+        currency: await loadCurrency(getDb()),
         // shadcn's sidebar remembers open/collapsed in this cookie.
         sidebarOpen: getCookie("sidebar_state") !== "false",
       }
@@ -85,6 +87,7 @@ export const requireSession = createServerOnlyFn(hasSession)
 export const authMiddleware = createMiddleware({ type: "function" }).server(
   async ({ next }) => {
     if (!(await hasSession())) throw new Error("Unauthorized")
+    await loadCurrency(getDb())
     return next()
   }
 )

@@ -9,6 +9,7 @@ import {
   createCategory,
   mergeCategory,
   refile,
+  saveCurrency,
   setTimeZone,
   updateCategory,
 } from "./settings.server"
@@ -61,6 +62,11 @@ export const updateTimeZone = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(z.object({ timeZone: z.string().min(1).max(64) }))
   .handler(({ data }) => attempt(() => setTimeZone(data.timeZone)))
+
+export const updateCurrency = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(z.object({ currency: z.string().length(3) }))
+  .handler(({ data }) => attempt(() => saveCurrency(data.currency)))
 
 /** Entries the agent thinks belong in a (new) category. */
 export const getRefileSuggestions = createServerFn({ method: "POST" })

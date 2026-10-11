@@ -9,7 +9,7 @@ import {
   type Experimental_DecisionQuestion,
   experimental_decide,
 } from "ai"
-import { formatPeso as peso } from "@workspace/core/money"
+import { formatMoney as peso } from "@workspace/core/money"
 import type { Direction } from "@workspace/core/preparse"
 
 export const RELATIONS = [
@@ -40,7 +40,7 @@ export const AUTO_RELATION = 0.7
 export interface PersonInput {
   name: string
   personId: string | null
-  /** Centavos they owe the owner (negative: the owner owes them). */
+  /** Cents they owe the owner (negative: the owner owes them). */
   balance: number | null
 }
 
@@ -232,7 +232,7 @@ export function resolvePeople(
 
 export interface PlannedRow {
   kind: "expense" | "income" | "lend" | "settle"
-  /** Signed centavos. */
+  /** Signed cents. */
   amount: number
   /** Index into the resolved people, or null for the owner's own row. */
   person: number | null

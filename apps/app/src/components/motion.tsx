@@ -7,7 +7,7 @@
 import { useLayoutEffect, useRef } from "react"
 import { LazyMotion, MotionConfig, useReducedMotion } from "motion/react"
 import * as m from "motion/react-m"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 
 export { AnimatePresence } from "motion/react"
 export { m }
@@ -79,13 +79,13 @@ const COUNT_MS = 450
 /**
  * A money figure that counts to its new value when it changes, e.g. after
  * logging. First paint shows the value as is. Mid-count it moves in whole
- * pesos, so no decimals flicker by.
+ * units, so no decimals flicker by.
  */
 export function Figure({
   value,
   sign = false,
 }: {
-  /** Centavos. */
+  /** Cents. */
   value: number
   /** Show + on positive amounts. */
   sign?: boolean
@@ -102,9 +102,9 @@ export function Figure({
       shown.current = value
       return
     }
-    const show = (centavos: number) => {
-      shown.current = centavos
-      node.data = formatPeso(centavos, { sign })
+    const show = (cents: number) => {
+      shown.current = cents
+      node.data = formatMoney(cents, { sign })
     }
     show(from)
     const start = performance.now()
@@ -120,5 +120,5 @@ export function Figure({
     return () => cancelAnimationFrame(frame)
   }, [value, sign, reduce])
 
-  return <span ref={ref}>{formatPeso(value, { sign })}</span>
+  return <span ref={ref}>{formatMoney(value, { sign })}</span>
 }

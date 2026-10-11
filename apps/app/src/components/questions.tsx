@@ -1,7 +1,7 @@
 import { useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "@workspace/ui/components/sonner"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
 import { AnimatePresence, EASE_OUT, m } from "@/components/motion"
 import { capitalize } from "@/lib/format"
@@ -103,7 +103,7 @@ function QuestionCard({
   const what = transaction.description
     ? `"${capitalize(transaction.description)}"`
     : "this"
-  const amount = formatPeso(Math.abs(transaction.amount))
+  const amount = formatMoney(Math.abs(transaction.amount))
 
   return (
     <m.div

@@ -18,7 +18,7 @@ import {
   type TransferGuess,
   guessTransfer,
 } from "@workspace/core/accounts"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import type { Direction } from "@workspace/core/preparse"
 
 /** At or above this, a line that names both sides is filed as a transfer. */
@@ -108,7 +108,7 @@ export async function askAccounts(
     model,
     state: {
       entry: line.description || "(no description)",
-      amount: formatPeso(line.amount),
+      amount: formatMoney(line.amount),
       sign:
         line.direction === "in"
           ? "money in"

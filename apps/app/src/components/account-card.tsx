@@ -1,4 +1,4 @@
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
 import { Figure } from "@/components/motion"
 import {
@@ -26,7 +26,7 @@ export function balanceText(account: Pick<CardAccount, "kind" | "balance">) {
         ? { label: "Credit", value: account.balance }
         : { label: "Owed", value: owedOn(account.balance) }
       : { label: "Balance", value: account.balance }
-  return { ...shown, amount: formatPeso(shown.value) }
+  return { ...shown, amount: formatMoney(shown.value) }
 }
 
 /**
@@ -133,8 +133,8 @@ export function AccountCard({
                 size === "sm" && "sr-only"
               )}
             >
-              {formatPeso(Math.max(0, limit - owed))} available of{" "}
-              {formatPeso(limit)}
+              {formatMoney(Math.max(0, limit - owed))} available of{" "}
+              {formatMoney(limit)}
             </span>
           </div>
         ) : null}

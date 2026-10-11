@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { MinusIcon, PlusIcon, RepeatIcon, Trash2Icon } from "lucide-react"
 import { toast } from "@workspace/ui/components/sonner"
-import { formatPeso, parseAmount } from "@workspace/core/money"
+import { currencySymbol, formatMoney, parseAmount } from "@workspace/core/money"
 import { Button } from "@workspace/ui/components/button"
 import {
   Drawer,
@@ -119,15 +119,15 @@ const typeOf = (txn: LedgerTxn): Type =>
 const isIou = (type: Type) =>
   type === "lent" || type === "borrowed" || type === "settle"
 
-/** Centavos as the owner would type them: "1,250" or "1,250.50". */
-function typed(centavos: number) {
+/** Cents as the owner would type them: "1,250" or "1,250.50". */
+function typed(cents: number) {
   return new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: centavos % 100 ? 2 : 0,
+    minimumFractionDigits: cents % 100 ? 2 : 0,
     maximumFractionDigits: 2,
-  }).format(centavos / 100)
+  }).format(cents / 100)
 }
 
-/** A bill in `n` parts that add up exactly; odd centavos go first (you). */
+/** A bill in `n` parts that add up exactly; odd cents go first (you). */
 function sharesOf(total: number, n: number) {
   const base = Math.floor(total / n)
   return Array.from(
@@ -395,18 +395,18 @@ function EditForm({
           )}
         >
           {transfer
-            ? formatPeso(mine)
-            : formatPeso(signed, { sign: signed > 0 })}
+            ? formatMoney(mine)
+            : formatMoney(signed, { sign: signed > 0 })}
         </DrawerTitle>
         <DrawerDescription className="max-w-xs text-balance">
           {transfer
             ? "Moves money between your accounts. Not spending."
             : share
-              ? `🤝 ${nameOf(who[0])}'s share of a ${formatPeso(split.data?.bill ?? 0)} bill. Open your share to change the split.`
+              ? `🤝 ${nameOf(who[0])}'s share of a ${formatMoney(split.data?.bill ?? 0)} bill. Open your share to change the split.`
               : iou
                 ? `🤝 ${iou}. IOUs don't count toward your spending.`
                 : ways > 1
-                  ? `Your share of a ${amount ? formatPeso(amount) : "…"} bill split ${ways} ways.`
+                  ? `Your share of a ${amount ? formatMoney(amount) : "…"} bill split ${ways} ways.`
                   : income
                     ? "Counts as money in."
                     : "Counts toward your spending."}
@@ -439,7 +439,7 @@ function EditForm({
               aria-hidden
               className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
             >
-              ₱
+              {currencySymbol()}
             </span>
             <Input
               id="txn-amount"
@@ -453,7 +453,10 @@ function EditForm({
               onChange={(e) => setAmountText(e.target.value)}
               aria-invalid={badAmount || tooSmall}
               aria-describedby="txn-amount-hint"
-              className="figure h-11 pl-7 text-base font-normal"
+              className="figure h-11 text-base font-normal"
+              style={{
+                paddingLeft: `calc(1.25rem + ${currencySymbol().length}ch)`,
+              }}
             />
           </div>
           <p
@@ -469,14 +472,14 @@ function EditForm({
                 ? `Too small to split ${ways} ways.`
                 : parts
                   ? [
-                      `You ${formatPeso(parts[0] ?? 0)}`,
+                      `You ${formatMoney(parts[0] ?? 0)}`,
                       ...who.map(
                         (id, i) =>
-                          `${nameOf(id)} ${formatPeso(parts[i + 1] ?? 0)}`
+                          `${nameOf(id)} ${formatMoney(parts[i + 1] ?? 0)}`
                       ),
                       ...(ways - 1 > who.length
                         ? [
-                            `${ways - 1 - who.length} more ${formatPeso(
+                            `${ways - 1 - who.length} more ${formatMoney(
                               parts
                                 .slice(who.length + 1)
                                 .reduce((s, p) => s + p, 0)

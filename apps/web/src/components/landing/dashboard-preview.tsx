@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { formatPeso } from "@workspace/core/money"
+import { formatMoney } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
 import { SAMPLE_MONTHS, monthName, projection } from "@/lib/demo/sample-months"
 import {
@@ -67,18 +67,22 @@ export function DashboardPreview() {
       </div>
 
       <dl className="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-4">
-        <Figure label="Money in" value={formatPeso(view.totals.in)} tone="in" />
+        <Figure
+          label="Money in"
+          value={formatMoney(view.totals.in)}
+          tone="in"
+        />
         <Figure
           label="Money out"
-          value={formatPeso(view.totals.out)}
+          value={formatMoney(view.totals.out)}
           tone="out"
         />
-        <Figure label="Left" value={formatPeso(left, { sign: left > 0 })} />
+        <Figure label="Left" value={formatMoney(left, { sign: left > 0 })} />
         <Figure
           label={ahead ? "On pace for" : "vs last month"}
           value={
             ahead
-              ? formatPeso(ahead.total)
+              ? formatMoney(ahead.total)
               : `${change > 0 ? "+" : change < 0 ? "−" : ""}${Math.abs(change)}%`
           }
           hint={
@@ -115,7 +119,7 @@ export function DashboardPreview() {
                   />
                   <span className="flex-1 truncate">{s.name}</span>
                   <span className="figure text-muted-foreground">
-                    {formatPeso(s.out)}
+                    {formatMoney(s.out)}
                   </span>
                 </li>
               ))}

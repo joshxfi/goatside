@@ -204,16 +204,27 @@ describe("readAmount", () => {
     ["1,037.92 PHP", 103_792],
     ["- 14,037.92 PHP", -1_403_792],
     ["₱250.00", 25_000],
-  ])("%s → %d", (input, centavos) => {
-    expect(readAmount(input)).toBe(centavos)
+    ["$12.00", 1_200],
+    ["-€8.50", -850],
+    ["USD 1,234.00", 123_400],
+    ["99.99 EUR", 9_999],
+  ])("%s → %d", (input, cents) => {
+    expect(readAmount(input)).toBe(cents)
   })
 
-  it.each(["2026", "1234", "1,234", "1.5", "12,34.00", "abc", "--1.00", ""])(
-    "rejects %j",
-    (input) => {
-      expect(readAmount(input)).toBeNull()
-    }
-  )
+  it.each([
+    "2026",
+    "1234",
+    "1,234",
+    "1.5",
+    "12,34.00",
+    "abc",
+    "--1.00",
+    "",
+    "ABC 1.00",
+  ])("rejects %j", (input) => {
+    expect(readAmount(input)).toBeNull()
+  })
 })
 
 describe("readDate", () => {
@@ -578,6 +589,20 @@ describe("findings from review", () => {
       "2026-10-05",
       "2026-10-12",
     ])
+  })
+})
+
+describe("other currencies", () => {
+  it("reads a CSV with dollar signs and a code column", () => {
+    const csv = [
+      "Date,Details,Amount,Balance,Currency",
+      "2026-10-01,Groceries,-$100.00,$900.00,USD",
+      "2026-10-05,Coffee,-$4.50,$895.50,USD",
+      "2026-10-06,Refund,$20.00,$915.50,USD",
+    ].join("\n")
+    const result = readStatement(linesFromCsv(csv), { kind: "bank" })
+    expect(result.rows.map((r) => r.amount)).toEqual([-10_000, -450, 2_000])
+    expect(result.check.ok).toBe(true)
   })
 })
 

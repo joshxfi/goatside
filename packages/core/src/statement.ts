@@ -6,7 +6,7 @@
  * can't be checked isn't imported.
  */
 
-import { MAX_CENTAVOS, type Centavos } from "./money"
+import { COMMON_CURRENCIES, MAX_CENTS, type Cents } from "./money"
 import { addDays, isValidDate, makeDate, type LocalDate } from "./dates"
 
 export type StatementKind = "bank" | "ewallet" | "credit_card" | "cash"
@@ -33,9 +33,9 @@ export interface StatementRow {
   postedDate?: LocalDate
   details: string
   /** Cash flow from the owner's side: money out is negative. */
-  amount: Centavos
+  amount: Cents
   /** The running balance as printed, when the statement has one. */
-  balance?: Centavos
+  balance?: Cents
   page: number
   y: number
 }
@@ -45,10 +45,10 @@ export interface StatementRow {
  * that's the amount owed. Totals are positive.
  */
 export interface StatementSummary {
-  opening?: Centavos
-  closing?: Centavos
-  totalIn?: Centavos
-  totalOut?: Centavos
+  opening?: Cents
+  closing?: Cents
+  totalIn?: Cents
+  totalOut?: Cents
 }
 
 export interface StatementPeriod {
@@ -162,17 +162,20 @@ export function readDate(text: string): LocalDate | null {
   return makeDate(parts.year, parts.month, parts.day)
 }
 
+// A currency in front of an amount ("PHP", "₱", "$") or a code after it.
+const CODE = `(?:${COMMON_CURRENCIES.join("|")})`
+const MARK = `(?:\\p{Sc}|${CODE})`
+const LEADING_MARK = new RegExp(`^${MARK}\\s*`, "iu")
+const TRAILING_CODE = new RegExp(`\\s*${CODE}$`, "i")
+
 /**
- * Reads a printed amount into signed centavos: `1,500.00`, `- 1,037.92`,
- * `(1,037.92)`, `PHP 3,884.33`, `1,037.92 PHP`, `₱250.00`, `0.00`.
+ * Reads a printed amount into signed cents: `1,500.00`, `- 1,037.92`,
+ * `(1,037.92)`, `PHP 3,884.33`, `1,037.92 USD`, `₱250.00`, `$12.00`, `0.00`.
  * Statements always print two decimals, so `2026` or `1234` alone isn't an
  * amount (years and card digits stay out).
  */
-export function readAmount(text: string): Centavos | null {
-  let t = text
-    .trim()
-    .replace(/^(?:php|₱)\s*/i, "")
-    .replace(/\s*(?:php)$/i, "")
+export function readAmount(text: string): Cents | null {
+  let t = text.trim().replace(LEADING_MARK, "").replace(TRAILING_CODE, "")
   let negative = false
   const parens = t.match(/^\((.*)\)$/)
   if (parens) {
@@ -185,12 +188,12 @@ export function readAmount(text: string): Centavos | null {
     negative = true
     t = sign[1]!
   }
-  t = t.replace(/^(?:php|₱)\s*/i, "")
+  t = t.replace(LEADING_MARK, "")
   const m = t.match(/^(\d{1,3}(?:,\d{3})+|\d+)\.(\d{2})$/)
   if (!m) return null
-  const centavos = Number(m[1]!.replaceAll(",", "")) * 100 + Number(m[2])
-  if (!Number.isSafeInteger(centavos) || centavos > MAX_CENTAVOS) return null
-  return negative && centavos !== 0 ? -centavos : centavos
+  const cents = Number(m[1]!.replaceAll(",", "")) * 100 + Number(m[2])
+  if (!Number.isSafeInteger(cents) || cents > MAX_CENTS) return null
+  return negative && cents !== 0 ? -cents : cents
 }
 
 // ---------------------------------------------------------------------------
@@ -574,7 +577,7 @@ export function extractRows(
       return { rows: [], problem: "Some dates on the statement have no year." }
     }
 
-    const values: Partial<Record<AmountRole, Centavos>> = {}
+    const values: Partial<Record<AmountRole, Cents>> = {}
     for (const cell of parsed.amounts) {
       const at = anchor(cell)
       const index = layout.columns.findIndex(
@@ -596,7 +599,7 @@ export function extractRows(
       }
     }
 
-    let amount: Centavos
+    let amount: Cents
     if (values.amount !== undefined) {
       amount = values.amount * owedSign(kind)
     } else {
@@ -868,8 +871,10 @@ function csvRecords(text: string, delimiter: string): string[][] {
   return records
 }
 
-const NUMBER =
-  /^(?:php|₱)?\s*\(?[-−]?\s*(?:php|₱)?\s*[\d,]+(?:\.\d+)?\)?\s*(?:php)?$/i
+const NUMBER = new RegExp(
+  `^${MARK}?\\s*\\(?[-−]?\\s*${MARK}?\\s*[\\d,]+(?:\\.\\d+)?\\)?\\s*${CODE}?$`,
+  "iu"
+)
 const SLASH_DATE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
 
 /**

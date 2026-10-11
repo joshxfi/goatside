@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { formatPeso, parseAmount } from "@workspace/core/money"
+import { currencySymbol, formatMoney, parseAmount } from "@workspace/core/money"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { toast } from "@workspace/ui/components/sonner"
@@ -96,8 +96,8 @@ function IouForm({
       const id = result.value.id
       toast(
         type === "lent"
-          ? `Lent ${name ?? "them"} ${formatPeso(amount ?? 0)}.`
-          : `Borrowed ${formatPeso(amount ?? 0)} from ${name ?? "them"}.`,
+          ? `Lent ${name ?? "them"} ${formatMoney(amount ?? 0)}.`
+          : `Borrowed ${formatMoney(amount ?? 0)} from ${name ?? "them"}.`,
         id
           ? {
               action: {
@@ -151,7 +151,7 @@ function IouForm({
             aria-hidden
             className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground"
           >
-            ₱
+            {currencySymbol()}
           </span>
           <Input
             id="iou-amount"
@@ -160,7 +160,10 @@ function IouForm({
             value={amountText}
             onChange={(e) => setAmountText(e.target.value)}
             aria-invalid={amountText !== "" && amount === null}
-            className="figure h-11 pl-7 text-base font-normal"
+            className="figure h-11 text-base font-normal"
+            style={{
+              paddingLeft: `calc(1.25rem + ${currencySymbol().length}ch)`,
+            }}
           />
         </div>
         {amountText !== "" && amount === null && (

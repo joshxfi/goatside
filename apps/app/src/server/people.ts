@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
 import { authMiddleware } from "./session"
-import { MAX_CENTAVOS } from "@workspace/core/money"
+import { MAX_CENTS } from "@workspace/core/money"
 import {
   PeopleError,
   addIou,
@@ -67,7 +67,7 @@ export const recordIou = createServerFn({ method: "POST" })
     z.object({
       personId: z.uuid(),
       type: z.enum(["lent", "borrowed"]),
-      amount: z.number().int().positive().max(MAX_CENTAVOS),
+      amount: z.number().int().positive().max(MAX_CENTS),
       description: z.string().max(200),
       localDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       accountId: z.uuid().nullable(),

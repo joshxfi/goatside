@@ -12,7 +12,7 @@ export const SUGGEST_REFILE = 0.7
 export interface RefileCandidate {
   id: string
   description: string
-  /** Absolute centavos. */
+  /** Absolute cents. */
   amount: number
   kind: "expense" | "income"
 }

@@ -13,7 +13,7 @@ import {
   StarIcon,
   Trash2Icon,
 } from "lucide-react"
-import { formatPeso, parseAmount } from "@workspace/core/money"
+import { formatMoney, parseAmount } from "@workspace/core/money"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import { toast } from "@workspace/ui/components/sonner"
@@ -217,8 +217,8 @@ function SetBalance({ data }: { data: AccountDetail }) {
           inputMode="decimal"
           placeholder={
             card
-              ? formatPeso(owedOn(account.balance))
-              : formatPeso(account.balance)
+              ? formatMoney(owedOn(account.balance))
+              : formatMoney(account.balance)
           }
           className="figure h-9 flex-1"
         />
@@ -372,8 +372,8 @@ function History({ data }: { data: AccountDetail }) {
             row.category?.name ||
             (transfer ? "Transfer" : "Untitled")
           const after = card
-            ? `${formatPeso(owedOn(row.balanceAfter))} owed`
-            : formatPeso(row.balanceAfter)
+            ? `${formatMoney(owedOn(row.balanceAfter))} owed`
+            : formatMoney(row.balanceAfter)
           return (
             <li key={row.id}>
               <button
@@ -420,7 +420,7 @@ function History({ data }: { data: AccountDetail }) {
                       (transfer || iou) && "text-muted-foreground"
                     )}
                   >
-                    {formatPeso(row.change, { sign: row.change > 0 })}
+                    {formatMoney(row.change, { sign: row.change > 0 })}
                   </span>
                   <span className="figure text-xs text-muted-foreground">
                     {after}
