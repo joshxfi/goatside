@@ -7,8 +7,10 @@
  * - Server functions and the agent API always go to the network. Entries
  *   typed offline wait in the page's outbox (src/lib/outbox.ts), not here.
  *
- * Kept pages hold the owner's own ledger, on the owner's own device; signing
- * out deletes them (clearOfflineCopies in src/lib/offline.ts).
+ * Kept pages hold the owner's own ledger, on the owner's own device. They go
+ * when the session does: on sign-out and whenever the sign-in page shows
+ * (clearOfflineCopies in src/lib/offline.ts), when a page load is sent to
+ * sign in, and once a copy is older than a session can last.
  */
 const PAGES = "goatside-pages-v1"
 const ASSETS = "goatside-assets-v1"
@@ -22,6 +24,27 @@ const SHELL_FILES = [
 /** Long enough for a slow connection, short enough not to stare at white. */
 const PAGE_TIMEOUT_MS = 4000
 const MAX_ASSETS = 150
+/**
+ * A kept page older than a session can be (SESSION_TTL_MS in packages/auth)
+ * came from a session that has ended, so it isn't shown.
+ */
+const PAGE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
+const KEPT_AT = "x-goatside-kept-at"
+
+/** A copy of `response` stamped with when it was kept. */
+async function stamped(response) {
+  const headers = new Headers(response.headers)
+  headers.set(KEPT_AT, String(Date.now()))
+  return new Response(await response.blob(), {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+/** Whether a kept page is recent enough to show. Unstamped copies aren't. */
+const recent = (kept) =>
+  Date.now() - Number(kept.headers.get(KEPT_AT) ?? 0) < PAGE_MAX_AGE_MS
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -65,7 +88,7 @@ self.addEventListener("message", (event) => {
       if (href && !(await caches.match(href))) {
         const response = await fetch(href, { credentials: "same-origin" })
         if (response.ok && !response.redirected) {
-          await (await caches.open(PAGES)).put(href, response)
+          await (await caches.open(PAGES)).put(href, await stamped(response))
         }
       }
     })().catch(() => null)
@@ -96,13 +119,24 @@ self.addEventListener("fetch", (event) => {
 async function page(event, request) {
   const cache = await caches.open(PAGES)
   const network = fetch(request).then((response) => {
-    // Only real pages: not redirects (sign-in) or errors.
-    if (response.ok && !response.redirected && response.type === "basic") {
-      event.waitUntil(cache.put(request, response.clone()))
+    if (response.redirected && new URL(response.url).pathname === "/login") {
+      // Sent to sign in: the session ended, so its kept pages go too.
+      event.waitUntil(caches.delete(PAGES))
+    } else if (
+      // Only real pages: not redirects or errors.
+      response.ok &&
+      !response.redirected &&
+      response.type === "basic"
+    ) {
+      event.waitUntil(
+        stamped(response.clone()).then((copy) => cache.put(request, copy))
+      )
     }
     return response
   })
-  const kept = await cache.match(request, { ignoreVary: true })
+  const match = await cache.match(request, { ignoreVary: true })
+  const kept = match && recent(match) ? match : undefined
+  if (match && !kept) event.waitUntil(cache.delete(request))
   if (!kept) {
     return network.catch(async () => {
       const offline = await caches.match("/offline.html")
