@@ -93,7 +93,7 @@ function buildMonth(month: string, seed: number): SampleMonth {
         [3, "Subscriptions", 14900],
         [5, "Bills", pesos(between(2700, 3700))],
         [8, "Subscriptions", 54900],
-        [12, "Bills", 169900],
+        [12, "Bills", 269900],
         [14, "Subscriptions", 14900],
         [20, "Bills", pesos(between(380, 520))],
       ]
