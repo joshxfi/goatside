@@ -40,6 +40,9 @@ import {
 const when = (date: string, rowDate: string) =>
   date === rowDate ? "same day" : shortDate(date)
 
+/** Rows shown per group before "Show more". */
+const PAGE = 50
+
 const entries = (n: number) => `${n} ${n === 1 ? "entry" : "entries"}`
 
 /** Statements are a few hundred KB; this keeps a wrong pick from hanging the tab. */
@@ -466,6 +469,23 @@ function Review({
     imported: preview.rows.filter((r) => r.status === "imported"),
   }
   const count = decisions.filter((d) => d.action !== "skip").length
+  // Long statements render a page of each group at a time.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  const shown = (name: string, rows: PreviewRow[]) =>
+    expanded.has(name) ? rows : rows.slice(0, PAGE)
+  const more = (name: string, rows: PreviewRow[]) =>
+    rows.length > PAGE && !expanded.has(name) ? (
+      <li className="py-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full text-xs"
+          onClick={() => setExpanded((all) => new Set(all).add(name))}
+        >
+          Show {rows.length - PAGE} more
+        </Button>
+      </li>
+    ) : null
 
   const transferSelect = (row: PreviewRow, fallback: "none" | "skip") => {
     const decision = decisions[row.index]!
@@ -639,7 +659,8 @@ function Review({
           title="Maybe logged"
           hint="Close to an entry you typed, but not exact. Say if it's the same."
         >
-          {groups.maybe.map(maybeItem)}
+          {shown("maybe", groups.maybe).map(maybeItem)}
+          {more("maybe", groups.maybe)}
         </Group>
       )}
       {groups.new.length > 0 && (
@@ -648,7 +669,7 @@ function Review({
           hint="Goatside files these like typed entries."
           action={toggleAll(groups.new)}
         >
-          {groups.new.map((row) =>
+          {shown("new", groups.new).map((row) =>
             rowItem(
               row,
               null,
@@ -657,6 +678,7 @@ function Review({
                 : undefined
             )
           )}
+          {more("new", groups.new)}
         </Group>
       )}
       {groups.transfer.length > 0 && (
@@ -665,7 +687,7 @@ function Review({
           hint="Money moving between your accounts isn't spending."
           action={toggleAll(groups.transfer)}
         >
-          {groups.transfer.map((row) =>
+          {shown("transfer", groups.transfer).map((row) =>
             rowItem(
               row,
               row.transfer?.convert &&
@@ -677,6 +699,7 @@ function Review({
               transferSelect(row, "none")
             )
           )}
+          {more("transfer", groups.transfer)}
         </Group>
       )}
       {groups.logged.length > 0 && (
@@ -684,7 +707,7 @@ function Review({
           title="Already logged"
           hint="These match entries you typed, so they're linked, not added again."
         >
-          {groups.logged.map((row) => {
+          {shown("logged", groups.logged).map((row) => {
             const decision = decisions[row.index]!
             const linking = decision.action === "link"
             return rowItem(
@@ -703,6 +726,7 @@ function Review({
               </button>
             )
           })}
+          {more("logged", groups.logged)}
         </Group>
       )}
       {groups.imported.length > 0 && (
