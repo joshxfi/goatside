@@ -14,6 +14,7 @@ import {
   isNotNull,
   isNull,
   ne,
+  notExists,
   sql,
 } from "drizzle-orm"
 import {
@@ -326,49 +327,62 @@ export async function logText(
     return { kind: "ask" as const }
   }
 
-  // Sent before: report what it saved. An earlier attempt that stopped
-  // before saving any lines carries on below with the same entry.
-  const earlier = id
-    ? await db.query.entries.findFirst({
-        where: eq(entries.id, id),
-        columns: { id: true },
-      })
-    : undefined
-  if (earlier) {
-    const rows = await db
-      .select({ id: transactions.id })
-      .from(transactions)
-      .where(eq(transactions.entryId, earlier.id))
-    if (rows.length) {
-      return {
-        kind: "log" as const,
-        entryId: earlier.id,
-        transactionIds: rows.map((r) => r.id),
-        saved: [],
-        asked: false,
-      }
-    }
+  const entryId = id ?? crypto.randomUUID()
+  // Sent and saved before: report what it saved, without deciding again.
+  const earlier = id ? await savedEntry(db, id) : null
+  if (earlier) return earlier
+  try {
+    const { saved, transactionIds, asked } = await saveLines(
+      db,
+      { id: entryId, rawText: text },
+      parsed.lines,
+      { checkDuplicates: !repeat }
+    )
+    return { kind: "log" as const, entryId, transactionIds, saved, asked }
+  } catch (error) {
+    // Another send of this id saved it while this one was deciding.
+    const raced = id ? await savedEntry(db, id) : null
+    if (raced) return raced
+    throw error
   }
-  const [entry] = earlier
-    ? [earlier]
-    : await db
-        .insert(entries)
-        .values({ id, rawText: text, mode: "log" })
-        .returning({ id: entries.id })
-  if (!entry) throw new Error("Could not save entry")
+}
 
-  const { saved, transactionIds, asked } = await saveLines(
-    db,
-    entry.id,
-    parsed.lines,
-    { checkDuplicates: !repeat }
-  )
+/** An entry sent before with this phone-chosen id, as logText reports it. */
+async function savedEntry(db: Db, id: string) {
+  const entry = await db.query.entries.findFirst({
+    where: eq(entries.id, id),
+    columns: { id: true },
+  })
+  if (!entry) return null
+  const rows = await db
+    .select({ id: transactions.id })
+    .from(transactions)
+    .where(eq(transactions.entryId, id))
+  if (!rows.length) {
+    // Left by an older version, which saved the entry before its lines.
+    // Deleted only if it still has none: another send may have just saved
+    // it, and deleting that would cut its rows loose.
+    await db
+      .delete(entries)
+      .where(
+        and(
+          eq(entries.id, id),
+          notExists(
+            db
+              .select({ id: transactions.id })
+              .from(transactions)
+              .where(eq(transactions.entryId, id))
+          )
+        )
+      )
+    return null
+  }
   return {
     kind: "log" as const,
-    entryId: entry.id,
-    transactionIds,
-    saved,
-    asked,
+    entryId: id,
+    transactionIds: rows.map((r) => r.id),
+    saved: [],
+    asked: false,
   }
 }
 

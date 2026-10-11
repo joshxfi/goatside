@@ -55,8 +55,15 @@ import { type Db, schema } from "@workspace/db"
 import { serverEnv } from "./env"
 import { aiEnabled } from "./services"
 
-const { accounts, categories, people, questions, settings, transactions } =
-  schema
+const {
+  accounts,
+  categories,
+  entries,
+  people,
+  questions,
+  settings,
+  transactions,
+} = schema
 
 const MODEL_TIMEOUT_MS = 6000
 const EXAMPLE_POOL = 400
@@ -580,7 +587,8 @@ export interface SavedLine {
 /** Decides and saves every line of an entry, with any questions. */
 export async function saveLines(
   db: Db,
-  entryId: string,
+  /** The entry to create; its rows and questions are written with it. */
+  entry: { id: string; rawText: string },
   lines: DraftLine[],
   /** False for a deliberate repeat (a quick pick): don't ask "again?". */
   { checkDuplicates = true }: { checkDuplicates?: boolean } = {}
@@ -589,8 +597,11 @@ export async function saveLines(
     decide(db, lines, { checkDuplicates }),
     accountBook(db),
   ])
+  const entryId = entry.id
   const saved: SavedLine[] = []
   const transactionIds: string[] = []
+  const rowsToInsert: (typeof transactions.$inferInsert)[] = []
+  const questionsToInsert: (typeof questions.$inferInsert)[] = []
   let asked = false
 
   for (const [i, draft] of lines.entries()) {
@@ -611,26 +622,23 @@ export async function saveLines(
       description: decision.description,
       accountId: account.accountId,
     }
-    const inserted = await db
-      .insert(transactions)
-      .values(
-        account.transfer
-          ? [
-              {
-                ...base,
-                kind: "transfer" as const,
-                // Always out of `accountId`, whatever sign was typed.
-                amount: -draft.amount,
-                toAccountId: account.toAccountId,
-                status: resolved.status,
-              },
-            ]
-          : rows.map((row, j) =>
-              rowValues(row, base, personIds, j === 0 ? resolved : undefined)
-            )
-      )
-      .returning({ id: transactions.id })
-    const ids = inserted.map((t) => t.id)
+    const values: (typeof transactions.$inferInsert)[] = account.transfer
+      ? [
+          {
+            ...base,
+            kind: "transfer" as const,
+            // Always out of `accountId`, whatever sign was typed.
+            amount: -draft.amount,
+            toAccountId: account.toAccountId,
+            status: resolved.status,
+          },
+        ]
+      : rows.map((row, j) =>
+          rowValues(row, base, personIds, j === 0 ? resolved : undefined)
+        )
+    // Ids chosen here, so questions can point at rows not yet written.
+    const ids = values.map(() => crypto.randomUUID())
+    rowsToInsert.push(...values.map((value, j) => ({ ...value, id: ids[j] })))
     transactionIds.push(...ids)
     const [primary] = ids
     if (!primary) continue
@@ -647,9 +655,9 @@ export async function saveLines(
         rankings: decision.rankings,
         transactionIds: ids,
       }
-      await db
-        .insert(questions)
-        .values(resolved.questions.map((q) => questionRow(primary, q, context)))
+      questionsToInsert.push(
+        ...resolved.questions.map((q) => questionRow(primary, q, context))
+      )
     }
     const nameOf = (id: string | null) =>
       book.known.find((a) => a.id === id)?.name ?? null
@@ -666,6 +674,21 @@ export async function saveLines(
       questions: resolved.questions.map((q) => q.kind),
     })
   }
+  // One batch, so the entry, its rows and its questions land together or not
+  // at all. The entry goes first: a second save of the same id fails on it.
+  await db.batch([
+    db.insert(entries).values({
+      id: entry.id,
+      rawText: entry.rawText,
+      mode: "log",
+    }),
+    ...(rowsToInsert.length
+      ? [db.insert(transactions).values(rowsToInsert)]
+      : []),
+    ...(questionsToInsert.length
+      ? [db.insert(questions).values(questionsToInsert)]
+      : []),
+  ])
   return { saved, transactionIds, asked }
 }
 
