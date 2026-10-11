@@ -342,6 +342,8 @@ interface RowParse {
   date: DateParts
   posted?: DateParts
   details: string[]
+  /** Where the details start, for finding the details column. */
+  detailsX: number | null
   amounts: StatementCell[]
 }
 
@@ -352,20 +354,21 @@ function parseRowLine(line: StatementLine): RowParse | null {
   const second = leadingDate(line.cells, at)
   if (second) at += second.used
   const rest = line.cells.slice(at)
-  const amounts: StatementCell[] = []
-  const details: string[] = []
-  // Amounts are the trailing cells that read as money.
-  let i = rest.length - 1
-  while (i >= 0 && readAmount(rest[i]!.text) !== null)
-    amounts.unshift(rest[i--]!)
-  for (const cell of rest.slice(0, i + 1)) details.push(cell.text)
-  if (!amounts.length) return null
+  // Amounts are the last run of cells that read as money. Anything after
+  // them (a CSV's reference number) isn't part of the row's meaning.
+  let end = rest.length - 1
+  while (end >= 0 && readAmount(rest[end]!.text) === null) end--
+  if (end < 0) return null
+  let start = end
+  while (start > 0 && readAmount(rest[start - 1]!.text) !== null) start--
+  const detailCells = rest.slice(0, start)
   return {
     line,
     date: first.parts,
     ...(second && { posted: second.parts }),
-    details,
-    amounts,
+    details: detailCells.map((c) => c.text),
+    detailsX: detailCells[0]?.x ?? null,
+    amounts: rest.slice(start, end + 1),
   }
 }
 
@@ -424,11 +427,9 @@ export function detectLayout(lines: StatementLine[]): Layout | null {
     hint: null,
   }))
 
-  const detailsXs = rows.flatMap((r) => {
-    const cells = r.line.cells
-    const firstDetail = cells.length - r.amounts.length - r.details.length
-    return r.details.length ? [cells[firstDetail]!.x] : []
-  })
+  const detailsXs = rows.flatMap((r) =>
+    r.detailsX === null ? [] : [r.detailsX]
+  )
   const amountsX = Math.min(...rows.flatMap((r) => r.amounts.map((c) => c.x)))
   const detailsX = detailsXs.length ? Math.min(...detailsXs) : amountsX
 
@@ -607,6 +608,10 @@ export function extractRows(
       y: line.y,
     })
   }
+  // Newest first (some banks and most CSV exports): put them in order, so
+  // each running balance follows the one before it.
+  const when = (r: StatementRow) => r.postedDate ?? r.localDate
+  if (rows.length > 1 && when(rows[0]!) > when(rows.at(-1)!)) rows.reverse()
   return { rows }
 }
 
@@ -805,6 +810,117 @@ export function checkStatement(
               : "There's no running balance or total on the statement that matches the rows, so they can't be checked."
   }
   return check
+}
+
+// ---------------------------------------------------------------------------
+// CSV
+
+/** Splits CSV text into records: quoted fields, doubled quotes, CRLF. */
+function csvRecords(text: string, delimiter: string): string[][] {
+  const records: string[][] = []
+  let record: string[] = []
+  let field = ""
+  let quoted = false
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!
+    if (quoted) {
+      if (ch === '"' && text[i + 1] === '"') {
+        field += '"'
+        i++
+      } else if (ch === '"') quoted = false
+      else field += ch
+    } else if (ch === '"' && !field) quoted = true
+    else if (ch === delimiter) {
+      record.push(field)
+      field = ""
+    } else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++
+      record.push(field)
+      if (record.some((f) => f.trim())) records.push(record)
+      record = []
+      field = ""
+    } else field += ch
+  }
+  record.push(field)
+  if (record.some((f) => f.trim())) records.push(record)
+  return records
+}
+
+const NUMBER =
+  /^(?:php|₱)?\s*\(?[-−]?\s*(?:php|₱)?\s*[\d,]+(?:\.\d+)?\)?\s*(?:php)?$/i
+const SLASH_DATE = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+
+/** "1500" or "1,500.5" in a money column, as a statement prints it. */
+function asMoney(text: string): string {
+  const negative = /[-−(]/.test(text)
+  const digits = text.replace(/[^\d.]/g, "")
+  const [whole = "0", fraction = ""] = digits.split(".")
+  return `${negative ? "-" : ""}${whole}.${fraction.padEnd(2, "0").slice(0, 2)}`
+}
+
+/**
+ * A CSV export as statement lines: one line per record, one cell per
+ * field, so the same layout detection and checks apply. Money columns get
+ * two decimals (`1500` becomes `1500.00`). Numeric dates (`09/12/2026`)
+ * become ISO when the column shows which number is the day; when every
+ * value could be either, month first, as Philippine banks export them.
+ */
+export function linesFromCsv(text: string): StatementLine[] {
+  const body = text.replace(/^\uFEFF/, "")
+  const firstLines = body.split(/\r?\n/).slice(0, 5).join("\n")
+  const delimiter =
+    [",", ";", "\t"]
+      .map((d) => ({ d, n: firstLines.split(d).length }))
+      .toSorted((a, b) => b.n - a.n)[0]?.d ?? ","
+  const records = csvRecords(body, delimiter).map((r) => r.map((f) => f.trim()))
+  const width = Math.max(0, ...records.map((r) => r.length))
+
+  for (let col = 0; col < width; col++) {
+    const values = records.map((r) => r[col] ?? "").filter(Boolean)
+    // Money: numbers in every row that has one, ignoring a header word.
+    const numbers = values.filter((v) => NUMBER.test(v))
+    if (
+      numbers.length >= Math.max(1, values.length - 1) &&
+      numbers.some((v) => /\.\d/.test(v))
+    ) {
+      for (const r of records) {
+        const v = r[col]
+        if (v && NUMBER.test(v)) r[col] = asMoney(v)
+      }
+      continue
+    }
+    const dates = values.flatMap((v) => {
+      const m = v.match(SLASH_DATE)
+      return m ? [[Number(m[1]), Number(m[2]), Number(m[3])] as const] : []
+    })
+    if (dates.length && dates.length >= values.length - 1) {
+      const dayFirst = dates.some(([a]) => a > 12)
+      for (const r of records) {
+        const m = r[col]?.match(SLASH_DATE)
+        if (!m) continue
+        const [a, b, year] = [Number(m[1]), Number(m[2]), Number(m[3])]
+        const [month, day] = dayFirst ? [b, a] : [a, b]
+        if (isValidDate(year, month, day)) r[col] = makeDate(year, month, day)
+      }
+    }
+  }
+
+  // Rows start at the date: a leading reference or row number column is
+  // dropped, as a PDF's row starts at its date.
+  let from = 0
+  while (
+    from < width &&
+    !records.some((r) => r[from] && readDateParts(r[from]!) !== null)
+  ) {
+    from++
+  }
+  return records.map((r, i) => ({
+    page: 1,
+    y: -i * 10,
+    cells: r.flatMap((field, col) =>
+      field && col >= from ? [{ x: col * 100, width: 50, text: field }] : []
+    ),
+  }))
 }
 
 // ---------------------------------------------------------------------------

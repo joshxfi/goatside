@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import {
   fingerprintRows,
+  linesFromCsv,
   linesFromItems,
   readAmount,
   readDate,
@@ -519,5 +520,47 @@ describe("rowFingerprint", () => {
     expect(prints[1]).toBe(rowFingerprint(rows[1]!, 0))
     expect(prints[2]).toBe(rowFingerprint(rows[2]!, 1))
     expect(fingerprintRows(rows)).toEqual(prints)
+  })
+})
+
+describe("linesFromCsv", () => {
+  it("reads a newest-first export with blank columns and quotes", () => {
+    const csv = [
+      "No.,Date,Description,Debit,Credit,Balance,Reference",
+      '3,09/14/2026,"Payroll, September",,"10,000.00","11,820.00",R3',
+      "2,09/13/2026,180 iced coffee,180.00,,1820.00,R2",
+      "1,09/12/2026,Transfer to Nini,500,,2000.00,R1",
+      "",
+    ].join("\r\n")
+    const result = readStatement(linesFromCsv(csv), { kind: "bank" })
+    expect(result.problem).toBeUndefined()
+    expect(
+      result.rows.map((r) => [r.localDate, r.details, r.amount, r.balance])
+    ).toEqual([
+      ["2026-09-12", "Transfer to Nini", -50_000, 200_000],
+      ["2026-09-13", "180 iced coffee", -18_000, 182_000],
+      ["2026-09-14", "Payroll, September", 1_000_000, 1_182_000],
+    ])
+  })
+
+  it("reads semicolons, a signed amount and day-first dates", () => {
+    const csv = [
+      "Date;Details;Amount;Balance",
+      "13/09/2026;Groceries;-1500;8500.00",
+      "14/09/2026;Refund;250.5;8750.50",
+    ].join("\n")
+    const result = readStatement(linesFromCsv(csv), { kind: "bank" })
+    expect(result.ok).toBe(true)
+    expect(result.rows.map((r) => [r.localDate, r.amount])).toEqual([
+      ["2026-09-13", -150_000],
+      ["2026-09-14", 25_050],
+    ])
+  })
+
+  it("still needs balances or totals to check against", () => {
+    const csv = "Date,Details,Amount\n2026-09-13,Groceries,-15.00\n"
+    const result = readStatement(linesFromCsv(csv), { kind: "bank" })
+    expect(result.ok).toBe(false)
+    expect(result.problem).toMatch(/can't be checked/)
   })
 })
