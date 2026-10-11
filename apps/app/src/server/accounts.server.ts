@@ -247,10 +247,12 @@ export async function createAccount(data: {
       last4: data.last4 ?? null,
       creditLimit:
         data.kind === "credit_card" ? (data.creditLimit ?? null) : null,
-      opening: data.balance ?? 0,
       aliases: cleanAliases(data.aliases ?? [], data.name),
     })
     .where(eq(accounts.id, id))
+  // Through setBalance, so a reopened account reads what was typed even
+  // with entries from before it was archived.
+  await setBalance(db, id, data.balance ?? 0)
   // The first account becomes the default, so entries start landing somewhere.
   const prefs = await db.query.settings.findFirst({
     where: eq(settings.id, 1),
