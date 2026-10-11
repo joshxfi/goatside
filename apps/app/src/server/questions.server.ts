@@ -3,7 +3,17 @@
  * applying answers (which can re-file, re-sign, split or remove a line).
  * Server-only.
  */
-import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm"
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm"
 import {
   NEW_ACCOUNT_ANSWERS,
   type NewAccountAnswer,
@@ -530,10 +540,31 @@ export async function answer(db: Db, questionId: string, value: string) {
         throw new AnswerError("Keep it or remove it.")
       }
       if (value === "remove") {
+        // The whole line as it is now: the rows saved with it, plus any
+        // shares an edit added since. Same match as splitRows in
+        // ledger.server.ts: IOU rows with a person, same entry, description
+        // and date. So an entry like "-100 coffee, -100 coffee" keeps its
+        // other line.
         await db
           .update(transactions)
           .set({ deletedAt: new Date() })
-          .where(inArray(transactions.id, context.transactionIds))
+          .where(
+            and(
+              isNull(transactions.deletedAt),
+              txn.entryId
+                ? or(
+                    inArray(transactions.id, context.transactionIds),
+                    and(
+                      eq(transactions.entryId, txn.entryId),
+                      eq(transactions.kind, "lend"),
+                      isNotNull(transactions.personId),
+                      eq(transactions.description, txn.description),
+                      eq(transactions.localDate, txn.localDate)
+                    )
+                  )
+                : inArray(transactions.id, context.transactionIds)
+            )
+          )
       }
       break
     }
