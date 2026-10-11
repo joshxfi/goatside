@@ -22,7 +22,7 @@ import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
 import { AccountDrawer } from "@/components/account-form"
 import { balanceText } from "@/components/account-card"
-import { periodLabel, shortDate } from "@/lib/format"
+import { capitalize, periodLabel, shortDate } from "@/lib/format"
 import { importsQuery } from "@/lib/queries"
 import { PasswordError, fileHash, readPdfLines } from "@/lib/statement-pdf"
 import { type AccountBalance, setAccountBalance } from "@/server/accounts"
@@ -35,6 +35,15 @@ import {
   previewStatement,
   undoStatementImport,
 } from "@/server/imports"
+
+/** The matched entry's date, or "same day" when it's the row's. */
+const when = (date: string, rowDate: string) =>
+  date === rowDate ? "same day" : shortDate(date)
+
+const entries = (n: number) => `${n} ${n === 1 ? "entry" : "entries"}`
+
+/** Statements are a few hundred KB; this keeps a wrong pick from hanging the tab. */
+const MAX_FILE_BYTES = 25 * 1024 * 1024
 
 type Account = Pick<
   AccountBalance,
@@ -69,6 +78,8 @@ function checkedText(result: StatementResult) {
 function suggested(row: PreviewRow): ImportDecision {
   if (row.status === "imported") return { action: "skip" }
   if (row.status === "logged") return { action: "link" }
+  // A near match is linked only when the owner says it's the same.
+  if (row.status === "maybe") return { action: "new" }
   if (row.status === "transfer" && row.transfer)
     return { action: "transfer", accountId: row.transfer.accountId }
   return { action: "new" }
@@ -242,6 +253,10 @@ function Pick({
           const file = e.target.files?.[0]
           e.target.value = ""
           if (!file) return
+          if (file.size > MAX_FILE_BYTES) {
+            toast("That file is over 25 MB. Statements are much smaller.")
+            return
+          }
           const csv = file.type === "text/csv" || /\.csv$/i.test(file.name)
           onFile(new Uint8Array(await file.arrayBuffer()), csv)
         }}
@@ -421,6 +436,7 @@ function Review({
   })
 
   const groups = {
+    maybe: preview.rows.filter((r) => r.status === "maybe"),
     logged: preview.rows.filter((r) => r.status === "logged"),
     transfer: preview.rows.filter((r) => r.status === "transfer"),
     new: preview.rows.filter((r) => r.status === "new"),
@@ -474,6 +490,7 @@ function Review({
   ) => {
     const decision = decisions[row.index]!
     const included = decision.action !== "skip"
+    const transfer = decision.action === "transfer"
     return (
       <li key={row.index} className="flex items-start gap-3 py-2.5">
         <input
@@ -496,8 +513,85 @@ function Review({
           </p>
           {included && control}
         </div>
-        <Amount value={row.amount} muted={!included} />
+        <Amount value={row.amount} muted={!included || transfer} />
       </li>
+    )
+  }
+
+  /** Tick or untick a whole group at once. */
+  const toggleAll = (rows: PreviewRow[]) => {
+    const included = rows.filter((r) => decisions[r.index]!.action !== "skip")
+    const all = included.length === rows.length
+    return (
+      <input
+        type="checkbox"
+        className="size-4 accent-primary"
+        aria-label={all ? "Untick all" : "Tick all"}
+        checked={all}
+        ref={(el) => {
+          if (el) el.indeterminate = included.length > 0 && !all
+        }}
+        onChange={() =>
+          setDecisions((current) =>
+            current.map((d, i) =>
+              rows.some((r) => r.index === i)
+                ? all
+                  ? { action: "skip" }
+                  : d.action === "skip"
+                    ? suggested(preview.rows[i]!)
+                    : d
+                : d
+            )
+          )
+        }
+      />
+    )
+  }
+
+  const maybeItem = (row: PreviewRow) => {
+    const match = row.match!
+    const linking = decisions[row.index]!.action === "link"
+    const changes = [
+      match.amount !== row.amount &&
+        `its amount becomes ${formatPeso(Math.abs(row.amount))}`,
+      match.accountName && `it moves from ${match.accountName}`,
+    ].filter(Boolean)
+    return rowItem(
+      row,
+      <>
+        maybe "{match.description || "an entry"}",{" "}
+        {formatPeso(Math.abs(match.amount))},{" "}
+        {when(match.localDate, row.localDate)}
+        {match.accountName && ` on ${match.accountName}`}
+      </>,
+      <div className="mt-1.5 flex flex-col gap-1">
+        <fieldset className="flex gap-1.5">
+          <legend className="sr-only">Same entry?</legend>
+          <Button
+            size="sm"
+            variant={linking ? "secondary" : "ghost"}
+            className="h-7 text-xs"
+            aria-pressed={linking}
+            onClick={() => decide(row.index, { action: "link" })}
+          >
+            Same entry
+          </Button>
+          <Button
+            size="sm"
+            variant={linking ? "ghost" : "secondary"}
+            className="h-7 text-xs"
+            aria-pressed={!linking}
+            onClick={() => decide(row.index, { action: "new" })}
+          >
+            Add as new
+          </Button>
+        </fieldset>
+        {linking && changes.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Linking it, {changes.join(" and ")}.
+          </p>
+        )}
+      </div>
     )
   }
 
@@ -517,8 +611,20 @@ function Review({
         {warning && <p className="text-sm text-destructive">{warning}</p>}
       </div>
 
+      {groups.maybe.length > 0 && (
+        <Group
+          title="Maybe logged"
+          hint="Close to an entry you typed, but not exact. Say if it's the same."
+        >
+          {groups.maybe.map(maybeItem)}
+        </Group>
+      )}
       {groups.new.length > 0 && (
-        <Group title="New" hint="Goatside files these like typed entries.">
+        <Group
+          title="New"
+          hint="Goatside files these like typed entries."
+          action={toggleAll(groups.new)}
+        >
           {groups.new.map((row) =>
             rowItem(
               row,
@@ -534,6 +640,7 @@ function Review({
         <Group
           title="Transfers"
           hint="Money moving between your accounts isn't spending."
+          action={toggleAll(groups.transfer)}
         >
           {groups.transfer.map((row) =>
             rowItem(
@@ -560,7 +667,7 @@ function Review({
             return rowItem(
               row,
               linking
-                ? `matches "${row.match?.description || "an entry"}", ${shortDate(row.match!.localDate)}`
+                ? `matches "${row.match?.description || "an entry"}", ${when(row.match!.localDate, row.localDate)}`
                 : "will be added as new",
               <button
                 type="button"
@@ -588,11 +695,17 @@ function Review({
         onClick={() => commit.mutate()}
       >
         {commit.isPending
-          ? "Importing…"
+          ? `Importing ${count} ${count === 1 ? "row" : "rows"}…`
           : count
             ? `Import ${count} ${count === 1 ? "row" : "rows"}`
             : "Nothing new to import"}
       </Button>
+      {commit.isPending && (
+        <p className="-mt-3 text-center text-xs text-muted-foreground">
+          New entries get a category as they're saved, so this can take a
+          moment.
+        </p>
+      )}
     </div>
   )
 }
@@ -600,15 +713,21 @@ function Review({
 function Group({
   title,
   hint,
+  action,
   children,
 }: {
   title: string
   hint: string
+  /** A control on the heading's line, like "tick all". */
+  action?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <section className="flex flex-col gap-1">
-      <h3 className="text-sm font-medium">{title}</h3>
+      <div className="flex items-center gap-3">
+        {action}
+        <h3 className="text-sm font-medium">{title}</h3>
+      </div>
       <p className="text-xs text-muted-foreground">{hint}</p>
       <ul className="flex flex-col divide-y">{children}</ul>
     </section>
@@ -646,10 +765,12 @@ function Done({
     },
   })
 
-  const parts = [
-    result.added && `added ${result.added}`,
-    result.linked && `linked ${result.linked}`,
-  ].filter(Boolean)
+  const did = [
+    result.added && `added ${entries(result.added)}`,
+    result.linked && `linked ${entries(result.linked)} you'd already logged`,
+  ]
+    .filter(Boolean)
+    .join(" and ")
   const said = (value: number) => {
     const text = balanceText({ ...account, balance: value })
     return text.label === "Owed" ? `${text.amount} owed` : text.amount
@@ -658,11 +779,9 @@ function Done({
   return (
     <div className="flex flex-col gap-4 pb-2">
       <p className="text-sm">
-        {parts.length
-          ? `Done: ${parts.join(", ")}.`
-          : "Nothing needed importing."}
+        {did ? `${capitalize(did)}.` : "Nothing needed importing."}
         {result.transfers > 0 &&
-          ` ${result.transfers} ${result.transfers === 1 ? "is a transfer" : "are transfers"} between your accounts.`}
+          ` ${result.transfers === 1 ? "One is a transfer" : `${result.transfers} are transfers`} between your accounts.`}
       </p>
       {target !== null && target !== balance && (
         <div className="flex flex-col gap-2 rounded-2xl border px-3 py-3">
