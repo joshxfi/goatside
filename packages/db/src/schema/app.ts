@@ -213,6 +213,26 @@ export const transactions = sqliteTable(
   ]
 )
 
+/** What an import changed on entries it didn't add, as they were before. */
+export interface ImportUndo {
+  rows: {
+    id: string
+    kind: (typeof TRANSACTION_KINDS)[number]
+    amount: number
+    accountId: string | null
+    toAccountId: string | null
+    categoryId: string | null
+    aiConfidence: number | null
+    recurring: boolean
+    status: (typeof TRANSACTION_STATUSES)[number]
+    importRef: string | null
+    /** The ref this import wrote; undo skips a row another import took. */
+    ref: string
+  }[]
+  /** Questions it closed (a transfer has no category to ask about). */
+  questionIds: string[]
+}
+
 /**
  * Statements imported into an account. The file itself is never stored or
  * uploaded: only its SHA-256, the period and the balances it printed.
@@ -237,6 +257,11 @@ export const imports = sqliteTable(
     /** Rows on the statement, and how many were new. */
     rowCount: integer("row_count").notNull(),
     addedCount: integer("added_count").notNull(),
+    /**
+     * Entries the import changed rather than added (linked, moved, turned
+     * into a transfer), as they were before, so undo can put them back.
+     */
+    undo: text("undo", { mode: "json" }).$type<ImportUndo>(),
     createdAt: createdAt(),
   },
   (t) => [index("imports_account_idx").on(t.accountId, t.fileHash)]
