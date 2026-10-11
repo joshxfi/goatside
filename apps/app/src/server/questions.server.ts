@@ -334,13 +334,16 @@ async function refile(
   const [first, ...rest] = rows
   if (!first) return { ranking, ids: [txn.id] }
 
+  // Someone paid for the owner: none of the owner's accounts moved.
+  const accountId = relation === "borrowed" ? null : txn.accountId
+
   const primary = rowValues(
     first,
     {
       entryId: txn.entryId,
       localDate: txn.localDate,
       description: txn.description,
-      accountId: txn.accountId,
+      accountId,
     },
     personIds,
     {
@@ -367,7 +370,7 @@ async function refile(
                 entryId: txn.entryId,
                 localDate: txn.localDate,
                 description: txn.description,
-                accountId: txn.accountId,
+                accountId,
               },
               personIds,
               {
