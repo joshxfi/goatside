@@ -190,6 +190,12 @@ export const transactions = sqliteTable(
       .notNull()
       .default("pending"),
     aiConfidence: real("ai_confidence"),
+    /**
+     * Set when a bank or card statement row was imported as (or matched to)
+     * this transaction: the row's fingerprint, so an overlapping statement
+     * doesn't add it twice.
+     */
+    importRef: text("import_ref"),
     createdAt: createdAt(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" })
       .notNull()
@@ -203,7 +209,37 @@ export const transactions = sqliteTable(
     index("transactions_person_idx").on(t.personId),
     index("transactions_account_idx").on(t.accountId),
     index("transactions_to_account_idx").on(t.toAccountId),
+    index("transactions_import_idx").on(t.accountId, t.importRef),
   ]
+)
+
+/**
+ * Statements imported into an account. The file itself is never stored or
+ * uploaded: only its SHA-256, the period and the balances it printed.
+ */
+export const imports = sqliteTable(
+  "imports",
+  {
+    id: id(),
+    accountId: text("account_id")
+      .notNull()
+      .references(() => accounts.id, { onDelete: "cascade" }),
+    /** The entry its new rows were saved under; undo removes them together. */
+    entryId: text("entry_id").references(() => entries.id, {
+      onDelete: "set null",
+    }),
+    fileHash: text("file_hash").notNull(),
+    periodStart: text("period_start"),
+    periodEnd: text("period_end"),
+    /** As printed. On a card, what was owed. */
+    opening: integer("opening"),
+    closing: integer("closing"),
+    /** Rows on the statement, and how many were new. */
+    rowCount: integer("row_count").notNull(),
+    addedCount: integer("added_count").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("imports_account_idx").on(t.accountId, t.fileHash)]
 )
 
 /** Every manual fix to an AI guess; future parses learn from these. */
@@ -284,6 +320,7 @@ export type Category = typeof categories.$inferSelect
 export type Transaction = typeof transactions.$inferSelect
 export type TransactionKind = (typeof TRANSACTION_KINDS)[number]
 export type Question = typeof questions.$inferSelect
+export type Import = typeof imports.$inferSelect
 export type Account = typeof accounts.$inferSelect
 export type AccountKind = (typeof ACCOUNT_KINDS)[number]
 export type AccountColor = (typeof ACCOUNT_COLORS)[number]
