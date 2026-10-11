@@ -162,12 +162,14 @@ export async function previewImport(
   const to = addDays(dates.at(-1)!, TRANSFER_DAYS)
 
   const [stored, before, nearby, book] = await Promise.all([
+    // Deleted rows count too: a row you deleted after importing stays
+    // deleted when an overlapping statement comes in. (Undo clears the ref,
+    // so an undone import can be imported again.)
     db
       .select({ ref: transactions.importRef })
       .from(transactions)
       .where(
         and(
-          isNull(transactions.deletedAt),
           or(eq(transactions.accountId, A), eq(transactions.toAccountId, A)),
           inArray(transactions.importRef, prints)
         )
@@ -682,7 +684,7 @@ export async function undoImport(db: Db, importId: string) {
   const removed = record.entryId
     ? await db
         .update(transactions)
-        .set({ deletedAt: now })
+        .set({ deletedAt: now, importRef: null })
         .where(
           and(
             eq(transactions.entryId, record.entryId),

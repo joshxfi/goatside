@@ -13,7 +13,7 @@ import {
   previewImport,
   undoImport,
 } from "./imports.server"
-import { today } from "./ledger.server"
+import { setDeleted, today } from "./ledger.server"
 import { getDb } from "./services"
 
 const t = schema.transactions
@@ -441,6 +441,28 @@ describe("statement imports", () => {
     ])
     expect(results.some((r) => r.status === "fulfilled")).toBe(true)
     expect((await live()).length).toBe(1)
+  })
+
+  it("keeps a row you deleted deleted when the statement comes again", async () => {
+    const bank = await createAccount({ name: "GoTyme", kind: "bank" })
+    const input = bankStatement(bank.id, [
+      [day, "Qr Payment", -18_000],
+      [day, "ATM withdrawal fee", -1_800],
+    ])
+    await importAsSuggested(input)
+    const [fee] = (await live()).filter((r) => r.amount === -1_800)
+    await setDeleted([fee!.id], true)
+    const again = await previewImport(getDb(), input)
+    expect(again.rows.map((r) => r.status)).toEqual(["imported", "imported"])
+  })
+
+  it("lets an undone import be imported again", async () => {
+    const bank = await createAccount({ name: "GoTyme", kind: "bank" })
+    const input = bankStatement(bank.id, [[day, "Qr Payment", -18_000]])
+    const { result } = await importAsSuggested(input)
+    await undoImport(getDb(), result.importId!)
+    const again = await previewImport(getDb(), input)
+    expect(again.rows[0]!.status).toBe("new")
   })
 
   it("undo removes what the import added", async () => {
