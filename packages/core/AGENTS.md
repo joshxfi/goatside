@@ -25,6 +25,12 @@ pnpm --filter @workspace/core typecheck
 - `people.ts`: `nameCandidates` over-collects possible names after cue words. The model
   decides which are people.
 - `categories.ts`: the default categories seeded on first sign-in.
+- `statement.ts`: reads bank and card statements from positioned text (pdf.js items or
+  CSV cells). It finds rows by what the cells contain, since some statements draw their
+  headers as images. It tries each reading of the amount columns, and `checkStatement`
+  keeps the one that matches the statement's running balance, totals or opening and
+  closing balances. A statement that can't be checked doesn't pass. Test fixtures are
+  made up; never put real statement data in them.
 
 ## Rules
 
