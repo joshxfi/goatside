@@ -203,70 +203,86 @@
   }
 }
 
-/* Coin: two faces back to back. See CoinFlip in components/brand.tsx. */
+/*
+ * Coin: two faces back to back with an edge between them. CoinFlip in
+ * components/brand.tsx moves it with Motion; only the loading spin is CSS.
+ */
 @layer components {
   .coin-stage {
-    perspective: 800px;
+    perspective: 900px;
+    /* The faces sit apart by a share of the coin's width (cqi). */
+    container-type: inline-size;
   }
-  .coin-toss,
-  .coin-flip {
+  .coin-3d {
     position: relative;
-    width: 100%;
-    height: 100%;
     transform-style: preserve-3d;
-  }
-  .coin-flip {
-    transition: transform 700ms var(--ease-in-out);
-  }
-  .coin-flip[data-side="silver"] {
-    transform: rotateY(180deg);
   }
   .coin-face {
     position: absolute;
     inset: 0;
     backface-visibility: hidden;
+    transform: translateZ(2.5cqi);
   }
   .coin-face-back {
-    transform: rotateY(180deg);
+    transform: rotateX(180deg) translateZ(2.5cqi);
+  }
+  /* Seen edge-on mid-flip: a reeded band between the faces. */
+  .coin-edge {
+    position: absolute;
+    inset: 47.5% 1.5%;
+    border-radius: 999px;
+    transform: rotateX(90deg);
+    background: repeating-linear-gradient(
+      90deg,
+      #9a6b17 0 1.5px,
+      #d6a63a 1.5px 3px
+    );
+  }
+  /* On the ground under the coin, not a filter on it: cheap to animate. */
+  .coin-shadow {
+    position: absolute;
+    left: 15%;
+    right: 15%;
+    bottom: -14%;
+    height: 10%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(0 0 0 / 0.28), transparent);
   }
   .coin-spinning {
-    animation: coin-spin 1.2s linear infinite;
-  }
-  .coin-toss-once {
-    animation: coin-toss 1.3s both;
+    animation: coin-spin 1.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .coin-flip {
-      transition-duration: 0ms;
-    }
     .coin-spinning {
       animation: coin-pulse 1.6s ease-in-out infinite;
     }
-    .coin-toss-once {
-      animation: none;
-    }
+  }
+}
+
+/* Cards that lean toward the mouse: see hooks/use-tilt.ts. */
+@layer components {
+  .tilt {
+    transform: perspective(900px) rotateX(var(--tilt-x, 0deg))
+      rotateY(var(--tilt-y, 0deg));
+  }
+  .tilt::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: var(--tilt-glow, 0);
+    background: radial-gradient(
+      circle at var(--tilt-px, 50%) var(--tilt-py, 50%),
+      rgb(255 255 255 / 0.22),
+      transparent 55%
+    );
   }
 }
 
 @keyframes coin-spin {
   to {
-    transform: rotateY(360deg);
-  }
-}
-
-/* Up fast and slowing (thrown), down speeding up (falling), five flips total. */
-@keyframes coin-toss {
-  0% {
-    transform: translateY(0) rotateX(0deg);
-    animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
-  }
-  48% {
-    transform: translateY(-40%) rotateX(900deg);
-    animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4);
-  }
-  100% {
-    transform: translateY(0) rotateX(1800deg);
+    transform: rotateX(360deg);
   }
 }
 

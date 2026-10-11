@@ -1,4 +1,5 @@
 import { formatMoney } from "@workspace/core/money"
+import { useTilt } from "@workspace/ui/hooks/use-tilt"
 import { cn } from "@workspace/ui/lib/utils"
 import { Figure } from "@/components/motion"
 import {
@@ -50,11 +51,13 @@ export function AccountCard({
   const limit = account.kind === "credit_card" ? account.creditLimit : null
   const owed = owedOn(account.balance)
   const used = limit ? Math.min(1, owed / limit) : 0
+  const tilt = useTilt<HTMLDivElement>()
 
   return (
     <div
+      ref={tilt}
       className={cn(
-        "relative flex flex-col justify-between overflow-hidden rounded-2xl p-4 text-white shadow-sm ring-1 ring-black/5 ring-inset",
+        "tilt relative flex flex-col justify-between overflow-hidden rounded-2xl p-4 text-white shadow-sm ring-1 ring-black/5 ring-inset",
         size === "lg" && "aspect-[1.6] p-5",
         size === "md" && "aspect-[2.1] sm:aspect-[1.7]",
         size === "sm" && "aspect-[1.7] p-3.5",
@@ -123,7 +126,7 @@ export function AccountCard({
               className="h-1 overflow-hidden rounded-full bg-white/20"
             >
               <div
-                className="h-full rounded-full bg-white/85"
+                className="h-full rounded-full bg-white/85 transition-[width] duration-500 ease-out"
                 style={{ width: `${used * 100}%` }}
               />
             </div>

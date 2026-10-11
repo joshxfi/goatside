@@ -77,8 +77,9 @@ and call `resetDb` in `beforeEach`. Write a failing test before fixing a ledger 
 Components come from `@workspace/ui/components/*`; add new shadcn ones with
 `pnpm dlx shadcn@latest add <name> -c apps/app` (they land in `packages/ui`). Motion only
 explains a change: new entries grow in, deleted ones fold out, figures count to new values.
-The coin flip is for rare moments (sign-in, loading); the composer gets no decorative motion;
-nothing animates on first paint, month switches or navigation; reduced motion is respected.
+The coin flip is for rare moments (sign-in, loading); account cards lean toward the mouse
+(`useTilt`), as a hint that they open; the composer gets no decorative motion; nothing
+animates on first paint, month switches or navigation; reduced motion is respected.
 
 Phone and desktop render from one tree, split by CSS breakpoints (`lg` = desktop). Phones
 get the `TabBar` (`app-shell.tsx`), hidden while a text field has focus (`data-typing`

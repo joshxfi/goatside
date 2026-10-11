@@ -67,11 +67,7 @@ function Login() {
       <Wordmark className="text-xl" />
 
       <div className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
-        <CoinFlip
-          toss
-          spinning={pending}
-          className="size-32 drop-shadow-[0_14px_20px_rgb(0_0_0/0.16)]"
-        />
+        <CoinFlip toss spinning={pending} className="size-32" />
         <h1 className="font-display text-4xl tracking-tight">
           Sign in to Goatside.
         </h1>
