@@ -1,0 +1,37 @@
+# packages/core
+
+Pure TypeScript with **no runtime dependencies**: money, the entry parser, dates, and
+account and name scanning. Both apps and `packages/ai` build on it, and the landing page's
+demos run it in the browser. See the root `AGENTS.md` for repo-wide rules.
+
+```sh
+pnpm --filter @workspace/core test
+pnpm --filter @workspace/core typecheck
+```
+
+## Modules
+
+- `preparse.ts`: the deterministic parser behind every logged line. It splits lines,
+  reads the sign, amount, date words and "split N", and decides log, ask or undo. A line
+  is logged only if it **starts with an amount**; an extra entry after a comma needs a
+  signed amount (`250 lunch, -120 coffee`). Anything else is ask mode.
+- `money.ts`: `parseAmount` (`500`, `1.5k`, `1,250.50`, `₱`/`php`), `formatPeso`, and
+  `MAX_CENTAVOS`. Everything is integer centavos.
+- `dates.ts`: `local_date` strings (`YYYY-MM-DD` in the owner's timezone), with
+  `todayIn(timeZone)`, `addDays`, `monthRange`, and the rest. No `Date` math on local dates.
+- `accounts.ts`: `scanAccounts` finds the owner's accounts in a line (longest name first,
+  with from/to cues) and spots unknown banks and e-wallets; `guessTransfer` reads the
+  sides of a transfer.
+- `people.ts`: `nameCandidates` over-collects possible names after cue words. The model
+  decides which are people.
+- `categories.ts`: the default categories seeded on first sign-in.
+
+## Rules
+
+- **Keep it dependency-free and side-effect-free.** No I/O, no `process.env`, no clock
+  reads except through an explicit `today` or `timeZone` argument, so results are the
+  same on the server, in tests and in the browser.
+- **Code decides amounts and signs, never a model.** Parser changes need tests in the
+  matching `*.test.ts`. Run the whole suite, since the app and the landing page both
+  depend on exact behavior.
+- tsconfig has `noUncheckedIndexedAccess`; handle the `undefined`.
