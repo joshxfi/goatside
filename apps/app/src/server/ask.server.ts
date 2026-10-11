@@ -277,7 +277,7 @@ function explain(error: unknown) {
   if (name === "GatewayRateLimitError") {
     return "AI Gateway is rate limiting. Try again in a minute."
   }
-  return "Couldn’t get an answer. Try again."
+  return "Couldn't get an answer. Try again."
 }
 
 /**

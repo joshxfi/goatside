@@ -80,7 +80,7 @@ export async function createCategory(input: {
   const db = getDb()
   const name = input.name.trim()
   if (await nameTaken(db, input.kind, name)) {
-    throw new SettingsError(`You already have a “${name}” category.`)
+    throw new SettingsError(`You already have a "${name}" category.`)
   }
   const [last] = await db
     .select({ sort: categories.sort })
@@ -101,7 +101,7 @@ export async function createCategory(input: {
     return created
   } catch (error) {
     if (isUniqueViolation(error))
-      throw new SettingsError(`You already have a “${name}” category.`)
+      throw new SettingsError(`You already have a "${name}" category.`)
     throw error
   }
 }
@@ -119,7 +119,7 @@ export async function updateCategory(input: {
   if (!current) throw new SettingsError("That category no longer exists.")
   const name = input.name?.trim()
   if (name && (await nameTaken(db, current.kind, name, current.id))) {
-    throw new SettingsError(`You already have a “${name}” category.`)
+    throw new SettingsError(`You already have a "${name}" category.`)
   }
   await db
     .update(categories)
@@ -146,7 +146,9 @@ export async function mergeCategory(input: { from: string; into: string }) {
   ])
   if (!from || !into) throw new SettingsError("That category no longer exists.")
   if (from.kind !== into.kind) {
-    throw new SettingsError("Spending and income categories can't be merged.")
+    throw new SettingsError(
+      "You can't merge a spending category with an income one."
+    )
   }
 
   const moved = await db

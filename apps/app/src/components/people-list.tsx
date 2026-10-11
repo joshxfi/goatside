@@ -30,7 +30,7 @@ export function PeopleList({ people }: { people: MonthView["people"] }) {
           : undefined,
       })
     },
-    onError: () => toast.error("Couldn’t settle that. Try again."),
+    onError: () => toast.error("Couldn't settle that. Try again."),
   })
 
   if (!people.length) return null

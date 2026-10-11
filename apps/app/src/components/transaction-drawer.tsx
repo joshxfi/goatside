@@ -316,7 +316,7 @@ function EditForm({
         },
       })
     },
-    onError: () => toast.error("Couldn’t save that change."),
+    onError: () => toast.error("Couldn't save that change."),
   })
 
   // A split's other shares go with it, or they'd owe for a bill that's gone.
@@ -326,7 +326,7 @@ function EditForm({
     onSuccess: async () => {
       onDone()
       await refresh()
-      toast(ids.length > 1 ? "Deleted, with the others’ shares." : "Deleted.", {
+      toast(ids.length > 1 ? "Deleted, with the others' shares." : "Deleted.", {
         action: {
           label: "Undo",
           onClick: async () => {
@@ -406,9 +406,9 @@ function EditForm({
           {transfer
             ? "Moves money between your accounts. Not spending."
             : share
-              ? `🤝 ${nameOf(who[0])}’s share of a ${formatPeso(split.data?.bill ?? 0)} bill. Open your share to change the split.`
+              ? `🤝 ${nameOf(who[0])}'s share of a ${formatPeso(split.data?.bill ?? 0)} bill. Open your share to change the split.`
               : iou
-                ? `🤝 ${iou}. IOUs don’t count toward your spending.`
+                ? `🤝 ${iou}. IOUs don't count toward your spending.`
                 : ways > 1
                   ? `Your share of a ${amount ? formatPeso(amount) : "…"} bill split ${ways} ways.`
                   : income

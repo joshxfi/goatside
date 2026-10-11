@@ -101,7 +101,7 @@ export function AgentAction({
       await refresh()
       toast("Undone.")
     } catch {
-      toast.error("Couldn’t undo that.")
+      toast.error("Couldn't undo that.")
     }
   }
 
@@ -147,7 +147,7 @@ export function AgentAction({
         <XIcon className="size-3.5" />
         {approval?.isAutomatic && approval.reason
           ? approval.reason
-          : `${title}: cancelled`}
+          : "Cancelled. Nothing changed."}
       </p>
     )
   }

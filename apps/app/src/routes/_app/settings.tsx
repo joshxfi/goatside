@@ -207,7 +207,7 @@ function CategoryRow({
       }
       await refresh()
     },
-    onError: () => toast.error("Couldn’t save that change."),
+    onError: () => toast.error("Couldn't save that change."),
   })
 
   const saveName = () => {
@@ -326,7 +326,7 @@ function AddCategory({
         })
       }
     },
-    onError: () => toast.error("Couldn’t add that category."),
+    onError: () => toast.error("Couldn't add that category."),
   })
 
   return (
@@ -423,7 +423,7 @@ function MergeDrawer({
         }.`
       )
     },
-    onError: () => toast.error("Couldn’t merge those."),
+    onError: () => toast.error("Couldn't merge those."),
   })
 
   return (
@@ -507,7 +507,7 @@ function Suggestions({
         `Moved ${result.value.moved} entries to ${category.emoji} ${category.name}.`
       )
     },
-    onError: () => toast.error("Couldn’t move those."),
+    onError: () => toast.error("Couldn't move those."),
   })
 
   return (
@@ -520,8 +520,8 @@ function Suggestions({
           {suggestions.isPending
             ? "Looking through your last few months for entries that belong here…"
             : rows.length
-              ? `These look like they belong in ${category.name}. Untick any that don’t.`
-              : `Nothing earlier looks like ${category.name}. New entries will be filed here as they come.`}
+              ? `These look like they belong in ${category.name}. Untick any that don't.`
+              : `Nothing earlier looks like ${category.name}. Goatside will file new ones here as they come.`}
         </DrawerDescription>
       </DrawerHeader>
       {suggestions.isPending && (
@@ -613,7 +613,7 @@ function TimeZone({ current }: { current: string }) {
     onSuccess: async (result) => {
       if (!result.ok) return toast(result.message)
       await refresh()
-      toast("Time zone saved. “Today” now follows it.")
+      toast('Time zone saved. "Today" now follows it.')
     },
   })
 
@@ -659,7 +659,7 @@ function InstallApp() {
       "Opens full screen from your home screen, and logs entries offline.",
     ios: "On iPhone or iPad, tap Share, then Add to Home Screen. It opens full screen and logs entries offline.",
     manual:
-      "Use your browser’s Install app or Add to Home Screen option. It opens full screen and logs entries offline.",
+      "Use your browser's Install app or Add to Home Screen option. It opens full screen and logs entries offline.",
   }[state]
 
   return (

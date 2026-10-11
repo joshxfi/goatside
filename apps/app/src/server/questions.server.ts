@@ -281,7 +281,7 @@ export async function ensureAccount(
     where: sql`lower(${accounts.name}) = ${name.toLowerCase()}`,
     columns: { id: true },
   })
-  if (!raced) throw new AnswerError("Couldn’t add that account.")
+  if (!raced) throw new AnswerError("Couldn't add that account.")
   return raced.id
 }
 

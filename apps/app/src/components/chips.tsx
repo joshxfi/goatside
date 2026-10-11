@@ -136,7 +136,7 @@ export function PersonPicker({
       await queryClient.invalidateQueries({ queryKey: ["people"] })
       if (!value.includes(result.value.id)) pick(result.value.id)
     },
-    onError: () => toast.error("Couldn’t add that person."),
+    onError: () => toast.error("Couldn't add that person."),
   })
 
   return (

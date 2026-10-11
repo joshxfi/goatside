@@ -247,7 +247,7 @@ function errorMessage(error: Error) {
     // Not JSON: a streamed error message, or a network failure.
   }
   if (error.name === "TypeError" || !error.message) {
-    return "Couldn’t reach Goatside. Check your connection and try again."
+    return "Couldn't reach Goatside. Check your connection and try again."
   }
   return error.message
 }

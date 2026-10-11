@@ -115,7 +115,7 @@ function IouForm({
           : undefined
       )
     },
-    onError: () => toast.error("Couldn’t save that IOU."),
+    onError: () => toast.error("Couldn't save that IOU."),
   })
 
   const ready = who.length === 1 && amount !== null && Boolean(date)

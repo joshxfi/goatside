@@ -153,7 +153,7 @@ function PeriodPicker({
       {period !== "month" && (
         <span className="text-sm text-muted-foreground">
           {period === "all"
-            ? "Everything you’ve logged"
+            ? "Everything you've logged"
             : `${view.range.start} to ${view.range.end}`}
         </span>
       )}

@@ -279,7 +279,7 @@ export function AccountForm({
           className="h-11 text-base font-normal"
         />
         <p className="text-xs text-muted-foreground">
-          Short names you type in entries, so “via sb” finds Security Bank.
+          Short names you type in entries, so "via sb" finds Security Bank.
         </p>
       </div>
 

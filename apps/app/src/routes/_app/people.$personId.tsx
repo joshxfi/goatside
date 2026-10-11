@@ -106,7 +106,7 @@ function Balance({ person }: { person: PersonDetail }) {
         }
       )
     },
-    onError: () => toast.error("Couldn’t record that."),
+    onError: () => toast.error("Couldn't record that."),
   })
 
   const remind = useMutation({
@@ -115,7 +115,7 @@ function Balance({ person }: { person: PersonDetail }) {
       if (!result.ok) return toast(result.message)
       setReminder(result.value.text)
     },
-    onError: () => toast.error("Couldn’t draft a reminder. Try again."),
+    onError: () => toast.error("Couldn't draft a reminder. Try again."),
   })
 
   const partAmount = parseAmount(part)
@@ -125,7 +125,7 @@ function Balance({ person }: { person: PersonDetail }) {
       <div className="flex flex-col gap-1">
         <h1 className="font-display text-4xl leading-none">{person.name}</h1>
         <p className="text-sm text-muted-foreground">
-          {square ? "You’re square." : owesYou ? "owes you" : "you owe"}
+          {square ? "You're square." : owesYou ? "owes you" : "you owe"}
         </p>
         {!square && (
           <p
@@ -207,8 +207,8 @@ function Balance({ person }: { person: PersonDetail }) {
       {reminder && (
         <div className="flex flex-col gap-2 rounded-xl bg-muted p-3">
           <label htmlFor="reminder" className="text-xs text-muted-foreground">
-            Drafted by Goatside. Edit it, then copy or share. Nothing is sent
-            for you.
+            Drafted by Goatside. Edit it, then copy or share. Goatside doesn't
+            send it for you.
           </label>
           <textarea
             id="reminder"
@@ -330,7 +330,7 @@ function Nicknames({ person }: { person: PersonDetail }) {
       <div className="flex flex-col gap-0.5">
         <h2 className="text-sm font-medium">Nicknames</h2>
         <p className="text-xs text-muted-foreground">
-          Goatside matches these in what you type, so “paid by mars” goes to{" "}
+          Goatside matches these in what you type, so "paid by mars" goes to{" "}
           {person.name}.
         </p>
       </div>

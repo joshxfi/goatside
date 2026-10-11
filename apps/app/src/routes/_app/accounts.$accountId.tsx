@@ -149,12 +149,12 @@ function SetBalance({ data }: { data: AccountDetail }) {
         }
       )
     },
-    onError: () => toast.error("Couldn’t update the balance."),
+    onError: () => toast.error("Couldn't update the balance."),
   })
   return (
     <section className="flex flex-col gap-3 rounded-2xl border bg-card p-4">
       <h2 className="text-sm font-medium">
-        {card ? "Correct what’s owed" : "Correct the balance"}
+        {card ? "Correct what's owed" : "Correct the balance"}
       </h2>
       <p className="text-xs text-muted-foreground">
         If the app or statement says something else, type it here. Your entries
@@ -217,7 +217,7 @@ function Manage({
       await refresh()
       setEditing(false)
     },
-    onError: () => toast.error("Couldn’t save that."),
+    onError: () => toast.error("Couldn't save that."),
   })
   const makeDefault = useMutation({
     mutationFn: () =>
@@ -314,8 +314,8 @@ function History({ data }: { data: AccountDetail }) {
   if (!history.length) {
     return (
       <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-        Nothing filed here yet. Mention {account.name} in an entry, like “lunch
-        via {account.name}”.
+        Nothing filed here yet. Mention {account.name} in an entry, like "lunch
+        via {account.name}".
       </p>
     )
   }

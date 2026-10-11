@@ -118,7 +118,7 @@ function People() {
             <CoinMark className="size-10 text-muted-foreground" />
             <p className="font-display text-2xl">No one yet.</p>
             <p className="text-sm text-muted-foreground">
-              When you lend, borrow or split a bill with someone, they’ll show
+              When you lend, borrow or split a bill with someone, they'll show
               up here with what you owe each other.
             </p>
           </section>

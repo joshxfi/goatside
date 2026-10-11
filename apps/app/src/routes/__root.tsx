@@ -49,9 +49,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     }),
     notFoundComponent: () => (
       <main className="mx-auto max-w-md p-4 pt-16">
-        <h1 className="font-display text-4xl">Off the edge.</h1>
+        <h1 className="font-display text-4xl">Page not found.</h1>
         <p className="mt-2 text-muted-foreground">
-          That page doesn’t exist. <a href="/">Go home</a>.
+          That page doesn't exist. <a href="/">Go home</a>.
         </p>
       </main>
     ),
@@ -61,14 +61,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       return (
         <main className="mx-auto flex max-w-md flex-col gap-3 p-4 pt-16">
           <h1 className="font-display text-4xl">
-            {offline ? "You’re offline." : "Something slipped."}
+            {offline ? "You're offline." : "Something went wrong."}
           </h1>
           <p className="text-muted-foreground">
             {offline
-              ? "This page needs a connection. The overview still opens, and entries you log there sync when you’re back."
+              ? "This page needs a connection. The overview still opens, and entries you log there sync when you're back."
               : error instanceof Error
                 ? error.message
-                : "An unexpected error occurred."}
+                : "Goatside couldn't load this page."}
           </p>
           <button
             type="button"

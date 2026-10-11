@@ -37,8 +37,8 @@ export function OutboxSync() {
         .map(([id]) => id)
       if (failed.some((id) => !warned.current.has(id))) {
         for (const id of failed) warned.current.add(id)
-        toast.error("Couldn’t sync everything yet.", {
-          description: "It’s safe on this phone. Goatside will keep trying.",
+        toast.error("Couldn't sync everything yet.", {
+          description: "It's safe on this phone. Goatside will keep trying.",
           id: "outbox-failed",
         })
       }

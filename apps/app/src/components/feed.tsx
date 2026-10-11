@@ -123,10 +123,10 @@ function TransactionRow({
       disabled={optimistic && !waiting}
       onClick={() => {
         if (!entry) return onSelect(txn)
-        toast(`“${entry.text}” is waiting to sync.`, {
+        toast(`"${entry.text}" is waiting to sync.`, {
           description: online
             ? "Goatside will keep trying."
-            : "It’s saved on this phone and syncs once you’re back online.",
+            : "It's saved on this phone and syncs once you're back online.",
           action: { label: "Remove", onClick: () => discard(entry.id) },
         })
       }}

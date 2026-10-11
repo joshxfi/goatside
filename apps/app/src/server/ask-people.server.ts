@@ -329,7 +329,7 @@ async function planIou(db: Db, input: z.infer<typeof NEW_IOU>) {
         .join(" "),
       after: found
         ? `${owedNow ? "Overall, " : "Then "}${standing({ name, owed: owedAfter }, true)}.`
-        : `${name} is new and will be added to People.`,
+        : `Goatside will add ${name} to People.`,
     },
   } as const
 }

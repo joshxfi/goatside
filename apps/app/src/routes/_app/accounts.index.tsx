@@ -185,7 +185,7 @@ function DefaultAccount({ data }: { data: AccountsOverview }) {
       if (!result.ok) return toast(result.message)
       await refresh()
     },
-    onError: () => toast.error("Couldn’t change that."),
+    onError: () => toast.error("Couldn't change that."),
   })
   const items = [
     { value: "none", label: "Leave them unfiled" },
@@ -194,9 +194,9 @@ function DefaultAccount({ data }: { data: AccountsOverview }) {
   return (
     <div className="flex flex-col gap-2 rounded-2xl border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <p className="text-sm">
-        Entries that don’t name an account go to
+        Entries that don't name an account go to
         <span className="block text-xs text-muted-foreground">
-          Name one in the entry to file it elsewhere, like “via GCash”.
+          Name one in the entry to file it elsewhere, like "via GCash".
         </span>
       </p>
       <Select
@@ -235,14 +235,14 @@ function AddAccount({ open, onClose }: { open: boolean; onClose: () => void }) {
       onClose()
       toast(`Added ${fields.name}.`)
     },
-    onError: () => toast.error("Couldn’t add that account."),
+    onError: () => toast.error("Couldn't add that account."),
   })
   return (
     <AccountDrawer
       open={open}
       onClose={onClose}
       title="Add an account"
-      description="A bank, e-wallet, credit card or cash. Name it in an entry and it’s filed there."
+      description="A bank, e-wallet, credit card or cash. Name it in an entry and it's filed there."
     >
       {open && (
         <AccountForm
@@ -300,7 +300,7 @@ function Empty({ onAdd }: { onAdd: () => void }) {
       <p className="font-display text-2xl">Where does your money sit?</p>
       <p className="text-sm text-muted-foreground">
         Add your banks, e-wallets and credit cards to see their balances. Then
-        say which one you used when you log, like “taxi via GCash”, and it moves
+        say which one you used when you log, like "taxi via GCash", and it moves
         the right balance.
       </p>
       <div className="mt-2 flex flex-wrap justify-center gap-2">

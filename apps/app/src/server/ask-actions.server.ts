@@ -366,7 +366,7 @@ export function actionTools(db: Db) {
         const names = await categoryNames(db)
         return {
           done: true,
-          message: `Logged ${result.saved.length} ${result.saved.length === 1 ? "entry" : "entries"}${result.asked ? "; Goatside has a quick question about it" : ""}.`,
+          message: `Logged ${result.saved.length} ${result.saved.length === 1 ? "entry" : "entries"}.${result.asked ? " Goatside has a quick question about it." : ""}`,
           // For the model, so it reports what was saved, not what it meant.
           saved: result.saved.map((line) => savedLine(line, names)),
           undo: { kind: "delete" as const, ids: result.transactionIds },
@@ -494,15 +494,13 @@ export function actionApprovals(db: Db) {
       const extra = rows.length - found.length
       return {
         type: "user-approval" as const,
-        reason: `Delete ${rows.length} ${rows.length === 1 ? "entry" : "entries"}: ${listed(rows)}${extra ? ` (${extra} of them from the same split bill)` : ""}`,
+        reason: `Delete ${rows.length} ${rows.length === 1 ? "entry" : "entries"}${extra ? `, ${extra} of them from the same split bill` : ""}: ${listed(rows)}`,
       }
     },
     logEntries: async ({ text }: { text: string }) => {
       const parsed = preparse(text, { today: await today(db) })
       if (parsed.kind !== "log")
-        return denied(
-          "That has no amount to log. Start each entry with - or + and an amount."
-        )
+        return denied("That has no amount to log. Each entry needs an amount.")
       const lines = parsed.lines
         .map((l) => {
           const sign = l.signInferred ? "" : l.direction === "in" ? "+" : "−"
@@ -599,7 +597,7 @@ function accountApprovals(db: Db) {
         return denied(`${found.name} already reads ${reads(found)}.`)
       return {
         type: "user-approval" as const,
-        reason: `Set ${found.name} to ${reads({ ...found, balance: value })} (it reads ${reads(found)} now)`,
+        reason: `Set ${found.name} to ${reads({ ...found, balance: value })}. It reads ${reads(found)} now.`,
       }
     },
     moveToAccount: async (input: z.infer<typeof FILE>) => {

@@ -46,7 +46,7 @@ export function Questions({
     onError: (_error, _input, context) => {
       if (context?.previous)
         queryClient.setQueryData(queryKey, context.previous)
-      toast.error("Couldn’t save that answer. Try again.")
+      toast.error("Couldn't save that answer. Try again.")
     },
     onSuccess: (result) => {
       if (!result.ok) toast(result.message)
@@ -101,7 +101,7 @@ function QuestionCard({
   const ref = useRef<HTMLDivElement>(null)
   const { transaction } = question
   const what = transaction.description
-    ? `“${capitalize(transaction.description)}”`
+    ? `"${capitalize(transaction.description)}"`
     : "this"
   const amount = formatPeso(Math.abs(transaction.amount))
 
@@ -209,13 +209,13 @@ function Prompt({
     case "direction":
       return (
         <>
-          {figure} for {what}: was that money out or in?
+          Was {figure} for {what} money out or in?
         </>
       )
     case "relation":
       return (
         <>
-          {figure} for {what}: is that yours, or between you and{" "}
+          Is {figure} for {what} yours, or between you and{" "}
           {question.people.length > 1 ? "them" : (question.people[0] ?? "them")}
           ?
         </>
@@ -223,18 +223,16 @@ function Prompt({
     case "duplicate":
       return (
         <>
-          {figure} for {what} again? It looks like{" "}
+          {figure} for {what} again?{" "}
           {question.earlier?.description
-            ? `“${capitalize(question.earlier.description)}”`
-            : "an entry"}{" "}
-          you already logged.
+            ? `It looks like "${capitalize(question.earlier.description)}", which you already logged.`
+            : "It looks like an entry you already logged."}
         </>
       )
     case "transfer":
       return (
         <>
-          {figure} for {what}: did you move it between your accounts, or spend
-          it?
+          Did you move {figure} for {what} between your accounts, or spend it?
         </>
       )
     case "account":
@@ -249,8 +247,7 @@ function Prompt({
     case "category":
       return (
         <>
-          Which category fits {what}{" "}
-          <span className="figure text-muted-foreground">({amount})</span>?
+          Which category fits {figure} for {what}?
         </>
       )
   }

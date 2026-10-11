@@ -60,13 +60,13 @@ export function Composer({
     if (sent.kind === "failed") {
       // A failed quick pick has nothing to put back in the box.
       if (!repeat) setText((current) => current || input)
-      toast.error("Couldn’t save that. Your text is back in the box.")
+      toast.error("Couldn't save that. Your text is back in the box.")
       return
     }
     if (sent.kind === "queued") {
       if (firstOffline)
         toast("Saved on this phone.", {
-          description: "It’ll sync when you’re back online.",
+          description: "It'll sync when you're back online.",
         })
       return
     }
@@ -105,11 +105,11 @@ export function Composer({
     const last = waiting.at(-1)
     if (last) {
       discard(last.id)
-      toast(`Removed “${last.text}” before it synced.`)
+      toast(`Removed "${last.text}" before it synced.`)
       return
     }
     if (!online) {
-      toast("You’re offline. Undo again once you’re back online.")
+      toast("You're offline. Undo again once you're back online.")
       return
     }
     try {
@@ -118,7 +118,7 @@ export function Composer({
       if (result.kind === "undo")
         toast(result.undone ? "Undid your last entry." : "Nothing to undo.")
     } catch {
-      toast.error("Couldn’t undo that. Try again.")
+      toast.error("Couldn't undo that. Try again.")
     }
   }
 
@@ -126,8 +126,8 @@ export function Composer({
     if (parsed.kind === "empty") return
     if (parsed.kind === "ask") {
       if (!online) {
-        toast("You’re offline.", {
-          description: "Ask again once you’re back online.",
+        toast("You're offline.", {
+          description: "Ask again once you're back online.",
         })
         return
       }
@@ -176,7 +176,7 @@ export function Composer({
             {online
               ? `Syncing ${waiting.length} ${waiting.length === 1 ? "entry" : "entries"} logged offline…`
               : waiting.length
-                ? `Offline · ${waiting.length} saved on this phone, syncing when you’re back`
+                ? `Offline · ${waiting.length} saved on this phone, syncing when you're back`
                 : "Offline · entries save on this phone and sync later"}
           </p>
         )}
@@ -254,7 +254,7 @@ function AccountHint({
   if (filed.unknown && !filed.named) {
     return (
       <span className="text-muted-foreground">
-        · {filed.unknown.name}? I’ll ask
+        · {filed.unknown.name}? I'll ask
       </span>
     )
   }
@@ -328,7 +328,7 @@ function Preview({ parsed, view }: { parsed: Preparsed; view: MonthView }) {
               })}
         </span>
         {line.signInferred && (
-          <span className="text-muted-foreground">· in or out? I’ll check</span>
+          <span className="text-muted-foreground">· in or out? I'll check</span>
         )}
         {line.split && (
           <span className="text-muted-foreground">
@@ -379,7 +379,7 @@ function describe(
   if (!first) return "Logged."
   if (rest.length) return `Logged ${saved.length} entries.`
   if (first.transfer) {
-    return `Moved ${formatPeso(Math.abs(first.amount))} · ${first.transfer.from} → ${first.transfer.to}`
+    return `Moved ${formatPeso(Math.abs(first.amount))} from ${first.transfer.from} to ${first.transfer.to}`
   }
   const amount = formatPeso(first.amount, { sign: first.amount > 0 })
   const who = first.people.join(" and ")
