@@ -30,12 +30,12 @@ export async function log(text: string, options?: { id?: string }) {
 
 /** Adds a person directly and returns their id. */
 export async function addPersonRow(name: string) {
-  const [row] = await getDb()
+  const [created] = await getDb()
     .insert(schema.people)
     .values({ name })
     .returning({ id: schema.people.id })
-  if (!row) throw new Error("person not created")
-  return row.id
+  if (!created) throw new Error("person not created")
+  return created.id
 }
 
 /** An entry's rows that aren't soft-deleted. */

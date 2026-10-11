@@ -12,6 +12,31 @@ import {
 import { addIou } from "./people.server"
 import { getDb } from "./services"
 
+async function splitThree() {
+  const ben = await addPersonRow("Ben")
+  const cara = await addPersonRow("Cara")
+  const e = await log("-900 dinner")
+  const ownId = e.transactionIds[0]!
+  await editTransaction({
+    id: ownId,
+    type: "expense",
+    people: [ben, cara],
+    ways: 3,
+  })
+  return { ben, cara, e, ownId }
+}
+
+async function lend(personId: string, amount: number) {
+  await addIou({
+    personId,
+    type: "lent",
+    amount,
+    description: "loan",
+    localDate: await today(getDb()),
+    accountId: null,
+  })
+}
+
 describe("logText", () => {
   beforeEach(resetDb)
 
@@ -31,7 +56,7 @@ describe("logText", () => {
     const { entryId } = await log("-100 coffee, -200 lunch")
     const amounts = (await liveRows(entryId))
       .map((r) => r.amount)
-      .sort((x, y) => x - y)
+      .toSorted((x, y) => x - y)
     expect(amounts).toEqual([-20000, -10000])
   })
 
@@ -56,20 +81,6 @@ describe("logText", () => {
 describe("editTransaction splits", () => {
   beforeEach(resetDb)
 
-  async function splitThree() {
-    const ben = await addPersonRow("Ben")
-    const cara = await addPersonRow("Cara")
-    const e = await log("-900 dinner")
-    const ownId = e.transactionIds[0]!
-    await editTransaction({
-      id: ownId,
-      type: "expense",
-      people: [ben, cara],
-      ways: 3,
-    })
-    return { ben, cara, e, ownId }
-  }
-
   it("creates the others' IOUs when edited into a split", async () => {
     const { ben, cara, e, ownId } = await splitThree()
     const rows = await liveRows(e.entryId)
@@ -79,7 +90,9 @@ describe("editTransaction splits", () => {
     const lends = rows.filter((r) => r.kind === "lend")
     expect(lends).toHaveLength(2)
     for (const r of lends) expect(r.amount).toBe(-30000)
-    expect(lends.map((r) => r.personId).sort()).toEqual([ben, cara].sort())
+    expect(lends.map((r) => r.personId).toSorted()).toEqual(
+      [ben, cara].toSorted()
+    )
   })
 
   it("describes the bill from your share", async () => {
@@ -122,17 +135,6 @@ describe("editTransaction history", () => {
 
 describe("settling", () => {
   beforeEach(resetDb)
-
-  async function lend(personId: string, amount: number) {
-    await addIou({
-      personId,
-      type: "lent",
-      amount,
-      description: "loan",
-      localDate: await today(getDb()),
-      accountId: null,
-    })
-  }
 
   it("can't repay more than was owed", async () => {
     const ben = await addPersonRow("Ben")
