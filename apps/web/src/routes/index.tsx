@@ -24,6 +24,7 @@ import { cn } from "@workspace/ui/lib/utils"
 import { AccountsDemo } from "@/components/landing/accounts-demo"
 import { Anatomy } from "@/components/landing/anatomy"
 import { AskDemo } from "@/components/landing/ask-demo"
+import { ImportDemo } from "@/components/landing/import-demo"
 import { DashboardPreview } from "@/components/landing/dashboard-preview"
 import { LiveComposer } from "@/components/landing/live-composer"
 import { PeopleDemo } from "@/components/landing/people-demo"
@@ -44,6 +45,7 @@ function Landing() {
         <Dashboard />
         <People />
         <Accounts />
+        <Statements />
         <Ask />
         <Yours />
         <Deploy />
@@ -274,7 +276,7 @@ function Accounts() {
             Banks, e-wallets, credit cards and cash, each with its balance. Say
             where you paid from and Goatside files it there. Cash-ins, ATM
             withdrawals and card payments are transfers, so they never count as
-            spending.
+            spending. Fell behind? Import the account's statement.
           </p>
           <Lines
             lines={["200 taxi via gcash", "1500 groceries using bpi card"]}
@@ -288,6 +290,37 @@ function Accounts() {
   )
 }
 
+function Statements() {
+  return (
+    <section
+      className="grid scroll-mt-24 items-start gap-10 lg:grid-cols-2 lg:gap-16"
+      id="statements"
+    >
+      <SectionHeading
+        kicker="Statements"
+        title="Catch up from your bank's statement."
+      >
+        <p>
+          Pick the PDF or CSV your bank or card sends you. Goatside reads it on
+          your device, checks every row against the statement's own balances,
+          and links the entries you already typed instead of adding them again.
+        </p>
+        <p className="mt-3">
+          Nothing is saved until you review it, and undo takes the whole import
+          back.
+        </p>
+      </SectionHeading>
+      <div className="flex min-w-0 flex-col gap-3">
+        <ImportDemo />
+        <DemoNote>
+          A scripted preview with made-up rows. In the app, the file and its
+          password never leave your device.
+        </DemoNote>
+      </div>
+    </section>
+  )
+}
+
 function Ask() {
   return (
     <section
@@ -295,6 +328,7 @@ function Ask() {
       id="ask"
     >
       <SectionHeading
+        className="lg:order-2"
         kicker="Ask Goatside"
         title="Ask in your own words. Nothing changes until you say so."
       >
@@ -330,7 +364,8 @@ function Yours() {
         <Tile icon={SendIcon} title="What leaves, and where">
           Entry text goes to TypeSafe's Jev, which files it, and your questions
           go to DeepSeek, both through your own AI Gateway. Swap either model
-          with one variable.
+          with one variable. Bank statements are read on your device, and only
+          their rows are saved.
         </Tile>
         <Tile icon={CloudOffIcon} title="Works offline">
           Install it on your phone. Entries typed with no signal wait on your
