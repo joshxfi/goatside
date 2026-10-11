@@ -357,14 +357,17 @@ async function refile(
 
   const stale = context.transactionIds.filter((id) => id !== txn.id)
   if (stale.length) {
-    await db.delete(transactions).where(inArray(transactions.id, stale))
+    await db
+      .update(transactions)
+      .set({ deletedAt: new Date() })
+      .where(inArray(transactions.id, stale))
   }
   const added = rest.length
     ? await db
         .insert(transactions)
         .values(
-          rest.map((row) =>
-            rowValues(
+          rest.map((row) => ({
+            ...rowValues(
               row,
               {
                 entryId: txn.entryId,
@@ -379,8 +382,11 @@ async function refile(
                 recurring: false,
                 status: "confirmed",
               }
-            )
-          )
+            ),
+            // As old as the line, so "undo" in the composer doesn't take
+            // this whole entry back for an answer.
+            createdAt: txn.createdAt,
+          }))
         )
         .returning({ id: transactions.id })
     : []
