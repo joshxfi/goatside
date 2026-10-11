@@ -3,8 +3,8 @@ export const REPO_BRANCH = "main"
 
 /**
  * Where the landing page and docs live, for canonical links, share cards and
- * the sitemap. Set at build time from `SITE_URL`, or the project's production
- * domain on Vercel (vite.config.ts).
+ * the sitemap: https://goatside.joshxfi.com unless `SITE_URL` is set at build
+ * time (vite.config.ts).
  */
 export const SITE_URL: string = import.meta.env.SITE_URL
 

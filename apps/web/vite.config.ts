@@ -6,13 +6,9 @@ import tailwindcss from "@tailwindcss/vite"
 import { fumadocsMdx } from "fumadocs-mdx/vite"
 import { nitro } from "nitro/vite"
 
-// Canonical links and share cards need the site's own address. Vercel sets
-// VERCEL_PROJECT_PRODUCTION_URL (the custom domain once there is one).
-const siteUrl =
-  process.env.SITE_URL ??
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : "http://localhost:3001")
+// Canonical links and share cards need the site's own address. Every build,
+// previews included, points at production; SITE_URL overrides it.
+const siteUrl = process.env.SITE_URL ?? "https://goatside.joshxfi.com"
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },

@@ -29,8 +29,8 @@ pnpm --filter web build
   `routes/docs/{$}[.]md.ts` serves raw Markdown, and `routes/llms[.]txt.ts` /
   `llms-full[.]txt.ts` serve the docs to LLMs.
 - `src/lib/site.ts`: repo URL, author, the site's title and description, and `SITE_URL`
-  for canonical links, share cards and the sitemap. `SITE_URL` comes from the `SITE_URL`
-  env var at build time, or Vercel's production domain (`vite.config.ts`).
+  for canonical links, share cards and the sitemap. It's https://goatside.joshxfi.com unless
+  the `SITE_URL` env var is set at build time (`vite.config.ts`).
 - SEO: the root route sets site-wide tags and the share image (`public/og.png`); the
   landing and docs routes add their own title, description and canonical link.
   `sitemap.xml` and `robots.txt` are server routes, prerendered.
