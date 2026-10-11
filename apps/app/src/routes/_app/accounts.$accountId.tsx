@@ -8,6 +8,7 @@ import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router"
 import {
   ArchiveIcon,
   ArrowLeftRightIcon,
+  FileUpIcon,
   PencilIcon,
   StarIcon,
   Trash2Icon,
@@ -20,6 +21,7 @@ import { cn } from "@workspace/ui/lib/utils"
 import { AccountCard, balanceText } from "@/components/account-card"
 import { AccountDrawer, AccountForm } from "@/components/account-form"
 import { PageHeader } from "@/components/app-shell"
+import { ImportStatement } from "@/components/import-statement"
 import { Figure } from "@/components/motion"
 import { EntryDrawer } from "@/components/transaction-drawer"
 import { owedOn } from "@/lib/accounts"
@@ -70,7 +72,7 @@ function Account() {
   return (
     <div className="mx-auto flex min-h-svh w-full max-w-md flex-col gap-8 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-16 lg:max-w-none lg:px-8 lg:pt-6">
       <PageHeader title={account.name} viewer={viewer} back="/accounts" />
-      <div className="grid gap-6 lg:mx-auto lg:w-full lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+      <div className="grid grid-cols-1 gap-6 lg:mx-auto lg:w-full lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-4 sm:flex-row">
             <AccountCard
@@ -113,11 +115,48 @@ function Account() {
           <History data={data} />
         </div>
         <aside className="flex flex-col gap-4">
+          <Import data={data} accounts={overview.accounts} />
           <SetBalance key={`${account.id}:${account.balance}`} data={data} />
           <Manage data={data} isDefault={isDefault} />
         </aside>
       </div>
     </div>
+  )
+}
+
+function Import({
+  data,
+  accounts,
+}: {
+  data: AccountDetail
+  accounts: { id: string; name: string; archived: boolean }[]
+}) {
+  const [open, setOpen] = useState(false)
+  const { account } = data
+  return (
+    <section className="flex flex-col gap-3 rounded-2xl border bg-card p-4">
+      <h2 className="text-sm font-medium">Import a statement</h2>
+      <p className="text-xs text-muted-foreground">
+        Add the rows from the PDF your{" "}
+        {account.kind === "credit_card" ? "card" : "bank"} sends you. Entries
+        you already typed are matched, not added twice.
+      </p>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-9 self-start"
+        onClick={() => setOpen(true)}
+      >
+        <FileUpIcon />
+        Choose a statement
+      </Button>
+      <ImportStatement
+        account={account}
+        accounts={accounts.filter((a) => !a.archived)}
+        open={open}
+        onClose={() => setOpen(false)}
+      />
+    </section>
   )
 }
 

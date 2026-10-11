@@ -11,6 +11,7 @@ import {
   getTrend,
 } from "@/server/ledger"
 import { getAccount, getAccounts } from "@/server/accounts"
+import { getImports } from "@/server/imports"
 import { getPeople, getPerson } from "@/server/people"
 import { getCategories } from "@/server/settings"
 
@@ -61,4 +62,11 @@ export const accountQuery = (id: string) =>
   queryOptions({
     queryKey: ["ledger", "account", id],
     queryFn: () => getAccount({ data: { id } }),
+  })
+
+/** Statements imported into an account; undoing one changes the ledger. */
+export const importsQuery = (accountId: string) =>
+  queryOptions({
+    queryKey: ["ledger", "imports", accountId],
+    queryFn: () => getImports({ data: { accountId } }),
   })

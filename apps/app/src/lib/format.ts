@@ -67,3 +67,19 @@ export function transferLabel(txn: {
 }): string {
   return `${txn.account?.name ?? "Somewhere"} → ${txn.toAccount?.name ?? "somewhere"}`
 }
+
+const monthDay = new Intl.DateTimeFormat("en-PH", {
+  month: "short",
+  day: "numeric",
+  timeZone: "UTC",
+})
+
+/** "Aug 6 to Sep 5, 2026", or with both years when they differ. */
+export function periodLabel(start: string, end: string): string {
+  const [startYear, endYear] = [start.slice(0, 4), end.slice(0, 4)]
+  const from = monthDay.format(utc(start))
+  const to = monthDay.format(utc(end))
+  return startYear === endYear
+    ? `${from} to ${to}, ${endYear}`
+    : `${from}, ${startYear} to ${to}, ${endYear}`
+}
