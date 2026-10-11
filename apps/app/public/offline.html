@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Offline · Goatside</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f5f0;
+        --ink: #2a2620;
+        --muted: #6f6a60;
+        --border: #e2ddd2;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f0e0c;
+          --ink: #f1ede4;
+          --muted: #a8a294;
+          --border: #2a2722;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        padding: 16px;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          16px/1.5 ui-sans-serif,
+          system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 22rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        text-align: center;
+      }
+      h1 {
+        margin: 8px 0 0;
+        font:
+          400 2.25rem/1.1 "Instrument Serif",
+          ui-serif,
+          Georgia,
+          serif;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      button,
+      a {
+        display: inline-flex;
+        align-items: center;
+        height: 40px;
+        padding: 0 18px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        font-size: 14px;
+        text-decoration: none;
+      }
+      a {
+        background: var(--ink);
+        color: var(--bg);
+        border-color: var(--ink);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <svg
+        viewBox="0 0 64 64"
+        width="48"
+        height="48"
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="32" cy="32" r="30.5" stroke-width="2" />
+        <circle cx="32" cy="32" r="25" stroke-width="1.5" />
+        <path
+          d="M42.03 22.97 A13.5 13.5 0 1 0 43.92 38.34 V32 H34.5"
+          stroke-width="3.4"
+        />
+      </svg>
+      <h1>You’re offline.</h1>
+      <p>
+        This page hasn’t been opened on this device yet, so there’s no copy to
+        show. The overview opens offline once you’ve visited it, and entries you
+        log there sync when you’re back.
+      </p>
+      <div class="actions">
+        <a href="/">Open the overview</a>
+        <button type="button" onclick="location.reload()">Try again</button>
+      </div>
+    </main>
+    <script>
+      addEventListener("online", () => location.reload())
+    </script>
+  </body>
+</html>

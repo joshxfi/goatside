@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useSuspenseQuery } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import { z } from "zod"
@@ -22,6 +22,7 @@ import { PeopleList } from "@/components/people-list"
 import { Questions } from "@/components/questions"
 import { Summary } from "@/components/summary"
 import { TransactionDrawer } from "@/components/transaction-drawer"
+import { usePending, withPending } from "@/lib/outbox"
 import { monthQuery, trendQuery } from "@/lib/queries"
 import type { LedgerTxn } from "@/server/ledger"
 
@@ -46,7 +47,10 @@ export const Route = createFileRoute("/_app/")({
 function Home() {
   const { m } = Route.useSearch()
   const { viewer } = Route.useRouteContext()
-  const { data } = useSuspenseQuery(monthQuery(m))
+  const { data: saved } = useSuspenseQuery(monthQuery(m))
+  // Entries still on this phone show up as pending rows until they sync.
+  const pending = usePending()
+  const data = useMemo(() => withPending(saved, pending), [saved, pending])
   const { data: trend } = useSuspenseQuery(trendQuery(data.month))
   const [selected, setSelected] = useState<LedgerTxn | null>(null)
   const { ask } = useAgent()
@@ -58,7 +62,7 @@ function Home() {
       <div className="px-4 pt-[max(env(safe-area-inset-top),1rem)] lg:sticky lg:top-0 lg:z-30 lg:bg-background/90 lg:px-0 lg:py-4 lg:backdrop-blur-md">
         <MonthHeader month={data.month} today={data.today} viewer={viewer}>
           {/* One instance: a header bar on desktop, the bottom dock on phones. */}
-          <Composer view={data} viewKey={m} onAsk={ask}>
+          <Composer view={data} onAsk={ask}>
             <Questions view={data} viewKey={m} onMore={setSelected} />
           </Composer>
         </MonthHeader>

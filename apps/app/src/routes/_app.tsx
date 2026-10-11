@@ -3,6 +3,7 @@ import { SidebarInset, SidebarProvider } from "@workspace/ui/components/sidebar"
 import { AgentProvider } from "@/components/agent-provider"
 import { AppSidebar } from "@/components/app-shell"
 import { MotionProvider } from "@/components/motion"
+import { OutboxSync } from "@/components/outbox-sync"
 import { getViewer } from "@/server/session"
 
 /** Everything under here requires a signed-in, allowlisted user. */
@@ -20,6 +21,7 @@ function AppLayout() {
   const { viewer } = Route.useRouteContext()
   return (
     <MotionProvider>
+      <OutboxSync />
       <AgentProvider enabled={viewer.ai}>
         <SidebarProvider defaultOpen={viewer.sidebarOpen}>
           <AppSidebar viewer={viewer} />

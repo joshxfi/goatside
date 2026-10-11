@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { ArrowUpIcon } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
+import { ArrowUpIcon, CloudOffIcon } from "lucide-react"
 import { toast } from "@workspace/ui/components/sonner"
-import { guessTransfer, scanAccounts } from "@workspace/core/accounts"
 import { type Preparsed, preparse } from "@workspace/core/preparse"
 import { formatPeso } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
@@ -10,9 +9,9 @@ import { swatch } from "@/lib/accounts"
 import { dayLabel } from "@/lib/format"
 import { useDesktop } from "@/lib/use-desktop"
 import { useShortcut } from "@/lib/use-shortcut"
-import { monthQuery } from "@/lib/queries"
+import { fileLine } from "@/lib/file-line"
+import { discard, log, useOnline, usePending } from "@/lib/outbox"
 import {
-  type LedgerTxn,
   type MonthView,
   deleteTransactions,
   logEntry,
@@ -21,12 +20,10 @@ import {
 
 export function Composer({
   view,
-  viewKey,
   onAsk,
   children,
 }: {
   view: MonthView
-  viewKey?: string
   /** Text that isn't an entry goes to the agent. */
   onAsk: (question: string) => void
   /** Shown above the input, e.g. the agent's questions. */
@@ -49,101 +46,97 @@ export function Composer({
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [])
   const queryClient = useQueryClient()
-  const queryKey = monthQuery(viewKey).queryKey
+  const online = useOnline()
+  // Entries that couldn't go out right away; a normal save never shows here.
+  const waiting = usePending().filter((p) => !p.savedAs && p.tries > 0)
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["ledger"] })
 
   const parsed = preparse(text, { today: view.today })
 
-  const log = useMutation({
-    mutationFn: (input: string | { text: string; repeat: true }) =>
-      logEntry({ data: typeof input === "string" ? { text: input } : input }),
-    onMutate: async (input) => {
-      const preview = preparse(textOf(input), { today: view.today })
-      if (preview.kind !== "log") return { previous: undefined }
-
-      await queryClient.cancelQueries({ queryKey })
-      const previous = queryClient.getQueryData(queryKey)
-      const now = Date.now()
-      const optimistic: LedgerTxn[] = preview.lines
-        .filter((line) => line.localDate.startsWith(view.month))
-        .map((line, i) => {
-          const filed = fileLine(line.description, view)
-          return {
-            id: `optimistic:${now}:${i}`,
-            kind: line.direction === "in" ? "income" : "expense",
-            amount: line.direction === "in" ? line.share : -line.share,
-            localDate: line.localDate,
-            description: filed.description,
-            split: line.split,
-            recurring: false,
-            status: "pending",
-            createdAt: now,
-            category: null,
-            person: null,
-            account: filed.account,
-            toAccount: null,
-          }
-        })
-      if (previous && optimistic.length) {
-        queryClient.setQueryData(queryKey, {
-          ...previous,
-          transactions: [...optimistic, ...previous.transactions].toSorted(
-            (a, b) =>
-              b.localDate.localeCompare(a.localDate) ||
-              b.createdAt - a.createdAt
-          ),
-        })
-      }
-      return { previous }
-    },
-    onError: (_error, input, context) => {
-      if (context?.previous)
-        queryClient.setQueryData(queryKey, context.previous)
+  /** Through the outbox: in the feed at once, kept if there's no signal. */
+  async function logIt(input: string, repeat?: true) {
+    const firstOffline = waiting.length === 0
+    const sent = await log(input, { repeat }, refresh)
+    if (sent.kind === "failed") {
       // A failed quick pick has nothing to put back in the box.
-      if (typeof input === "string") setText((current) => current || input)
+      if (!repeat) setText((current) => current || input)
       toast.error("Couldn’t save that. Your text is back in the box.")
-    },
-    onSuccess: (result) => {
-      if (result.kind === "log") {
-        toast(describe(result.saved, view.categories), {
-          description: result.asked
-            ? "Goatside has a quick question for you."
-            : undefined,
-          action: {
-            label: "Undo",
-            onClick: async () => {
-              await deleteTransactions({ data: { ids: result.transactionIds } })
-              await queryClient.invalidateQueries({ queryKey: ["ledger"] })
-              toast("Removed.", {
-                action: {
-                  label: "Redo",
-                  onClick: async () => {
-                    await restoreTransactions({
-                      data: { ids: result.transactionIds },
-                    })
-                    await queryClient.invalidateQueries({
-                      queryKey: ["ledger"],
-                    })
-                  },
-                },
-              })
-            },
-          },
+      return
+    }
+    if (sent.kind === "queued") {
+      if (firstOffline)
+        toast("Saved on this phone.", {
+          description: "It’ll sync when you’re back online.",
         })
-      } else if (result.kind === "undo") {
+      return
+    }
+    const { result } = sent
+    if (result.kind !== "log") return
+    const synced = sent.alsoSynced
+    toast(describe(result.saved, view.categories), {
+      description: result.asked
+        ? "Goatside has a quick question for you."
+        : synced
+          ? `Also synced ${synced} ${synced === 1 ? "entry" : "entries"} that waited offline.`
+          : undefined,
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          await deleteTransactions({ data: { ids: result.transactionIds } })
+          await refresh()
+          toast("Removed.", {
+            action: {
+              label: "Redo",
+              onClick: async () => {
+                await restoreTransactions({
+                  data: { ids: result.transactionIds },
+                })
+                await refresh()
+              },
+            },
+          })
+        },
+      },
+    })
+  }
+
+  async function undo() {
+    // Something still on the phone: take that back first.
+    const last = waiting.at(-1)
+    if (last) {
+      discard(last.id)
+      toast(`Removed “${last.text}” before it synced.`)
+      return
+    }
+    if (!online) {
+      toast("You’re offline. Undo again once you’re back online.")
+      return
+    }
+    try {
+      const result = await logEntry({ data: { text: "undo" } })
+      await refresh()
+      if (result.kind === "undo")
         toast(result.undone ? "Undid your last entry." : "Nothing to undo.")
-      }
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["ledger"] }),
-  })
+    } catch {
+      toast.error("Couldn’t undo that. Try again.")
+    }
+  }
 
   function submit() {
     if (parsed.kind === "empty") return
     if (parsed.kind === "ask") {
+      if (!online) {
+        toast("You’re offline.", {
+          description: "Ask again once you’re back online.",
+        })
+        return
+      }
       onAsk(parsed.text)
       setText("")
       return
     }
-    log.mutate(text)
+    if (parsed.kind === "undo") void undo()
+    else void logIt(text)
     setText("")
     // Keep the keyboard up for rapid logging.
     inputRef.current?.focus()
@@ -155,7 +148,7 @@ export function Composer({
       view.picks.length > 0 ? (
         <Picks
           picks={view.picks}
-          onPick={(pick) => log.mutate({ text: pick.text, repeat: true })}
+          onPick={(pick) => void logIt(pick.text, true)}
         />
       ) : null
     ) : (
@@ -174,6 +167,19 @@ export function Composer({
         }}
       >
         <div className="flex flex-col gap-2 lg:hidden">{children}</div>
+        {(!online || waiting.length > 0) && (
+          <p
+            aria-live="polite"
+            className="enter-fade flex items-center gap-1.5 px-2 text-xs text-muted-foreground lg:hidden"
+          >
+            <CloudOffIcon aria-hidden className="size-3.5 shrink-0" />
+            {online
+              ? `Syncing ${waiting.length} ${waiting.length === 1 ? "entry" : "entries"} logged offline…`
+              : waiting.length
+                ? `Offline · ${waiting.length} saved on this phone, syncing when you’re back`
+                : "Offline · entries save on this phone and sync later"}
+          </p>
+        )}
         {hint && (
           <div className="lg:absolute lg:inset-x-0 lg:top-full lg:mt-2 lg:hidden lg:rounded-xl lg:border lg:bg-popover lg:p-2.5 lg:shadow-md lg:group-focus-within/composer:block">
             {hint}
@@ -220,37 +226,6 @@ export function Composer({
   )
 }
 
-/**
- * Where a line will be filed, read the same way the server reads it. The
- * server also asks the model about transfers, so this is a best guess.
- */
-function fileLine(description: string, view: MonthView) {
-  const scan = scanAccounts(description, view.accounts)
-  const byId = (id: string | null | undefined) =>
-    view.accounts.find((a) => a.id === id) ?? null
-  const transfer = scan.transferWord
-    ? guessTransfer(scan, view.accounts, view.defaultAccountId)
-    : null
-  const named = byId(
-    scan.mentions.find((m) => m.cued)?.accountId ?? scan.mentions[0]?.accountId
-  )
-  const account = named ?? byId(view.defaultAccountId)
-  return {
-    description: scan.rest,
-    transfer: transfer && {
-      from: byId(transfer.from),
-      to: byId(transfer.to),
-    },
-    account: account && {
-      id: account.id,
-      name: account.name,
-      color: account.color,
-    },
-    named: Boolean(named),
-    unknown: scan.mentions.length ? null : scan.unknown,
-  }
-}
-
 const dot = (color: string) => (
   <span
     aria-hidden
@@ -291,9 +266,6 @@ function AccountHint({
     </span>
   )
 }
-
-const textOf = (input: string | { text: string }) =>
-  typeof input === "string" ? input : input.text
 
 /** Frequent entries, one tap to log again. No motion: this is used constantly. */
 function Picks({

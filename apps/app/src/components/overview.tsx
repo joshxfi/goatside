@@ -537,8 +537,10 @@ function TxnLine({
     <CollapseItem>
       <button
         type="button"
+        // Still saving, or waiting on this phone: nothing to edit yet.
+        disabled={txn.id.startsWith("optimistic:")}
         onClick={() => onSelect(txn)}
-        className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted"
+        className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm transition-colors hover:bg-muted disabled:opacity-60"
       >
         <span aria-hidden className="text-base">
           {iou ? "🤝" : (txn.category?.emoji ?? "·")}

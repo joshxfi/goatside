@@ -1,15 +1,22 @@
 {
-  "short_name": "Goatside",
+  "id": "/",
   "name": "Goatside",
-  "icons": [
-    {
-      "src": "favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
-    }
-  ],
+  "short_name": "Goatside",
+  "description": "Log money in and out in your own words.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "theme_color": "#f7f5f0",
-  "background_color": "#f7f5f0"
+  "background_color": "#f7f5f0",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
 }

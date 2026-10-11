@@ -40,12 +40,19 @@ const {
 
 const toAccounts = alias(accounts, "to_accounts")
 
-export async function today(db: Db) {
+async function timeZoneOf(db: Db) {
   const row = await db.query.settings.findFirst({
     where: eq(settings.id, 1),
     columns: { timeZone: true },
   })
-  return todayIn(row?.timeZone ?? DEFAULT_TIME_ZONE)
+  return row?.timeZone ?? DEFAULT_TIME_ZONE
+}
+
+/** The owner's date now, or at `at` (epoch ms) for an entry typed earlier. */
+export async function today(db: Db, at?: number) {
+  // A phone's clock can run ahead; never date an entry in the future.
+  const when = new Date(Math.min(at ?? Date.now(), Date.now()))
+  return todayIn(await timeZoneOf(db), when)
 }
 
 const txnColumns = {
@@ -252,6 +259,8 @@ export async function monthView(requested?: string) {
   return {
     month,
     today: todayDate,
+    /** For dating entries still on the phone, as the server would. */
+    timeZone: await timeZoneOf(db),
     totals: { out: totalOut, in: totalIn, net: totalIn - totalOut },
     previous: {
       month: prevMonth,
@@ -282,10 +291,20 @@ export type MonthView = Awaited<ReturnType<typeof monthView>>
 /** Parses a composer line and saves it (or runs `undo`). */
 export async function logText(
   text: string,
-  { repeat = false }: { repeat?: boolean } = {}
+  {
+    repeat = false,
+    id,
+    at,
+  }: {
+    repeat?: boolean
+    /** Chosen by the phone, so a resent entry is saved once. */
+    id?: string
+    /** When it was typed (epoch ms); "yesterday" counts from then. */
+    at?: number
+  } = {}
 ) {
   const db = getDb()
-  const parsed = preparse(text, { today: await today(db) })
+  const parsed = preparse(text, { today: await today(db, at) })
 
   if (parsed.kind === "empty") return { kind: "empty" as const }
 
@@ -299,10 +318,35 @@ export async function logText(
     return { kind: "ask" as const }
   }
 
-  const [entry] = await db
-    .insert(entries)
-    .values({ rawText: text, mode: "log" })
-    .returning({ id: entries.id })
+  // Sent before: report what it saved. An earlier attempt that stopped
+  // before saving any lines carries on below with the same entry.
+  const earlier = id
+    ? await db.query.entries.findFirst({
+        where: eq(entries.id, id),
+        columns: { id: true },
+      })
+    : undefined
+  if (earlier) {
+    const rows = await db
+      .select({ id: transactions.id })
+      .from(transactions)
+      .where(eq(transactions.entryId, earlier.id))
+    if (rows.length) {
+      return {
+        kind: "log" as const,
+        entryId: earlier.id,
+        transactionIds: rows.map((r) => r.id),
+        saved: [],
+        asked: false,
+      }
+    }
+  }
+  const [entry] = earlier
+    ? [earlier]
+    : await db
+        .insert(entries)
+        .values({ id, rawText: text, mode: "log" })
+        .returning({ id: entries.id })
   if (!entry) throw new Error("Could not save entry")
 
   const { saved, transactionIds, asked } = await saveLines(

@@ -52,9 +52,13 @@ export const logEntry = createServerFn({ method: "POST" })
       text: z.string().max(500),
       /** A quick pick: logged on purpose, so skip the duplicate check. */
       repeat: z.boolean().optional(),
+      /** The phone's id for this entry; resending it doesn't log it twice. */
+      id: z.uuid().optional(),
+      /** When it was typed (epoch ms), for entries that waited offline. */
+      at: z.number().int().positive().optional(),
     })
   )
-  .handler(({ data }) => logText(data.text, { repeat: data.repeat }))
+  .handler(({ data }) => logText(data.text, data))
 
 export const deleteTransactions = createServerFn({ method: "POST" })
   .middleware([authMiddleware])

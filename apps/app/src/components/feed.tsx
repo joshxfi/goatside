@@ -1,9 +1,11 @@
 import { useState } from "react"
-import { ArrowLeftRightIcon } from "lucide-react"
+import { ArrowLeftRightIcon, CloudOffIcon } from "lucide-react"
 import { formatPeso } from "@workspace/core/money"
 import { CoinMark } from "@workspace/ui/components/brand"
+import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
 import { AnimatePresence, CollapseItem } from "@/components/motion"
+import { discard, pendingOf, useOnline, usePending } from "@/lib/outbox"
 import { capitalize, dayLabel, iouLabel, transferLabel } from "@/lib/format"
 import type { LedgerTxn, MonthView } from "@/server/ledger"
 
@@ -100,6 +102,10 @@ function TransactionRow({
   onSelect: (txn: LedgerTxn) => void
 }) {
   const optimistic = isOptimistic(txn)
+  const online = useOnline()
+  const entry = pendingOf(txn, usePending())
+  // Not just on its way: no signal, or the server couldn't take it yet.
+  const waiting = Boolean(entry && !entry.savedAs && (!online || entry.tries))
   const iou = txn.person
     ? iouLabel(txn.kind, txn.amount, txn.person.name)
     : null
@@ -114,8 +120,16 @@ function TransactionRow({
   return (
     <button
       type="button"
-      disabled={optimistic}
-      onClick={() => onSelect(txn)}
+      disabled={optimistic && !waiting}
+      onClick={() => {
+        if (!entry) return onSelect(txn)
+        toast(`“${entry.text}” is waiting to sync.`, {
+          description: online
+            ? "Goatside will keep trying."
+            : "It’s saved on this phone and syncs once you’re back online.",
+          action: { label: "Remove", onClick: () => discard(entry.id) },
+        })
+      }}
       className="flex w-full items-center gap-3 rounded-xl px-1 py-2.5 text-left transition-[background-color,transform,opacity] duration-150 ease-out active:scale-[0.99] active:bg-muted disabled:opacity-60 [@media(hover:hover)]:hover:bg-muted/60"
     >
       <span
@@ -135,6 +149,12 @@ function TransactionRow({
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate">{title}</span>
         <span className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+          {waiting && (
+            <span className="flex items-center gap-1 text-bronze">
+              <CloudOffIcon aria-hidden className="size-3" />
+              Waiting to sync ·
+            </span>
+          )}
           {txn.status === "needs_review" && (
             <span className="flex items-center gap-1 text-bronze">
               <span aria-hidden className="size-1.5 rounded-full bg-bronze" />

@@ -38,6 +38,7 @@ import {
 } from "@workspace/ui/components/sidebar"
 import { cn } from "@workspace/ui/lib/utils"
 import { useAgent } from "@/components/agent-provider"
+import { clearOfflineCopies } from "@/lib/offline"
 import { useShortcut } from "@/lib/use-shortcut"
 import { type Viewer, signOut } from "@/server/session"
 
@@ -118,7 +119,7 @@ export function AppSidebar({ viewer }: { viewer: Viewer }) {
 }
 
 function UserMenu({ viewer }: { viewer: Viewer }) {
-  const router = useRouter()
+  const signOutAndLeave = useSignOut()
   const initial = viewer.username.charAt(0).toUpperCase()
   return (
     <DropdownMenu>
@@ -145,19 +146,24 @@ function UserMenu({ viewer }: { viewer: Viewer }) {
         <ChevronsUpDownIcon className="ml-auto size-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent side="right" align="end" className="min-w-56">
-        <DropdownMenuItem
-          onClick={async () => {
-            await signOut()
-            await router.invalidate()
-            await router.navigate({ to: "/login" })
-          }}
-        >
+        <DropdownMenuItem onClick={signOutAndLeave}>
           <LogOutIcon />
           Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
+}
+
+/** Signs out and drops this device's offline copies of the ledger. */
+function useSignOut() {
+  const router = useRouter()
+  return async () => {
+    await signOut()
+    await clearOfflineCopies()
+    await router.invalidate()
+    await router.navigate({ to: "/login" })
+  }
 }
 
 /** Toggles the sidebar (⌘B). Desktop only. */
@@ -213,6 +219,7 @@ export function AccountMenu({
   className?: string
 }) {
   const router = useRouter()
+  const signOutAndLeave = useSignOut()
   const { ask } = useAgent()
   const initial = viewer.username.charAt(0).toUpperCase()
 
@@ -255,13 +262,7 @@ export function AccountMenu({
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={async () => {
-            await signOut()
-            await router.invalidate()
-            await router.navigate({ to: "/login" })
-          }}
-        >
+        <DropdownMenuItem onClick={signOutAndLeave}>
           <LogOutIcon />
           Sign out
         </DropdownMenuItem>

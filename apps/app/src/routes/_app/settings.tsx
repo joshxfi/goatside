@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query"
 import { createFileRoute } from "@tanstack/react-router"
 import {
+  DownloadIcon,
   EyeIcon,
   EyeOffIcon,
   MergeIcon,
@@ -39,6 +40,7 @@ import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
 import { PageHeader } from "@/components/app-shell"
 import { capitalize, shortDate } from "@/lib/format"
+import { useInstall } from "@/lib/offline"
 import { categoriesQuery } from "@/lib/queries"
 import { useDesktop } from "@/lib/use-desktop"
 import {
@@ -96,7 +98,10 @@ function Settings() {
             />
           ))}
         </div>
-        <TimeZone current={data.timeZone} />
+        <div className="grid gap-8 lg:grid-cols-2">
+          <TimeZone current={data.timeZone} />
+          <InstallApp />
+        </div>
       </div>
       <MergeDrawer
         from={merging}
@@ -640,6 +645,42 @@ function TimeZone({ current }: { current: string }) {
             ))}
           </SelectContent>
         </Select>
+      </div>
+    </section>
+  )
+}
+
+/** Home-screen install: one tap where the browser allows it, steps on iOS. */
+function InstallApp() {
+  const { state, install } = useInstall()
+  const text = {
+    installed: "Installed. Goatside opens from your home screen.",
+    prompt:
+      "Opens full screen from your home screen, and logs entries offline.",
+    ios: "On iPhone or iPad, tap Share, then Add to Home Screen. It opens full screen and logs entries offline.",
+    manual:
+      "Use your browser’s Install app or Add to Home Screen option. It opens full screen and logs entries offline.",
+  }[state]
+
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="px-1 text-sm font-medium text-muted-foreground">
+        Home screen
+      </h2>
+      <div className="flex items-center justify-between gap-4 rounded-2xl border bg-card px-4 py-3">
+        <p className="text-sm text-muted-foreground">{text}</p>
+        {state === "prompt" && (
+          <Button
+            size="sm"
+            className="h-9 shrink-0"
+            onClick={async () => {
+              if (await install()) toast("Installed. Look for the coin.")
+            }}
+          >
+            <DownloadIcon />
+            Install
+          </Button>
+        )}
       </div>
     </section>
   )
