@@ -465,6 +465,51 @@ describe("statement imports", () => {
     expect(again.rows[0]!.status).toBe("new")
   })
 
+  it("undo puts back entries it linked, moved or turned into transfers", async () => {
+    // Typed before any account existed: unfiled.
+    const lunch = await log("180 lunch")
+    const wallet = await createAccount({ name: "GCash", kind: "ewallet" })
+    const bank = await createAccount({ name: "GoTyme", kind: "bank" })
+    const card = await createAccount({
+      name: "Sample Card",
+      kind: "credit_card",
+    })
+    // Filed under GCash, the default; really the card payment.
+    const paid = await log("500 sample shop")
+    const before = await Promise.all(
+      [lunch, paid].map((l) => row(l.transactionIds[0]!))
+    )
+    // A near match on GoTyme: links the lunch, files it there, fixes the amount.
+    const bankSide = bankStatement(bank.id, [[day, "Sample Diner", -18_500]])
+    const linked = await decide(bankSide, [{ action: "link" }])
+    // A card payment that turns the GCash entry into a transfer.
+    const cardSide = cardStatement(card.id, [[day, "BILL PAYMENT", 50_000]], {
+      opening: 50_000,
+    })
+    const { result: moved } = await importAsSuggested(cardSide)
+    expect((await row(paid.transactionIds[0]!)).kind).toBe("transfer")
+
+    await undoImport(getDb(), moved.importId!)
+    await undoImport(getDb(), linked.importId!)
+    const after = await Promise.all(
+      [lunch, paid].map((l) => row(l.transactionIds[0]!))
+    )
+    for (const [i, entry] of after.entries()) {
+      const was = before[i]!
+      expect(entry).toMatchObject({
+        kind: was.kind,
+        amount: was.amount,
+        accountId: was.accountId,
+        toAccountId: was.toAccountId,
+        categoryId: was.categoryId,
+        importRef: null,
+        deletedAt: null,
+      })
+    }
+    expect(await balanceOf(wallet.id)).toBe(-50_000)
+    expect(await balanceOf(bank.id)).toBe(0)
+  })
+
   it("undo removes what the import added", async () => {
     const bank = await createAccount({ name: "GoTyme", kind: "bank" })
     const typed = await log("180 iced coffee")

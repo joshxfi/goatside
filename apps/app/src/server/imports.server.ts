@@ -17,7 +17,7 @@ import {
   fingerprintRows,
 } from "@workspace/core/statement"
 import { type Db, schema } from "@workspace/db"
-import type { AccountKind } from "@workspace/db/schema"
+import type { AccountKind, ImportUndo } from "@workspace/db/schema"
 import { accountBalances } from "./accounts.server"
 import { accountBook, saveLines } from "./agent.server"
 
@@ -499,6 +499,10 @@ export async function commitImport(
   let linked = 0
   let transfers = 0
   const now = new Date()
+  // Entries this import changes instead of adding, with the ref it gives
+  // them, so undo can put them back.
+  const changed = new Map<string, string>()
+  const converted: string[] = []
 
   for (const row of preview.rows) {
     let decision = input.decisions[row.index]!
@@ -513,6 +517,7 @@ export async function commitImport(
 
     if (decision.action === "link" && row.match) {
       linked++
+      for (const id of row.match.ids) changed.set(id, row.fingerprint)
       extra.push(
         db
           .update(transactions)
@@ -550,6 +555,8 @@ export async function commitImport(
           ? row.transfer.convert
           : null
       if (convert) {
+        changed.set(convert.id, row.fingerprint)
+        converted.push(convert.id)
         extra.push(
           db
             .update(transactions)
@@ -609,6 +616,43 @@ export async function commitImport(
   const added = lines.length + newTransfers.length
   const touched = added + linked + transfers
   if (touched) {
+    const ids = [...changed.keys()]
+    const [prior, closing] = await Promise.all([
+      ids.length
+        ? db
+            .select({
+              id: transactions.id,
+              kind: transactions.kind,
+              amount: transactions.amount,
+              accountId: transactions.accountId,
+              toAccountId: transactions.toAccountId,
+              categoryId: transactions.categoryId,
+              aiConfidence: transactions.aiConfidence,
+              recurring: transactions.recurring,
+              status: transactions.status,
+              importRef: transactions.importRef,
+            })
+            .from(transactions)
+            .where(inArray(transactions.id, ids))
+        : [],
+      converted.length
+        ? db
+            .select({ id: questions.id })
+            .from(questions)
+            .where(
+              and(
+                inArray(questions.transactionId, converted),
+                isNull(questions.resolvedAt)
+              )
+            )
+        : [],
+    ])
+    const undo: ImportUndo | null = ids.length
+      ? {
+          rows: prior.map((r) => ({ ...r, ref: changed.get(r.id)! })),
+          questionIds: closing.map((q) => q.id),
+        }
+      : null
     const record = db.insert(imports).values({
       id: input.importId,
       accountId: account.id,
@@ -620,6 +664,7 @@ export async function commitImport(
       closing: input.summary.closing ?? null,
       rowCount: input.rows.length,
       addedCount: added,
+      undo,
     })
     if (added) {
       const period = input.period
@@ -672,29 +717,57 @@ export async function commitImport(
 }
 
 /**
- * Takes an import back: removes the entries it added. Entries it matched
- * keep their link (they're real, and the statement agrees with them).
+ * Takes an import back: removes the entries it added, and puts back the
+ * entries it linked, moved or turned into transfers, as they were. An entry
+ * another import has linked since is left alone. One batch.
  */
 export async function undoImport(db: Db, importId: string) {
   const record = await db.query.imports.findFirst({
     where: eq(imports.id, importId),
   })
   if (!record) return 0
-  const now = new Date()
-  const removed = record.entryId
-    ? await db
+  const live = record.entryId
+    ? and(
+        eq(transactions.entryId, record.entryId),
+        isNull(transactions.deletedAt)
+      )
+    : null
+  const added = live
+    ? await db.select({ id: transactions.id }).from(transactions).where(live)
+    : []
+  const { rows = [], questionIds = [] } = record.undo ?? {}
+  await db.batch([
+    db.delete(imports).where(eq(imports.id, importId)),
+    ...rows.map(({ id, ref, ...before }) =>
+      db
         .update(transactions)
-        .set({ deletedAt: now, importRef: null })
+        .set(before)
         .where(
           and(
-            eq(transactions.entryId, record.entryId),
+            eq(transactions.id, id),
+            eq(transactions.importRef, ref),
             isNull(transactions.deletedAt)
           )
         )
-        .returning({ id: transactions.id })
-    : []
-  await db.delete(imports).where(eq(imports.id, importId))
-  return removed.length
+    ),
+    ...(questionIds.length
+      ? [
+          db
+            .update(questions)
+            .set({ resolvedAt: null })
+            .where(inArray(questions.id, questionIds)),
+        ]
+      : []),
+    ...(live
+      ? [
+          db
+            .update(transactions)
+            .set({ deletedAt: new Date(), importRef: null })
+            .where(live),
+        ]
+      : []),
+  ])
+  return added.length
 }
 
 /** Past imports into an account, newest first. */
