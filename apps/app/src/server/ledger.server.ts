@@ -440,11 +440,28 @@ async function undoLatest(db: Db) {
   return undone.length
 }
 
+/**
+ * Deletes or restores `ids`. Deleting your share of a split bill takes the
+ * others' shares with it, or they'd owe for a bill that's gone. Returns
+ * every id it changed, so Undo can restore exactly those.
+ */
 export async function setDeleted(ids: string[], deleted: boolean) {
-  await getDb()
+  const db = getDb()
+  const all = new Set(ids)
+  if (deleted) {
+    const rows = await db
+      .select()
+      .from(transactions)
+      .where(and(inArray(transactions.id, ids), isNull(transactions.deletedAt)))
+    for (const row of rows)
+      for (const other of await splitRows(db, row)) all.add(other.id)
+  }
+  const changed = await db
     .update(transactions)
     .set({ deletedAt: deleted ? new Date() : null })
-    .where(inArray(transactions.id, ids))
+    .where(inArray(transactions.id, [...all]))
+    .returning({ id: transactions.id })
+  return { ids: changed.map((r) => r.id) }
 }
 
 /** A manual edit that doesn't fit the entry; the message says why. */

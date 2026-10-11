@@ -34,6 +34,8 @@ export type { OpenQuestion } from "./questions.server"
 const MONTH = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const IDS = z.object({ ids: z.array(z.uuid()).min(1).max(500) })
+/** Undo of a delete: the ids it returned, split shares included. */
+const RESTORE_IDS = z.object({ ids: z.array(z.uuid()).min(1).max(15000) })
 
 export const getMonth = createServerFn()
   .middleware([authMiddleware])
@@ -74,7 +76,7 @@ export const deleteTransactions = createServerFn({ method: "POST" })
 
 export const restoreTransactions = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .validator(IDS)
+  .validator(RESTORE_IDS)
   .handler(({ data }) => setDeleted(data.ids, false))
 
 /** The owner's own edit of one entry. No model involved. */

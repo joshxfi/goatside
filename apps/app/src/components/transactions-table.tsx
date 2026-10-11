@@ -495,14 +495,14 @@ export function TransactionsTable({
   async function deleteSelected() {
     const ids = selected.map((t) => t.id)
     if (!ids.length) return
-    await deleteTransactions({ data: { ids } })
+    const deleted = await deleteTransactions({ data: { ids } })
     table.resetRowSelection()
     await refresh()
     toast(`Deleted ${ids.length} ${ids.length === 1 ? "entry" : "entries"}.`, {
       action: {
         label: "Undo",
         onClick: async () => {
-          await restoreTransactions({ data: { ids } })
+          await restoreTransactions({ data: { ids: deleted.ids } })
           await refresh()
         },
       },
