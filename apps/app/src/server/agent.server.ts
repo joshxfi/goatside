@@ -490,6 +490,25 @@ const findPerson = (db: Db, name: string) =>
     columns: { id: true },
   })
 
+/**
+ * `personId` if that person still exists. If they were merged away since,
+ * whoever now goes by `name` (a merge keeps the old name as a nickname).
+ */
+async function stillThere(db: Db, personId: string, name: string) {
+  const exists = await db.query.people.findFirst({
+    where: eq(people.id, personId),
+    columns: { id: true },
+  })
+  if (exists) return exists.id
+  const key = name.trim().toLowerCase()
+  const everyone = await db.query.people.findMany({
+    columns: { id: true, name: true, aliases: true },
+  })
+  return everyone.find((p) =>
+    [p.name, ...p.aliases].some((n) => n.trim().toLowerCase() === key)
+  )?.id
+}
+
 /** Ids for the people rows need, creating anyone new. */
 export async function ensurePeople(
   db: Db,
@@ -500,7 +519,9 @@ export async function ensurePeople(
   for (const i of new Set(indexes)) {
     const candidate = candidates[i]
     if (!candidate) continue
-    let id = candidate.personId ?? (await findPerson(db, candidate.name))?.id
+    let id = candidate.personId
+      ? await stillThere(db, candidate.personId, candidate.name)
+      : (await findPerson(db, candidate.name))?.id
     if (!id) {
       const [created] = await db
         .insert(people)
