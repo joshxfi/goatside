@@ -131,10 +131,12 @@ first so we can agree on the approach.
 - Run `pnpm format`, `pnpm lint`, `pnpm typecheck` and `pnpm test` before you push. CI
   runs the same checks.
 - Fix a ledger bug with a failing test first.
-- Title your pull request as a [Conventional Commit](https://www.conventionalcommits.org),
-  like `fix(app): keep the outbox order after a retry`. Pull requests are squash-merged,
-  so the title becomes the commit, and a check enforces it. Mark a breaking change with
-  `!`, like `feat(db)!: …`.
+- Write each commit, and the pull request title, as a
+  [Conventional Commit](https://www.conventionalcommits.org), like
+  `fix(app): keep the outbox order after a retry`. Pull requests are squash-merged or
+  rebased onto `main`, and either way those messages become the changelog. Checks
+  enforce both, and `pnpm commitlint --from origin/main` lints your branch locally.
+  Mark a breaking change with `!`, like `feat(db)!: …`.
 - When a change affects how Goatside behaves, update the docs in
   `apps/web/content/docs` in the same pull request.
 
