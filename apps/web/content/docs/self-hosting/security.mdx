@@ -15,7 +15,8 @@ production, `Secure`.
 
 There are no stored sessions. A cookie is a signature over your username, password and
 `SESSION_SECRET`, so changing any of the three signs out every device at once. That is
-also how you sign out a lost phone.
+also how you sign out a lost phone. Pages it kept for offline use are deleted the next
+time it opens Goatside online, and a kept page is never shown once it's 30 days old.
 
 ## Guessing passwords
 
