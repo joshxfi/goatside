@@ -498,32 +498,30 @@ function Footer() {
   return (
     <footer className="border-t">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-6">
-        <div className="flex items-start gap-2">
-          <CoinMark className="mt-px size-5 shrink-0" />
-          <p className="flex flex-col gap-1">
-            <span>
-              Goatside is open source and self-hosted, under the{" "}
-              <a
-                href={`${REPO_URL}/blob/main/LICENSE`}
-                className="underline-offset-4 hover:text-foreground hover:underline"
-              >
-                MIT license
-              </a>
-              .
-            </span>
-            <span>
-              Built by {AUTHOR.name} (
+        <p className="flex items-center gap-2">
+          <CoinMark className="size-5 shrink-0" />
+          <span>
+            Open source under the{" "}
+            <a
+              href={`${REPO_URL}/blob/main/LICENSE`}
+              className="underline-offset-4 hover:text-foreground hover:underline"
+            >
+              MIT license
+            </a>
+            .{" "}
+            <span className="whitespace-nowrap">
+              Built by{" "}
               <a
                 href={AUTHOR.url}
                 rel="author"
                 className="underline-offset-4 hover:text-foreground hover:underline"
               >
-                {AUTHOR.handle}
+                {AUTHOR.name}
               </a>
-              ).
+              .
             </span>
-          </p>
-        </div>
+          </span>
+        </p>
         <nav className="flex flex-wrap gap-x-5 gap-y-2">
           <Link to="/docs/$" className="hover:text-foreground">
             Docs
