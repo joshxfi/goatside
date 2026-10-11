@@ -1,10 +1,5 @@
 import { useState } from "react"
-import {
-  CircleHelpIcon,
-  CodeIcon,
-  HistoryIcon,
-  SparklesIcon,
-} from "lucide-react"
+import { CircleHelpIcon, CodeIcon, HistoryIcon, BotIcon } from "lucide-react"
 import { cn } from "@workspace/ui/lib/utils"
 import { DemoCard } from "./ui"
 
@@ -119,7 +114,7 @@ const EXAMPLES: Example[] = [
 
 const SOURCES: Record<Source, { label: string; icon: typeof CodeIcon }> = {
   code: { label: "Read by code", icon: CodeIcon },
-  agent: { label: "The agent", icon: SparklesIcon },
+  agent: { label: "The agent", icon: BotIcon },
   memory: { label: "Your history", icon: HistoryIcon },
 }
 

@@ -7,8 +7,9 @@ import {
   HistoryIcon,
   KeyboardIcon,
   PencilLineIcon,
+  MessageCircleQuestionMarkIcon,
+  SendIcon,
   ShieldCheckIcon,
-  SparklesIcon,
   TableIcon,
   type LucideIcon,
 } from "lucide-react"
@@ -172,7 +173,10 @@ function HowItFiles() {
           <Point icon={CodeIcon} title="Amounts stay as typed">
             Parsed by code, never by a model.
           </Point>
-          <Point icon={ShieldCheckIcon} title="Asks when it isn't sure">
+          <Point
+            icon={MessageCircleQuestionMarkIcon}
+            title="Asks when it isn't sure"
+          >
             One tap confirms or fixes its guess.
           </Point>
           <Point icon={HistoryIcon} title="Learns from your fixes">
@@ -323,7 +327,7 @@ function Yours() {
           server, no account with us and no analytics. The code is open, so you
           can read every line.
         </Tile>
-        <Tile icon={SparklesIcon} title="What leaves, and where">
+        <Tile icon={SendIcon} title="What leaves, and where">
           Entry text goes to TypeSafe's Jev, which files it, and your questions
           go to DeepSeek, both through your own AI Gateway. Swap either model
           with one variable.

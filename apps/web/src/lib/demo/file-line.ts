@@ -124,7 +124,7 @@ const TRANSFER_TITLES: Record<TransferWord, string> = {
 }
 
 const OTHERS_OUT = { name: "Others", emoji: "📦" }
-const OTHERS_IN = { name: "Others", emoji: "✨" }
+const OTHERS_IN = { name: "Others", emoji: "💵" }
 
 function categoryFor(text: string, list: Category[]) {
   const words = new Set(text.toLowerCase().split(/[^\p{L}]+/u))

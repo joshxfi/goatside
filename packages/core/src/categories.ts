@@ -20,5 +20,5 @@ export const DEFAULT_CATEGORIES: CategorySeed[] = [
   { name: "Salary", emoji: "💼", kind: "income" },
   { name: "Freelance", emoji: "🧑‍💻", kind: "income" },
   { name: "Gifts", emoji: "🎁", kind: "income" },
-  { name: "Others", emoji: "✨", kind: "income" },
+  { name: "Others", emoji: "💵", kind: "income" },
 ]

@@ -1,3 +1,4 @@
+import { and, eq } from "drizzle-orm"
 import { drizzle } from "drizzle-orm/libsql"
 import { DEFAULT_CATEGORIES } from "@workspace/core/categories"
 import * as schema from "./schema"
@@ -25,6 +26,17 @@ export async function seedDefaults(db: Db) {
     .insert(schema.categories)
     .values(DEFAULT_CATEGORIES.map((category, sort) => ({ ...category, sort })))
     .onConflictDoNothing()
+  // Older installs seeded "Others" with a sparkle; it's a money emoji now.
+  await db
+    .update(schema.categories)
+    .set({ emoji: "💵" })
+    .where(
+      and(
+        eq(schema.categories.kind, "income"),
+        eq(schema.categories.name, "Others"),
+        eq(schema.categories.emoji, "✨")
+      )
+    )
 }
 
 export { schema }

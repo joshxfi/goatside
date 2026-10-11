@@ -12,7 +12,7 @@ import {
   EyeOffIcon,
   MergeIcon,
   MoreHorizontalIcon,
-  SparklesIcon,
+  SearchIcon,
 } from "lucide-react"
 import { formatPeso } from "@workspace/core/money"
 import { Button } from "@workspace/ui/components/button"
@@ -266,7 +266,7 @@ function CategoryRow({
         <DropdownMenuContent align="end" className="min-w-52">
           {!category.archived && (
             <DropdownMenuItem onClick={() => onSuggest(category)}>
-              <SparklesIcon />
+              <SearchIcon />
               Find entries for this
             </DropdownMenuItem>
           )}
@@ -304,7 +304,7 @@ function AddCategory({
         data: {
           kind,
           name,
-          emoji: emoji.trim() || (kind === "expense" ? "🏷️" : "✨"),
+          emoji: emoji.trim() || (kind === "expense" ? "🏷️" : "💵"),
         },
       }),
     onSuccess: async (result) => {

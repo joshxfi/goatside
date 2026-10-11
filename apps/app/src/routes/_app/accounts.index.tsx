@@ -5,7 +5,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query"
 import { Link, createFileRoute } from "@tanstack/react-router"
-import { PlusIcon, SparklesIcon } from "lucide-react"
+import { PlusIcon, MessageCircleQuestionMarkIcon } from "lucide-react"
 import { formatPeso } from "@workspace/core/money"
 import { CoinMark } from "@workspace/ui/components/brand"
 import { Button } from "@workspace/ui/components/button"
@@ -314,7 +314,7 @@ function Empty({ onAdd }: { onAdd: () => void }) {
             ask("Help me set up my bank accounts, e-wallets and credit cards.")
           }
         >
-          <SparklesIcon />
+          <MessageCircleQuestionMarkIcon />
           Set up with Goatside
         </Button>
       </div>

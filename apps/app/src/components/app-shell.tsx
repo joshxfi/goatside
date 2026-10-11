@@ -6,7 +6,7 @@ import {
   LogOutIcon,
   ReceiptTextIcon,
   SettingsIcon,
-  SparklesIcon,
+  MessageCircleQuestionMarkIcon,
   UsersIcon,
   WalletCardsIcon,
 } from "lucide-react"
@@ -96,7 +96,7 @@ export function AppSidebar({ viewer }: { viewer: Viewer }) {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton tooltip="Ask Goatside" onClick={() => ask()}>
-                  <SparklesIcon />
+                  <MessageCircleQuestionMarkIcon />
                   <span>Ask Goatside</span>
                   <kbd className="ml-auto text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
                     {askShortcut}
@@ -266,7 +266,7 @@ export function AccountMenu({
             </DropdownMenuItem>
           ))}
           <DropdownMenuItem onClick={() => ask()}>
-            <SparklesIcon />
+            <MessageCircleQuestionMarkIcon />
             Ask Goatside
           </DropdownMenuItem>
         </DropdownMenuGroup>
