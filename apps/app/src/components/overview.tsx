@@ -17,6 +17,8 @@ import {
   projection,
   spendingSlices,
 } from "@/components/charts"
+import { useRowKeys } from "@/components/feed"
+import { AnimatePresence, CollapseItem, Figure } from "@/components/motion"
 import { capitalize, dayLabel, monthName } from "@/lib/format"
 import { trendQuery } from "@/lib/queries"
 import { OTHER, STACK_ORDER, seriesColors } from "@/lib/series"
@@ -81,7 +83,7 @@ export function KpiRow({ view }: { view: MonthView }) {
     <dl className="grid grid-cols-2 gap-4 xl:grid-cols-4">
       <Kpi
         label="Spent"
-        value={formatPeso(totals.out)}
+        value={<Figure value={totals.out} />}
         tone="expense"
         note={
           previous.hasData ? (
@@ -107,13 +109,13 @@ export function KpiRow({ view }: { view: MonthView }) {
       />
       <Kpi
         label="Money in"
-        value={formatPeso(totals.in)}
+        value={<Figure value={totals.in} />}
         tone="income"
         note={`${monthName(view.month)} so far`}
       />
       <Kpi
         label="Net"
-        value={formatPeso(totals.net, { sign: true })}
+        value={<Figure value={totals.net} sign />}
         tone={totals.net >= 0 ? "income" : "expense"}
         note={
           totals.net >= 0
@@ -123,9 +125,11 @@ export function KpiRow({ view }: { view: MonthView }) {
       />
       <Kpi
         label="Daily average"
-        value={formatPeso(
-          Math.round(totals.out / Math.max(days, 1) / 100) * 100
-        )}
+        value={
+          <Figure
+            value={Math.round(totals.out / Math.max(days, 1) / 100) * 100}
+          />
+        }
         note={
           biggest.out > 0
             ? `Biggest day: ${dayLabel(biggest.date, view.today)}, ${formatPeso(biggest.out)}`
@@ -144,7 +148,7 @@ function Kpi({
   large,
 }: {
   label: string
-  value: string
+  value: React.ReactNode
   note: React.ReactNode
   tone?: "income" | "expense"
   large?: boolean
@@ -530,7 +534,7 @@ function TxnLine({
     txn.amount > 0 && (txn.kind === "income" || txn.kind === "expense")
   const iou = txn.kind === "lend" || txn.kind === "settle"
   return (
-    <li>
+    <CollapseItem>
       <button
         type="button"
         onClick={() => onSelect(txn)}
@@ -561,7 +565,7 @@ function TxnLine({
           {formatPeso(txn.amount, { sign: txn.amount > 0 })}
         </span>
       </button>
-    </li>
+    </CollapseItem>
   )
 }
 
@@ -583,15 +587,17 @@ export function LargestCard({
       description="Your biggest single payments this month"
     >
       {largest.length ? (
-        <ul className="-mx-2 flex flex-col">
-          {largest.map((t) => (
-            <TxnLine
-              key={t.id}
-              txn={t}
-              today={view.today}
-              onSelect={onSelect}
-            />
-          ))}
+        <ul key={view.month} className="-mx-2 flex flex-col">
+          <AnimatePresence initial={false}>
+            {largest.map((t) => (
+              <TxnLine
+                key={t.id}
+                txn={t}
+                today={view.today}
+                onSelect={onSelect}
+              />
+            ))}
+          </AnimatePresence>
         </ul>
       ) : (
         <p className="text-sm text-muted-foreground">No spending yet.</p>
@@ -609,6 +615,7 @@ export function RecentCard({
   onSelect: (t: LedgerTxn) => void
 }) {
   const recent = view.transactions.slice(0, 6)
+  const keyOf = useRowKeys(view.transactions)
   const isCurrent = view.month === view.today.slice(0, 7)
   return (
     <Card
@@ -625,15 +632,17 @@ export function RecentCard({
       }
     >
       {recent.length ? (
-        <ul className="-mx-2 flex flex-col">
-          {recent.map((t) => (
-            <TxnLine
-              key={t.id}
-              txn={t}
-              today={view.today}
-              onSelect={onSelect}
-            />
-          ))}
+        <ul key={view.month} className="-mx-2 flex flex-col">
+          <AnimatePresence initial={false}>
+            {recent.map((t) => (
+              <TxnLine
+                key={keyOf(t)}
+                txn={t}
+                today={view.today}
+                onSelect={onSelect}
+              />
+            ))}
+          </AnimatePresence>
         </ul>
       ) : (
         <p className="text-sm text-muted-foreground">

@@ -20,6 +20,7 @@ import { Input } from "@workspace/ui/components/input"
 import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
 import { PageHeader } from "@/components/app-shell"
+import { AnimatePresence, CollapseItem, Figure } from "@/components/motion"
 import { capitalize, iouLabel, shortDate } from "@/lib/format"
 import { peopleQuery, personQuery } from "@/lib/queries"
 import { deleteTransactions, settleUp } from "@/server/ledger"
@@ -130,7 +131,7 @@ function Balance({ person }: { person: PersonDetail }) {
               owesYou && "text-income-foreground"
             )}
           >
-            {formatPeso(Math.abs(person.owed))}
+            <Figure value={Math.abs(person.owed)} />
           </p>
         )}
       </div>
@@ -246,29 +247,33 @@ function History({ person }: { person: PersonDetail }) {
       </h2>
       {person.history.length ? (
         <ol className="flex flex-col divide-y rounded-2xl border bg-card">
-          {person.history.map((h) => (
-            <li key={h.id} className="flex items-center gap-3 px-4 py-3">
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate">
-                  {capitalize(h.description) || "IOU"}
-                </span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {shortDate(h.localDate)} ·{" "}
-                  {iouLabel(h.kind, h.amount, person.name)}
-                </span>
-              </span>
-              <span className="flex flex-col items-end">
-                <span className="figure font-display text-lg">
-                  {formatPeso(h.amount, { sign: h.amount > 0 })}
-                </span>
-                <span className="figure text-xs text-muted-foreground">
-                  {h.owedAfter === 0
-                    ? "square after"
-                    : `${h.owedAfter > 0 ? "owes" : "you owe"} ${formatPeso(Math.abs(h.owedAfter))} after`}
-                </span>
-              </span>
-            </li>
-          ))}
+          <AnimatePresence initial={false}>
+            {person.history.map((h) => (
+              <CollapseItem key={h.id}>
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate">
+                      {capitalize(h.description) || "IOU"}
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {shortDate(h.localDate)} ·{" "}
+                      {iouLabel(h.kind, h.amount, person.name)}
+                    </span>
+                  </span>
+                  <span className="flex flex-col items-end">
+                    <span className="figure font-display text-lg">
+                      {formatPeso(h.amount, { sign: h.amount > 0 })}
+                    </span>
+                    <span className="figure text-xs text-muted-foreground">
+                      {h.owedAfter === 0
+                        ? "square after"
+                        : `${h.owedAfter > 0 ? "owes" : "you owe"} ${formatPeso(Math.abs(h.owedAfter))} after`}
+                    </span>
+                  </span>
+                </div>
+              </CollapseItem>
+            ))}
+          </AnimatePresence>
         </ol>
       ) : (
         <p className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">

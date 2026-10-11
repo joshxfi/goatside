@@ -275,8 +275,12 @@
 }
 
 @layer components {
-  /* An agent question arriving above the composer: a short settle, no flourish. */
-  .question-card {
+  /*
+   * Something new arriving in place (a question card, a chat message): a
+   * short settle, no flourish. CSS, so it runs off the main thread; exits
+   * and collapses use Motion (apps/app/src/components/motion.tsx).
+   */
+  .enter-rise {
     transition:
       opacity 200ms var(--ease-out),
       transform 200ms var(--ease-out);
@@ -286,9 +290,16 @@
       transform: translateY(6px);
     }
   }
+  .enter-fade {
+    transition: opacity 150ms var(--ease-out);
+
+    @starting-style {
+      opacity: 0;
+    }
+  }
 
   @media (prefers-reduced-motion: reduce) {
-    .question-card {
+    .enter-rise {
       transition: opacity 150ms ease;
 
       @starting-style {

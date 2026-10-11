@@ -1,7 +1,9 @@
+import { useState } from "react"
 import { ArrowLeftRightIcon } from "lucide-react"
 import { formatPeso } from "@workspace/core/money"
 import { CoinMark } from "@workspace/ui/components/brand"
 import { cn } from "@workspace/ui/lib/utils"
+import { AnimatePresence, CollapseItem } from "@/components/motion"
 import { capitalize, dayLabel, iouLabel, transferLabel } from "@/lib/format"
 import type { LedgerTxn, MonthView } from "@/server/ledger"
 
@@ -12,6 +14,7 @@ export function Feed({
   view: MonthView
   onSelect: (txn: LedgerTxn) => void
 }) {
+  const keyOf = useRowKeys(view.transactions)
   if (!view.transactions.length)
     return <EmptyFeed isCurrent={view.month === view.today.slice(0, 7)} />
 
@@ -22,30 +25,71 @@ export function Feed({
     days.set(t.localDate, list)
   }
 
+  // New entries grow in and deleted ones collapse out. Keyed by month, so
+  // switching months swaps the list instead of animating every row.
   return (
-    <section aria-label="Activity" className="flex flex-col gap-6">
-      {[...days].map(([date, txns]) => {
-        const out = txns
-          .filter((t) => t.kind === "expense")
-          .reduce((sum, t) => sum - t.amount, 0)
-        return (
-          <div key={date} className="flex flex-col gap-1">
-            <h3 className="flex items-baseline justify-between px-1 text-xs font-medium text-muted-foreground">
-              <span>{dayLabel(date, view.today)}</span>
-              {out > 0 && <span className="figure">{formatPeso(-out)}</span>}
-            </h3>
-            <ul className="flex flex-col">
-              {txns.map((t) => (
-                <li key={t.id}>
-                  <TransactionRow txn={t} onSelect={onSelect} />
-                </li>
-              ))}
-            </ul>
-          </div>
-        )
-      })}
+    <section key={view.month} aria-label="Activity" className="-mb-6">
+      <AnimatePresence initial={false}>
+        {[...days].map(([date, txns]) => {
+          const out = txns
+            .filter((t) => t.kind === "expense")
+            .reduce((sum, t) => sum - t.amount, 0)
+          return (
+            <CollapseItem as="div" key={date}>
+              <div className="flex flex-col gap-1 pb-6">
+                <h3 className="flex items-baseline justify-between px-1 text-xs font-medium text-muted-foreground">
+                  <span>{dayLabel(date, view.today)}</span>
+                  {out > 0 && (
+                    <span className="figure">{formatPeso(-out)}</span>
+                  )}
+                </h3>
+                <ul className="flex flex-col">
+                  <AnimatePresence initial={false}>
+                    {txns.map((t) => (
+                      <CollapseItem key={keyOf(t)}>
+                        <TransactionRow txn={t} onSelect={onSelect} />
+                      </CollapseItem>
+                    ))}
+                  </AnimatePresence>
+                </ul>
+              </div>
+            </CollapseItem>
+          )
+        })}
+      </AnimatePresence>
     </section>
   )
+}
+
+const isOptimistic = (t: LedgerTxn) => t.id.startsWith("optimistic:")
+
+/**
+ * Row keys that survive the swap from an optimistic row to the saved one,
+ * so a just-logged entry stays put instead of collapsing and growing back.
+ * A saved row takes the key of a vanished optimistic row with the same
+ * amount and date.
+ */
+export function useRowKeys(txns: LedgerTxn[]) {
+  const [seen, setSeen] = useState({ txns, keys: new Map<string, string>() })
+  let { keys } = seen
+  if (seen.txns !== txns) {
+    const gone = seen.txns.filter(
+      (o) => isOptimistic(o) && !txns.some((t) => t.id === o.id)
+    )
+    keys = new Map()
+    for (const t of txns) {
+      let key = seen.keys.get(t.id) ?? t.id
+      if (!isOptimistic(t) && !seen.keys.has(t.id)) {
+        const index = gone.findIndex(
+          (o) => o.amount === t.amount && o.localDate === t.localDate
+        )
+        if (index !== -1) key = gone.splice(index, 1)[0]?.id ?? key
+      }
+      keys.set(t.id, key)
+    }
+    setSeen({ txns, keys })
+  }
+  return (t: LedgerTxn) => keys.get(t.id) ?? t.id
 }
 
 function TransactionRow({
@@ -55,7 +99,7 @@ function TransactionRow({
   txn: LedgerTxn
   onSelect: (txn: LedgerTxn) => void
 }) {
-  const optimistic = txn.id.startsWith("optimistic:")
+  const optimistic = isOptimistic(txn)
   const iou = txn.person
     ? iouLabel(txn.kind, txn.amount, txn.person.name)
     : null
@@ -72,7 +116,7 @@ function TransactionRow({
       type="button"
       disabled={optimistic}
       onClick={() => onSelect(txn)}
-      className="flex w-full items-center gap-3 rounded-xl px-1 py-2.5 text-left transition-[background-color,transform] duration-150 ease-out active:scale-[0.99] active:bg-muted disabled:opacity-60 [@media(hover:hover)]:hover:bg-muted/60"
+      className="flex w-full items-center gap-3 rounded-xl px-1 py-2.5 text-left transition-[background-color,transform,opacity] duration-150 ease-out active:scale-[0.99] active:bg-muted disabled:opacity-60 [@media(hover:hover)]:hover:bg-muted/60"
     >
       <span
         aria-hidden

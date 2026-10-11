@@ -1,7 +1,9 @@
+import { useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "@workspace/ui/components/sonner"
 import { formatPeso } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
+import { AnimatePresence, EASE_OUT, m } from "@/components/motion"
 import { capitalize } from "@/lib/format"
 import { monthQuery } from "@/lib/queries"
 import {
@@ -53,19 +55,37 @@ export function Questions({
   })
 
   const [question] = view.questions
-  if (!question) return null
-  const more = view.transactions.find((t) => t.id === question.transaction.id)
+  const more =
+    question && view.transactions.find((t) => t.id === question.transaction.id)
 
+  // An answered card steps back before the next one settles in; the last
+  // one also folds away, so the composer below glides down.
   return (
-    <QuestionCard
-      key={question.id}
-      question={question}
-      remaining={view.questions.length}
-      onAnswer={(answer) => reply.mutate({ id: question.id, answer })}
-      onMore={more && (() => onMore(more))}
-    />
+    <AnimatePresence
+      mode="wait"
+      initial={false}
+      custom={view.questions.length > 0}
+    >
+      {question && (
+        <QuestionCard
+          key={question.id}
+          question={question}
+          remaining={view.questions.length}
+          onAnswer={(answer) => reply.mutate({ id: question.id, answer })}
+          onMore={more && (() => onMore(more))}
+        />
+      )}
+    </AnimatePresence>
   )
 }
+
+/** Fade back; fold away too unless another card takes its place. */
+const leave = (followed: boolean) => ({
+  opacity: 0,
+  scale: 0.98,
+  ...(followed ? {} : { height: 0 }),
+  transition: { duration: 0.15, height: { duration: 0.2, ease: EASE_OUT } },
+})
 
 function QuestionCard({
   question,
@@ -78,6 +98,7 @@ function QuestionCard({
   onAnswer: (answer: string) => void
   onMore?: () => void
 }) {
+  const ref = useRef<HTMLDivElement>(null)
   const { transaction } = question
   const what = transaction.description
     ? `“${capitalize(transaction.description)}”`
@@ -85,55 +106,66 @@ function QuestionCard({
   const amount = formatPeso(Math.abs(transaction.amount))
 
   return (
-    <section
-      aria-label="A question from Goatside"
-      className="question-card flex flex-col gap-2.5 rounded-2xl border bg-card p-3 shadow-xs"
+    <m.div
+      ref={ref}
+      variants={{ leave }}
+      exit="leave"
+      onAnimationStart={() => {
+        if (ref.current) ref.current.style.overflow = "hidden"
+      }}
     >
-      <div className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
-        <span>Quick check{remaining > 1 ? ` · ${remaining} waiting` : ""}</span>
-        {/* These options already include leaving it as it is. */}
-        {question.kind !== "duplicate" && question.kind !== "account" && (
-          <button
-            type="button"
-            onClick={() => onAnswer(question.guess)}
-            className="rounded-md px-1.5 py-0.5 transition-colors hover:text-foreground"
-          >
-            Keep guess
-          </button>
-        )}
-      </div>
-      <p className="text-sm">
-        <Prompt question={question} what={what} amount={amount} />
-      </p>
-      <div className="flex flex-wrap gap-2">
-        {question.options.map((option) => (
-          <AnswerButton
-            key={option.value}
-            guess={option.value === question.guess}
-            tone={
-              question.kind === "direction"
-                ? option.value === "in"
-                  ? "income"
-                  : "expense"
-                : undefined
-            }
-            onClick={() => onAnswer(option.value)}
-          >
-            {question.kind === "direction" ? (
-              <span className="figure">
-                {option.value === "in" ? "+" : "−"}
-              </span>
-            ) : (
-              option.emoji && <span aria-hidden>{option.emoji}</span>
-            )}
-            {option.label}
-          </AnswerButton>
-        ))}
-        {question.kind === "category" && onMore && (
-          <AnswerButton onClick={onMore}>Other…</AnswerButton>
-        )}
-      </div>
-    </section>
+      <section
+        aria-label="A question from Goatside"
+        className="enter-rise flex flex-col gap-2.5 rounded-2xl border bg-card p-3 shadow-xs"
+      >
+        <div className="flex items-baseline justify-between gap-3 text-xs text-muted-foreground">
+          <span>
+            Quick check{remaining > 1 ? ` · ${remaining} waiting` : ""}
+          </span>
+          {/* These options already include leaving it as it is. */}
+          {question.kind !== "duplicate" && question.kind !== "account" && (
+            <button
+              type="button"
+              onClick={() => onAnswer(question.guess)}
+              className="rounded-md px-1.5 py-0.5 transition-colors hover:text-foreground"
+            >
+              Keep guess
+            </button>
+          )}
+        </div>
+        <p className="text-sm">
+          <Prompt question={question} what={what} amount={amount} />
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {question.options.map((option) => (
+            <AnswerButton
+              key={option.value}
+              guess={option.value === question.guess}
+              tone={
+                question.kind === "direction"
+                  ? option.value === "in"
+                    ? "income"
+                    : "expense"
+                  : undefined
+              }
+              onClick={() => onAnswer(option.value)}
+            >
+              {question.kind === "direction" ? (
+                <span className="figure">
+                  {option.value === "in" ? "+" : "−"}
+                </span>
+              ) : (
+                option.emoji && <span aria-hidden>{option.emoji}</span>
+              )}
+              {option.label}
+            </AnswerButton>
+          ))}
+          {question.kind === "category" && onMore && (
+            <AnswerButton onClick={onMore}>Other…</AnswerButton>
+          )}
+        </div>
+      </section>
+    </m.div>
   )
 }
 

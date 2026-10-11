@@ -5,6 +5,7 @@ import { formatPeso } from "@workspace/core/money"
 import { CoinMark } from "@workspace/ui/components/brand"
 import { cn } from "@workspace/ui/lib/utils"
 import { PageHeader } from "@/components/app-shell"
+import { Figure } from "@/components/motion"
 import { shortDate } from "@/lib/format"
 import { peopleQuery } from "@/lib/queries"
 
@@ -36,13 +37,13 @@ function People() {
           <div className="rounded-2xl border bg-card px-4 py-3">
             <dt className="text-xs text-muted-foreground">Owed to you</dt>
             <dd className="figure font-display text-3xl text-income-foreground">
-              {formatPeso(owedToYou)}
+              <Figure value={owedToYou} />
             </dd>
           </div>
           <div className="rounded-2xl border bg-card px-4 py-3">
             <dt className="text-xs text-muted-foreground">You owe</dt>
             <dd className="figure font-display text-3xl">
-              {formatPeso(youOwe)}
+              <Figure value={youOwe} />
             </dd>
           </div>
         </dl>

@@ -1,5 +1,6 @@
 import { formatPeso } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
+import { Figure } from "@/components/motion"
 import {
   ACCOUNT_KIND_LABELS,
   type AccountKind,
@@ -19,12 +20,13 @@ export interface CardAccount {
 
 /** What the big number on a card says, and what to call it. */
 export function balanceText(account: Pick<CardAccount, "kind" | "balance">) {
-  if (account.kind === "credit_card") {
-    return account.balance > 0
-      ? { label: "Credit", amount: formatPeso(account.balance) }
-      : { label: "Owed", amount: formatPeso(owedOn(account.balance)) }
-  }
-  return { label: "Balance", amount: formatPeso(account.balance) }
+  const shown =
+    account.kind === "credit_card"
+      ? account.balance > 0
+        ? { label: "Credit", value: account.balance }
+        : { label: "Owed", value: owedOn(account.balance) }
+      : { label: "Balance", value: account.balance }
+  return { ...shown, amount: formatPeso(shown.value) }
 }
 
 /**
@@ -44,7 +46,7 @@ export function AccountCard({
   className?: string
 }) {
   const Icon = KIND_ICONS[account.kind]
-  const { label, amount } = balanceText(account)
+  const { label, value } = balanceText(account)
   const limit = account.kind === "credit_card" ? account.creditLimit : null
   const owed = owedOn(account.balance)
   const used = limit ? Math.min(1, owed / limit) : 0
@@ -98,7 +100,7 @@ export function AccountCard({
                     : "text-2xl"
               )}
             >
-              {amount}
+              <Figure value={value} />
               {/* Small cards have no label above, so a card says it here. */}
               {size === "sm" && label !== "Balance" && (
                 <span className="ml-1 font-sans text-xs text-white/70">

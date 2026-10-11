@@ -513,7 +513,7 @@ export function TransactionsTable({
     <section aria-label="Transactions" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         {selected.length > 0 ? (
-          <div className="flex min-h-9 flex-1 flex-wrap items-center gap-2 rounded-full bg-muted py-1 pr-1 pl-4 text-sm">
+          <div className="enter-fade flex min-h-9 flex-1 flex-wrap items-center gap-2 rounded-full bg-muted py-1 pr-1 pl-4 text-sm">
             <span className="mr-auto font-medium">
               {selected.length} selected
             </span>

@@ -106,14 +106,14 @@ export function AskSheet({
             message.role === "user" ? (
               <p
                 key={message.id}
-                className="max-w-[85%] self-end rounded-2xl rounded-br-md bg-muted px-3.5 py-2 text-sm"
+                className="enter-rise max-w-[85%] self-end rounded-2xl rounded-br-md bg-muted px-3.5 py-2 text-sm"
               >
                 {textOf(message)}
               </p>
             ) : (
               <div
                 key={message.id}
-                className="flex flex-col gap-2 text-[15px] leading-relaxed"
+                className="enter-fade flex flex-col gap-2 text-[15px] leading-relaxed"
               >
                 {message.parts.map((part, i, parts) => {
                   if (part.type === "text") {
@@ -144,7 +144,7 @@ export function AskSheet({
                   return (
                     <p
                       key={i}
-                      className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                      className="enter-fade flex items-center gap-1.5 text-xs text-muted-foreground"
                     >
                       <CoinMark rim={false} className="size-3.5" />
                       {label}
@@ -156,7 +156,7 @@ export function AskSheet({
           )}
 
           {busy && last?.role === "user" && (
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <p className="enter-fade flex items-center gap-2 text-sm text-muted-foreground">
               <span className="coin-stage size-4">
                 <CoinMark className="coin-spinning size-4" />
               </span>
@@ -165,7 +165,7 @@ export function AskSheet({
           )}
 
           {chat.error && (
-            <div className="flex flex-col items-start gap-2 rounded-xl border border-dashed p-3 text-sm">
+            <div className="enter-rise flex flex-col items-start gap-2 rounded-xl border border-dashed p-3 text-sm">
               <p>{errorMessage(chat.error)}</p>
               <button
                 type="button"

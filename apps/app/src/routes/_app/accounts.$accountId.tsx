@@ -20,6 +20,7 @@ import { cn } from "@workspace/ui/lib/utils"
 import { AccountCard, balanceText } from "@/components/account-card"
 import { AccountDrawer, AccountForm } from "@/components/account-form"
 import { PageHeader } from "@/components/app-shell"
+import { Figure } from "@/components/motion"
 import { owedOn } from "@/lib/accounts"
 import { capitalize, iouLabel, shortDate } from "@/lib/format"
 import { accountQuery, accountsQuery, monthQuery } from "@/lib/queries"
@@ -88,7 +89,7 @@ function Account() {
                       : "text-muted-foreground"
                   )}
                 >
-                  {formatPeso(thisMonth.in)}
+                  <Figure value={thisMonth.in} />
                 </dd>
               </div>
               <div className="flex flex-col justify-end rounded-2xl border bg-card px-4 py-3">
@@ -103,7 +104,7 @@ function Account() {
                       : "text-muted-foreground"
                   )}
                 >
-                  {formatPeso(thisMonth.out)}
+                  <Figure value={thisMonth.out} />
                 </dd>
               </div>
             </dl>

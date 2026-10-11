@@ -125,7 +125,7 @@ From the founder's sketch: "goat side" means *which side of the coin are you on?
 - **Mark:** a coin struck with a capital "G", drawn as a single stroke (no font needed) so it works from favicon to hero. Components live in `packages/ui/src/components/brand.tsx` (`CoinMark`, `Coin`, `CoinFlip`, `Wordmark`).
 - **Metals:** gold is the save side (money in), silver is the spend side (money out), bronze is an accent. They're theme tokens (`text-gold-foreground`, `bg-silver`, …) on a warm paper/ink palette, light and dark.
 - **Type:** Instrument Serif for display figures, Geist for UI, tabular numerals (`.figure`) for money.
-- **Motion:** the coin toss and flip are reserved for rare moments (landing, sign-in, loading). The composer is used constantly, so it gets no decorative motion. Reduced motion is respected.
+- **Motion:** the coin toss and flip are reserved for rare moments (landing, sign-in, loading). The composer is used constantly, so it gets no decorative motion. Reduced motion is respected. Elsewhere motion only explains a change: new entries grow into lists and deleted ones fold out, an answered question steps back before the next arrives, and headline figures count to their new value. Arrivals are CSS (`.enter-rise`, `.enter-fade`); exits, collapses and counts use [Motion](https://motion.dev) (`components/motion.tsx`), whose animation code loads after first paint. Nothing animates on first paint, on month switches or on page navigation.
 - **Voice:** steady climbing, resilience, abundance, stability. "GOAT" also means greatest of all time, so personal records ("lowest-spend week of all time") are part of the brand.
 
 ---

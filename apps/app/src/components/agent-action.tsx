@@ -112,7 +112,7 @@ export function AgentAction({
     !approval.isAutomatic
   ) {
     return (
-      <div className="flex flex-col gap-3 rounded-2xl border bg-card p-3.5">
+      <div className="enter-rise flex flex-col gap-3 rounded-2xl border bg-card p-3.5">
         <div className="flex flex-col gap-1">
           <span className="text-xs font-medium text-muted-foreground">
             {title}
@@ -143,7 +143,7 @@ export function AgentAction({
 
   if (part.state === "output-denied") {
     return (
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <p className="enter-fade flex items-center gap-1.5 text-xs text-muted-foreground">
         <XIcon className="size-3.5" />
         {approval?.isAutomatic && approval.reason
           ? approval.reason
@@ -158,7 +158,7 @@ export function AgentAction({
     return (
       <div
         className={cn(
-          "flex items-center gap-2 rounded-xl px-3 py-2 text-sm",
+          "enter-fade flex items-center gap-2 rounded-xl px-3 py-2 text-sm",
           output.done ? "bg-muted" : "text-muted-foreground"
         )}
       >
@@ -182,7 +182,7 @@ export function AgentAction({
 
   if (part.state === "output-error") {
     return (
-      <p className="text-xs text-destructive">
+      <p className="enter-fade text-xs text-destructive">
         {title} failed. Nothing changed.
       </p>
     )

@@ -30,7 +30,7 @@ export function DailyBars({
             >
               <div
                 className={cn(
-                  "w-full rounded-[3px]",
+                  "w-full rounded-[3px] transition-[height] duration-300 ease-out motion-reduce:transition-none",
                   future ? "bg-muted" : d.out ? "bg-expense/70" : "bg-border",
                   d.date === today && "bg-expense"
                 )}

@@ -92,11 +92,10 @@ function Home() {
         </div>
         {/* Desktop: the review surface. */}
         <div className="hidden lg:flex lg:flex-col lg:gap-4">
-          {data.questions.length > 0 && (
-            <div className="max-w-2xl">
-              <Questions view={data} viewKey={m} onMore={setSelected} />
-            </div>
-          )}
+          {/* Stays mounted so the last card can leave; hidden once empty. */}
+          <div className="max-w-2xl empty:hidden">
+            <Questions view={data} viewKey={m} onMore={setSelected} />
+          </div>
           <KpiRow view={data} />
           <AccountsStrip view={data} />
           <Overview view={data} />

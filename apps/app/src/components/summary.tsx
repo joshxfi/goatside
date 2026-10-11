@@ -1,5 +1,6 @@
 import { formatPeso } from "@workspace/core/money"
 import { cn } from "@workspace/ui/lib/utils"
+import { Figure } from "@/components/motion"
 import { monthName } from "@/lib/format"
 import type { MonthView } from "@/server/ledger"
 
@@ -14,7 +15,7 @@ export function Summary({ view }: { view: MonthView }) {
       <div className="flex flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">Spent</span>
         <span className="figure font-display text-6xl leading-none tracking-tight text-expense-foreground">
-          {formatPeso(totals.out)}
+          <Figure value={totals.out} />
         </span>
         {showPace && (
           <p className="text-sm text-muted-foreground">
@@ -31,10 +32,10 @@ export function Summary({ view }: { view: MonthView }) {
         )}
       </div>
       <dl className="grid grid-cols-2 gap-2">
-        <Stat label="In" value={formatPeso(totals.in)} tone="income" />
+        <Stat label="In" value={<Figure value={totals.in} />} tone="income" />
         <Stat
           label="Net"
-          value={formatPeso(totals.net, { sign: true })}
+          value={<Figure value={totals.net} sign />}
           tone={totals.net >= 0 ? "income" : "expense"}
         />
       </dl>
@@ -48,7 +49,7 @@ function Stat({
   tone,
 }: {
   label: string
-  value: string
+  value: React.ReactNode
   tone: "income" | "expense"
 }) {
   return (
