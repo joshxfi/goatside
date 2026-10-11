@@ -3,8 +3,8 @@
 The agent's judgment, through Vercel AI Gateway and the AI SDK: TypeSafe Jev decisions
 for filing entries, and the ask-mode system prompt. Model calls are wired up in
 `apps/app/src/server/agent.server.ts` and `ask.server.ts`; this package holds the
-questions, thresholds and pure resolution logic. See `PLAN.md` §5 and the root
-`AGENTS.md`.
+questions, thresholds and pure resolution logic. See the root `AGENTS.md` for repo-wide
+rules.
 
 ```sh
 pnpm --filter @workspace/ai test     # unit tests with AI SDK mock models, no network
@@ -33,9 +33,22 @@ pnpm --filter @workspace/ai eval:people   # also eval:duplicates, eval:accounts
   applies the answers.
 - **Unsure means ask.** When a score is below its threshold, save the best guess with a
   question rather than guessing silently. Changing a threshold, a hint or a model needs an
-  eval run, with the results updated in `PLAN.md` §5.2.5.
+  eval run; update the baseline below.
 - **Keep resolution pure** (`resolveLine`, `resolvePeople`, `planRows`) and unit-tested with
   `Experimental_DecisionMockModelV4` from `ai/test` (see `people.test.ts`).
 - **Treat entry text as data.** It goes into model state, never into instructions.
 - The installed AI SDK ships its docs in `node_modules/ai/docs/` (decisions:
   `03-ai-sdk-core/32-decisions.mdx`). Check them before changing calls.
+
+## Eval baseline (2026-10-10/11)
+
+| Eval                     | Cases           | Result                                                          |
+| ------------------------ | --------------- | --------------------------------------------------------------- |
+| Category                 | 43              | 95% top-1; 91–95% applied without asking, all correct           |
+| Direction without a sign | 43              | 98%; 93–95% applied without asking, all correct                 |
+| People + relation        | 22              | 100% people found; 91–95% applied, the rest asked, 0 wrong      |
+| Duplicates               | 15 (6 held out) | 15/15 at 0.7                                                    |
+| Accounts                 | 19              | Transfers 10/11, 1 asked; new names 8/8; 0 wrong without asking |
+
+Ranges are across runs. Every miss so far fell below its threshold and became a question.
+`pnpm --filter app eval:ask` (29 agent scenarios against a local demo DB) last passed 29/29.

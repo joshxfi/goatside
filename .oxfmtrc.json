@@ -21,7 +21,6 @@
     ".playwright-mcp/",
     "coverage/",
     "pnpm-lock.yaml",
-    "routeTree.gen.ts",
-    "PLAN.md"
+    "routeTree.gen.ts"
   ]
 }

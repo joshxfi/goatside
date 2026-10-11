@@ -1,8 +1,8 @@
 # packages/auth
 
 Single-account auth with Web Crypto and no dependencies, in one small file (`src/index.ts`). The app wires it
-up in `apps/app/src/server/session.ts` (cookies, throttling, the sign-in route). Design:
-`PLAN.md` §6. See the root `AGENTS.md` for repo-wide rules.
+up in `apps/app/src/server/session.ts` (cookies, throttling, the sign-in route). See the
+root `AGENTS.md` for repo-wide rules.
 
 ```sh
 pnpm --filter @workspace/auth test
@@ -17,6 +17,10 @@ pnpm --filter @workspace/auth test
   table: changing the username, password or secret revokes every session.
 - `createDeviceToken` / `verifyDeviceToken`: the year-long trusted-browser cookie that lets
   a known browser skip the sign-in throttle. It's bound to the current credentials.
+
+Throttling lives in `session.ts`: each attempt is recorded before it's counted (so parallel
+bursts can't slip through), 5 failures per IP and 25 overall per 15 minutes, and a trusted
+device skips both until it fails more than 10 times in a day.
 
 ## Rules
 

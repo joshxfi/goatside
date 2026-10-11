@@ -10,8 +10,8 @@ It's built for one person. There's no hosted service: you deploy your own copy
 to Vercel, with your own Turso database and AI Gateway key. It has exactly one
 account, whose username and password you set in its environment.
 
-> Early development. See [PLAN.md](./PLAN.md) for the roadmap. The docs, including
-> the full self-hosting guide, are in [`apps/web/content/docs`](./apps/web/content/docs).
+> Early development. The docs, including the full self-hosting guide, are in
+> [`apps/web/content/docs`](./apps/web/content/docs).
 
 ## Structure
 

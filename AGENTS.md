@@ -1,8 +1,8 @@
 # Goatside
 
 A self-hosted, single-user, agentic finance tracker. Read `README.md` for what it does and
-`PLAN.md` for the design, the decisions behind it, and known issues (§10). Each app and
-package has its own `AGENTS.md` with the rules for that code.
+the docs in `apps/web/content/docs` for how it behaves. Each app and package has its own
+`AGENTS.md` with the rules for that code.
 
 ## Layout
 
@@ -56,6 +56,26 @@ every push, and applies migrations on `main` when the repo has database secrets.
 - Green for money in, red for money out. Gold and silver belong to the coin mark only.
 - Instrument Serif (`font-display`) for headlines and big figures, Geist for everything
   else. Labels are sentence case, never uppercase and letter-spaced.
+
+## Known issues
+
+Open findings from the 2026-10-11 audit. Fix them with a failing test first.
+
+- Some multi-row writes aren't atomic: `editTransaction`, `refile`, `mergePeople`,
+  `mergeCategory`. Use one `db.batch`, as `saveLines` does.
+- Agent write tools re-run their filter or plan when they execute, so the write can differ
+  from the approval card (`ask-actions.server.ts`, `ask-people.server.ts`). They also
+  accept unbounded amounts.
+- Repayments are capped inconsistently: typed or answered ones aren't (`planRows`), the
+  Settle button caps, and the drawer and agent refuse. The owner hasn't decided between
+  cap, ask, or settle-plus-new-IOU yet.
+- Client outbox races (`lib/outbox.ts`): undo during a send, two tabs, endless retries.
+- Read and write ask tools match accounts differently (nicknames).
+- `monthView` makes 5 sequential DB round trips; there's no index on
+  `transactions.entry_id` or `created_at`.
+- The demo seed's split bills have no `entry_id`, so split features don't show on demo
+  data.
+- No LICENSE yet (MIT or AGPL is the owner's call). No security headers.
 
 <!-- BEGIN:turborepo-agent-rules -->
 

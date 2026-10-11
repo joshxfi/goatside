@@ -2,7 +2,8 @@
 
 The app people self-host: TanStack Start (React 19, TanStack Router and Query), built with
 Nitro for Vercel. One owner per deploy, signed in with env credentials. See the root
-`AGENTS.md` for repo-wide rules and `PLAN.md` §2 and §5 for how features should behave.
+`AGENTS.md` for repo-wide rules and known issues, and `apps/web/content/docs/guide` for how
+features behave from the owner's side.
 
 ## Commands
 
@@ -42,10 +43,10 @@ TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter app eval:ask
   those must move all the rows together (`splitRows` in `ledger.server.ts`).
 - **Rows added to an existing line copy its `created_at`**, so the composer's "undo" still
   removes the newest entry.
-- **Repayments can't exceed what's owed**: `owedWith`, `planSettle`, `settleWith`. See
-  `PLAN.md` §10 for where that's still inconsistent.
+- **Repayments can't exceed what's owed**: `owedWith`, `planSettle`, `settleWith`. It's
+  still inconsistent in places (root `AGENTS.md`, Known issues).
 - **Multi-row writes** should be one `db.batch` (see `saveLines`); several older paths
-  aren't yet (`PLAN.md` §10).
+  aren't yet (root `AGENTS.md`, Known issues).
 - **Query keys**: anything derived from entries lives under `"ledger"` (month,
   transactions, accounts, people), so one `invalidateQueries({ queryKey: ["ledger"] })`
   refreshes it all. Don't add a separate top-level key for ledger-derived data.
@@ -65,5 +66,8 @@ and call `resetDb` in `beforeEach`. Write a failing test before fixing a ledger 
 
 Components come from `@workspace/ui/components/*`; add new shadcn ones with
 `pnpm dlx shadcn@latest add <name> -c apps/app` (they land in `packages/ui`). Motion only
-explains a change; see `PLAN.md` §2.6. Phone and desktop render from one tree, split by
-CSS breakpoints (`lg` = desktop).
+explains a change: new entries grow in, deleted ones fold out, figures count to new values.
+The coin flip is for rare moments (sign-in, loading); the composer gets no decorative motion;
+nothing animates on first paint, month switches or navigation; reduced motion is respected.
+
+Phone and desktop render from one tree, split by CSS breakpoints (`lg` = desktop).

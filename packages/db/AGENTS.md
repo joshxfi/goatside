@@ -1,8 +1,7 @@
 # packages/db
 
 Drizzle ORM on Turso (libSQL): the schema, its migrations, a client factory and a demo
-seed. The data model is described in `PLAN.md` §7. See the root `AGENTS.md` for repo-wide
-rules.
+seed. The schema file documents each table. See the root `AGENTS.md` for repo-wide rules.
 
 ```sh
 pnpm db:dev                         # local libSQL on :8080 (.data/local.db)
@@ -24,7 +23,7 @@ doesn't read `.env.local`. Always pass the URL explicitly.
 - `src/index.ts`: `createDb({ url, authToken })` (accepts `libsql://`, `http://` and
   `file:` URLs) and `seedDefaults`.
 - `scripts/demo.ts`: the demo seed. Its split bills have no `entry_id`, so split features
-  don't show on demo data (`PLAN.md` §10).
+  don't show on demo data.
 
 ## Schema changes
 
@@ -37,4 +36,4 @@ doesn't read `.env.local`. Always pass the URL explicitly.
    run `pnpm test`: the `apps/app` tests apply every migration to a fresh database.
 4. Never run migrations against a remote Turso database unless asked. Production gets
    them from CI (`migrate` job) or the owner's own `pnpm db:migrate`.
-5. Update `PLAN.md` §7 and any docs that describe the tables.
+5. Update any docs that describe the tables (`apps/web/content/docs`).
