@@ -71,3 +71,7 @@ The coin flip is for rare moments (sign-in, loading); the composer gets no decor
 nothing animates on first paint, month switches or navigation; reduced motion is respected.
 
 Phone and desktop render from one tree, split by CSS breakpoints (`lg` = desktop).
+
+The ask sheet's conversation uses `MessageScroller`, `Message` and `Bubble`. Let the
+scroller handle following a stream and anchoring new turns; don't add `scrollIntoView`
+calls. Sideways rows that show a scrollbar use `ScrollArea` (see `accounts-strip.tsx`).
