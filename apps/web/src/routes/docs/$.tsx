@@ -12,7 +12,7 @@ import {
   ViewOptionsPopover,
 } from "fumadocs-ui/layouts/docs/page"
 import { useMDXComponents } from "@/components/mdx"
-import { baseOptions } from "@/lib/layout"
+import { DocsSidebarFooter, baseOptions } from "@/lib/layout"
 import { REPO_BRANCH, REPO_URL, absolute } from "@/lib/site"
 import { docs, source, toMarkdownUrl } from "@/lib/source"
 
@@ -73,7 +73,11 @@ function Page() {
   )
 
   return (
-    <DocsLayout {...baseOptions()} tree={pageTree}>
+    <DocsLayout
+      {...baseOptions()}
+      tree={pageTree}
+      sidebar={{ footer: <DocsSidebarFooter /> }}
+    >
       <Suspense>
         <Content path={path} markdownUrl={markdownUrl} />
       </Suspense>

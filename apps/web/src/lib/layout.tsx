@@ -13,9 +13,9 @@ function GitHubIcon() {
 }
 
 /**
- * Shared by the docs layout: the wordmark home, a GitHub link and the same
- * theme switch as the landing page and app, in place of Fumadocs' own (which
- * runs its own theme store). GitHub is a labeled link, not
+ * Shared by the docs layout: the wordmark home and a GitHub link. Fumadocs'
+ * theme switch is off (it runs its own theme store); `DocsSidebarFooter`
+ * holds ours. GitHub is a labeled link, not
  * `githubUrl`: Fumadocs puts icon-only links in a sidebar footer row, which
  * held nothing but that one icon.
  */
@@ -30,8 +30,20 @@ export function baseOptions(): BaseLayoutProps {
         external: true,
       },
     ],
-    slots: {
-      themeSwitch: ({ className }) => <ThemeSwitch className={className} />,
-    },
+    themeSwitch: { enabled: false },
   }
+}
+
+/**
+ * The bottom of the docs sidebar, desktop and phone drawer alike: the same
+ * theme switch as the landing page and app, labeled. Fumadocs' own footer
+ * row is built for icon links plus its switch, and sat half empty.
+ */
+export function DocsSidebarFooter() {
+  return (
+    <div className="text-fd-muted-foreground flex items-center justify-between gap-3 ps-2 text-sm">
+      Theme
+      <ThemeSwitch />
+    </div>
+  )
 }
