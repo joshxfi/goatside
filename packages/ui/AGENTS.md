@@ -18,7 +18,10 @@ including copy and design.
 - `src/styles/globals.css`: Tailwind v4, the theme tokens for light and dark, and shared
   utility classes (`.figure` for tabular money, `.enter-rise`, `.enter-fade`).
 - `src/lib/utils.ts`: `cn` for class names. `src/lib/account-colors.ts`: account card
-  colors, shared by the app and the landing page. `src/lib/theme.ts`: the inline script that applies dark mode before first paint.
+  colors, shared by the app and the landing page. `src/lib/theme.ts`: light, dark or system,
+  per device in localStorage: `THEME_SCRIPT` applies it before first paint, `useTheme`
+  and `setTheme` read and change it. `components/theme-switch.tsx` is the three-way
+  switch the landing, docs and app share.
 
 Import as `@workspace/ui/components/<name>`, `@workspace/ui/lib/<name>`,
 `@workspace/ui/hooks/<name>`, or `@workspace/ui/globals.css`.
