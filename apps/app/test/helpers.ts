@@ -8,6 +8,7 @@ const t = schema.transactions
 /** Empties every table (children first) and re-seeds the defaults. */
 export async function resetDb() {
   const db = getDb()
+  await db.delete(schema.imports)
   await db.delete(schema.questions)
   await db.delete(schema.corrections)
   await db.delete(schema.transactions)
