@@ -187,6 +187,8 @@
   }
   html {
     -webkit-tap-highlight-color: transparent;
+    /* No double-tap zoom on controls; pinch zoom still works. */
+    touch-action: manipulation;
   }
   body {
     @apply bg-background text-foreground antialiased;

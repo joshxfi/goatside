@@ -4,6 +4,7 @@
  * - Built assets (/assets/*, content-hashed) come from the cache once seen.
  * - Pages go to the network first. Each one that loads is kept, so with no
  *   signal the last copy opens instead; a page never seen gets offline.html.
+ *   The tab bar's pages are kept from the first launch.
  * - Server functions and the agent API always go to the network. Entries
  *   typed offline wait in the page's outbox (src/lib/outbox.ts), not here.
  *
@@ -12,7 +13,7 @@
  * (clearOfflineCopies in src/lib/offline.ts), when a page load is sent to
  * sign in, and once a copy is older than a session can last.
  */
-const PAGES = "goatside-pages-v1"
+const PAGES = "goatside-pages-v2"
 const ASSETS = "goatside-assets-v1"
 const SHELL = "goatside-shell-v1"
 const SHELL_FILES = [
@@ -76,7 +77,7 @@ self.addEventListener("activate", (event) => {
  * what it loaded: the assets to keep, and itself to fetch and keep.
  */
 self.addEventListener("message", (event) => {
-  const { type, assets = [], page: href } = event.data ?? {}
+  const { type, assets = [], pages = [] } = event.data ?? {}
   if (type !== "keep") return
   event.waitUntil(
     (async () => {
@@ -85,11 +86,18 @@ self.addEventListener("message", (event) => {
         if (new URL(url).origin !== self.location.origin) continue
         if (!(await cache.match(url))) await cache.add(url).catch(() => null)
       }
-      if (href && !(await caches.match(href))) {
+      // The page just loaded, then the tab bar's pages, so they all open
+      // offline from the first launch. Pages already kept stay as they are.
+      for (const href of pages) {
+        if (new URL(href).origin !== self.location.origin) continue
+        if (await caches.match(href)) continue
         const response = await fetch(href, { credentials: "same-origin" })
-        if (response.ok && !response.redirected) {
-          await (await caches.open(PAGES)).put(href, await stamped(response))
-        }
+        if (!response.ok || response.redirected) break
+        await (
+          await caches.open(PAGES)
+        ).put(href, await stamped(response.clone()))
+        // A page kept before it's ever opened also needs its code offline.
+        await keepAssets(await response.text())
       }
     })().catch(() => null)
   )
@@ -163,6 +171,16 @@ async function asset(request) {
     trim(cache)
   }
   return response
+}
+
+/** The built assets a page's HTML points at, kept if they aren't already. */
+async function keepAssets(html) {
+  const cache = await caches.open(ASSETS)
+  const paths = new Set(html.match(/\/assets\/[\w.-]+\.(?:js|css)/g) ?? [])
+  for (const path of paths) {
+    const url = new URL(path, self.location.origin).href
+    if (!(await cache.match(url))) await cache.add(url).catch(() => null)
+  }
 }
 
 /** Old builds' assets pile up; keep the newest few. */
