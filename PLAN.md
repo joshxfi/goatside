@@ -1,10 +1,11 @@
 # Goatside: plan
 
-> Status: **M0–M3 built; M5's ask mode, IOUs and accounts built** (see §9).
+> Status: **M0–M5 built, M6 mostly built** (see §9). Known issues and what's next are in §10.
 
 Goatside is an open-source, personal, agentic finance tracker that you self-host. You type a
-line like `-500 lunch at berto's` or `+250 paid by x`, and it becomes a categorized
-transaction. A mobile-first dashboard shows where the month's money went.
+line like `180 iced coffee` or `+18000 client payment`, and it becomes a categorized
+transaction. On a phone it's a quick logger and a chat with the agent; on a wide screen it's
+a dashboard for reviewing your money.
 
 It's for individual use. There is no hosted Goatside service: each person deploys their own
 copy to their own Vercel account, with their own database and AI Gateway key.
@@ -18,9 +19,9 @@ copy to their own Vercel account, with their own database and AI Gateway key.
 | Audience | **Individuals who self-host.** Open source; each deploy is one person's instance. No hosted service, no public sign-ups |
 | Hosting | **Vercel** (TanStack Start via Nitro, Node runtime on Fluid Compute). No Cloudflare |
 | Currency | **PHP (₱) only.** No multi-currency in v1 |
-| Scope of money | **Money in and out only.** No wallets, no account balances, no transfers |
+| Scope of money | **Money in and out, IOUs, and accounts.** Banks, e-wallets, credit cards and cash, each with a derived balance; transfers between them aren't spending |
 | Auth | **One account per deploy**: username and password from env, signed session cookie. No OAuth, no sign-up |
-| LLM | **DeepSeek V4.1 Flash** (`deepseek/deepseek-v4.1-flash`) through **Vercel AI Gateway** with the AI SDK |
+| LLM | **TypeSafe Jev** (`typesafe-ai/jev`) files entries; **DeepSeek V4.1 Flash** (`deepseek/deepseek-v4.1-flash`) answers questions. Both through **Vercel AI Gateway** with the AI SDK (§5.1) |
 | Name | **Goatside** |
 
 ---
@@ -38,11 +39,13 @@ copy to their own Vercel account, with their own database and AI Gateway key.
 
 ## 2. UX
 
-### 2.1 Layout (mobile)
+### 2.1 Layout (phone)
+
+The original sketch. What shipped is in §2.4.1.
 
 ```
 ┌─────────────────────────────┐
-│  October 2026        ‹  ›   │  ← swipe left/right to change month
+│  October 2026        ‹  ›   │  ← change month
 │                             │
 │  Spent      ₱18,420         │
 │  In         ₱25,000         │
@@ -50,56 +53,54 @@ copy to their own Vercel account, with their own database and AI Gateway key.
 │                             │
 │  ▁▃▂▇▁▁▄▂▃▁▅ (daily bars)   │
 │                             │
-│  Food ████████░░  ₱7,200    │  ← tap category → filtered list
+│  Food ████████░░  ₱7,200    │
 │  Transport ███░░  ₱2,100    │
 │  ...                        │
 │                             │
 │  Today                      │
-│  🍜 Berto's        -₱500    │
-│  👤 from X        +₱250     │
-│  Yesterday                  │
+│  ☕ Iced coffee     −₱180    │
+│  💼 Client payment +₱18,000 │
 │  ...                        │
 ├─────────────────────────────┤
-│ ☕-180  🚕-150  🍜-500       │  ← quick-repeat chips (your frequent entries)
-│ [ -500 lunch at berto's  ⏎] │  ← composer, always pinned in the thumb zone
-├─────────────────────────────┤
-│  Home   Activity  People  ⚙ │
+│  ☕ 180  🚕 150  🍜 250       │  ← quick picks (your frequent entries)
+│ [ 180 iced coffee        ⏎] │  ← composer, pinned in the thumb zone
 └─────────────────────────────┘
 ```
 
-On desktop the same layout becomes two columns: dashboard on the left, activity and chat on the right.
-
 ### 2.2 Composer grammar
 
-The composer accepts free text. A leading `+` or `-` means **log mode**. Anything else, especially text ending in `?`, means **ask mode**.
+The composer accepts free text. A line that **starts with an amount** is logged; the sign is optional (`+` in, `-` out), and without one the agent decides or asks. Anything else, like `lent nini 1000` or a question, goes to **ask mode**, where the chat agent can still log it through its write tools.
 
 | Input | Result |
 |---|---|
-| `-500 lunch at berto's` | Expense ₱500 · Food · merchant "Berto's" · today |
-| `+250 paid by x` | If X owes you, it **settles that IOU**. Otherwise it's income from X |
-| `-1200 dinner w/ x and y split 3` | Expense ₱400 (your share), plus ₱400 owed by X and ₱400 owed by Y |
-| `-150 grab yesterday` | Transport, dated yesterday |
-| `-89 spotify monthly` | Subscriptions, marked recurring |
-| `-500 lunch, -120 coffee` | Two transactions from one line |
-| `how much on food this month?` | Ask mode: a text answer with an inline mini chart |
-| `undo` | Reverts the last entry |
+| `180 iced coffee` | Expense ₱180 · Food · today (the agent picks the direction) |
+| `+18000 client payment` | Income ₱18,000 · Freelance |
+| `500 daniel paid me back` | If Daniel owes you, it **settles that IOU**. When the agent isn't sure, it asks |
+| `1200 dinner with nini and daniel split 3` | Expense ₱400 (your share), plus ₱400 owed by Nini and ₱400 owed by Daniel |
+| `150 grab yesterday` | Transport, dated yesterday |
+| `200 taxi via gcash` | Filed to the GCash account |
+| `2000 cash in gcash from bpi` | A transfer between two accounts, not spending |
+| `89 spotify monthly` | Subscriptions, marked recurring |
+| `250 lunch, -120 coffee` | Two transactions from one line (each extra entry needs a signed amount after the comma) |
+| `how much on food this month?` | Ask mode: a text answer from the ledger |
+| `undo` | Removes the newest entry |
 
 Amounts accept `500`, `1.5k`, `1,250.50` and an optional `₱` or `php` prefix. Everything is stored as PHP.
 
 ### 2.3 Entry lifecycle (what you see)
 
-1. Press enter. The row appears **immediately** with amount and raw text, plus a subtle shimmer on the category chip.
-2. Within about a second, the chip resolves to `Food · Berto's` and a **toast with Undo** shows for 5 seconds.
+1. Press enter. The row appears **immediately** with amount and raw text.
+2. Within about a second, it resolves to its category and account, and a **toast with Undo** shows for a few seconds.
 3. If confidence is low (unknown merchant, ambiguous person), the row gets a small **"Check"** dot. Tapping it opens a bottom-sheet drawer with the AI's guess preselected, so a fix takes one tap.
 4. Edits made in the drawer are stored as **corrections** and feed future parses.
 
 ### 2.4 Screens
 
-- **Home**: month summary, daily spend bars, category breakdown, recent feed. Month switcher by swipe.
-- **Activity**: full list grouped by day, with search (semantic as well as text) and filters for category, person and type. Desktop shows a data table; mobile shows a virtualized card list.
-- **Insights**: month-over-month trend (stacked by category), top merchants, a calendar heatmap of daily spend, and "biggest changes vs last month".
-- **People**: running balance per person ("X owes you ₱800"), settle-up history, and one-tap settle.
-- **Settings**: categories (emoji, rename, add, hide, merge, find entries for a new one) and timezone are built; CSV export pending.
+- **Home / Overview**: month summary, accounts, pace, where it went, day by day, calendar, six-month trend, biggest changes, recent entries, people and repeats.
+- **Transactions**: the full ledger for a period, with search, filters, bulk re-file, delete with Undo, and CSV export.
+- **Accounts**: banks, e-wallets, credit cards and cash, each with its balance and history.
+- **People**: running balance per person ("Nini owes you ₱800"), IOU history, partial or full settle, drafted reminders.
+- **Settings**: categories (emoji, rename, add, hide, merge, find entries for a new one), timezone, install on the home screen.
 
 ### 2.4.1 Phone vs desktop (as built)
 
@@ -112,7 +113,7 @@ One responsive page, split by CSS breakpoints so the server renders the right la
 ### 2.4.2 Offline and install (as built)
 
 - **Installable.** A manifest with PNG icons (the coin on paper, inside the maskable safe zone), iOS home-screen tags, and Settings → Home screen: an Install button where the browser offers one, steps on iOS.
-- **Opens offline.** `public/sw.js`, registered in production builds only. Built assets come from the cache once seen; pages go to the network first (4s, then the kept copy), and each page that loads is kept, so the overview opens with no signal. A page never opened gets `offline.html`. Server functions and `/api/ask` always go to the network. Signing out deletes the kept pages.
+- **Opens offline.** `public/sw.js`, registered in production builds only. Built assets come from the cache once seen; pages go to the network first (4s, then the kept copy), and each page that loads is kept, so the overview opens with no signal. A page never opened gets `offline.html`. Server functions and `/api/ask` always go to the network. Kept pages go when the session does: on sign-out (first, so it works offline), whenever the sign-in page shows, when a page load is redirected to sign in, and once a copy is older than the 30-day session (each copy is stamped `x-goatside-kept-at`).
 - **Logs offline.** Every log goes through an outbox in `localStorage` (`src/lib/outbox.ts`) before it's sent, so a dropped connection or a reload can't lose it. Waiting entries show in the feed as "Waiting to sync" (tap to remove), the composer says so, and they're sent oldest first when the connection returns, the app comes back to the foreground, or every 30s. Each carries an id chosen on the phone (the server saves an id once, so resending is safe) and the time it was typed (so "yesterday" keeps its meaning, and the server never dates an entry in the future). Asking the agent needs a connection.
 
 ### 2.4.3 Editing an entry by hand (as built)
@@ -131,20 +132,19 @@ The edit drawer covers everything the agent decides, so no fix needs a model or 
 
 ### 2.5 Small touches
 
-- **Quick-repeat chips** above the composer show your top 3–5 most frequent entries for the current time of day.
-- **Monthly recap card** on the 1st of the month: total, top category, biggest single expense, and the change vs the prior month.
-- **Pace line** on the daily chart (once budgets exist): "at this pace you'll spend ₱24k this month".
-- Money colors: expense neutral, income green. Avoid red for normal spending so the app doesn't feel guilt-inducing.
-- **PWA**: installable, with an offline queue. Entries typed offline save locally and get parsed when you're back online.
-- Haptic tick on save (`navigator.vibrate` where supported).
+- **Quick picks** above the empty composer: up to four of your frequent entries, weighted toward this time of day (built, §5.2.4).
+- **PWA** with an offline queue (built, §2.4.2).
+- Money colors: **green for money in, red for money out** (`text-income-foreground`, `text-expense-foreground`).
+- Not built yet: a **monthly recap card** on the 1st (total, top category, biggest expense, change vs last month), a **pace line against a budget**, and a haptic tick on save.
 
 ### 2.6 Brand
 
 From the founder's sketch: "goat side" means *which side of the coin are you on?*
 
 - **Mark:** a coin struck with a capital "G", drawn as a single stroke (no font needed) so it works from favicon to hero. Components live in `packages/ui/src/components/brand.tsx` (`CoinMark`, `Coin`, `CoinFlip`, `Wordmark`).
-- **Metals:** gold is the save side (money in), silver is the spend side (money out), bronze is an accent. They're theme tokens (`text-gold-foreground`, `bg-silver`, …) on a warm paper/ink palette, light and dark.
-- **Type:** Instrument Serif for display figures, Geist for UI, tabular numerals (`.figure`) for money.
+- **Metals:** gold, silver and bronze belong to the coin mark only. They're theme tokens (`text-gold-foreground`, `bg-silver`, …) on a warm paper/ink palette, light and dark. Money in and out use green and red, never "gold side / silver side".
+- **Type:** Instrument Serif (`font-display`) for headlines, the wordmark and big money figures, in the app and on the landing page. Geist for body, labels and controls. Tabular numerals (`.figure`) for money. Labels are sentence case, never uppercase and letter-spaced.
+- **Copy:** plain, short sentences and straight quotes. Example entries are neutral ("180 iced coffee"; people are Nini and Daniel), and no copy tells people to type `+` or `-`.
 - **Motion:** the coin toss and flip are reserved for rare moments (landing, sign-in, loading). The composer is used constantly, so it gets no decorative motion. Reduced motion is respected. Elsewhere motion only explains a change: new entries grow into lists and deleted ones fold out, an answered question steps back before the next arrives, and headline figures count to their new value. Arrivals are CSS (`.enter-rise`, `.enter-fade`); exits, collapses and counts use [Motion](https://motion.dev) (`components/motion.tsx`), whose animation code loads after first paint. Nothing animates on first paint, on month switches or on page navigation.
 - **Voice:** steady climbing, resilience, abundance, stability. "GOAT" also means greatest of all time, so personal records ("lowest-spend week of all time") are part of the brand.
 
@@ -159,16 +159,16 @@ From the founder's sketch: "goat side" means *which side of the coin are you on?
 | UI | **shadcn/ui on Base UI** + Tailwind v4 | Base UI has been shadcn's default since July 2026. Scaffold with `shadcn init --monorepo -t start -b base` |
 | Data fetching | **TanStack Query** + Start server functions | Optimistic inserts for the composer |
 | Tables | **TanStack Table v9** on shadcn's table markup | Desktop transactions table: explicit features (sorting, global filter, pagination); phones keep the card feed |
-| Forms | **TanStack Form** + Zod | Edit drawer, settings |
+| Forms | Plain React state + Zod validators on the server functions | Edit drawer, settings, account and IOU forms |
 | Charts | **TanStack Charts** (`@tanstack/charts`, React adapter at `@tanstack/charts/react`) | A typed chart grammar; SSR-rendered SVG. `.goat-chart` maps the chart theme to our tokens. Category colors are four `--series-*` hues plus a gray Other, checked with a colorblind-safety validator against the card in both modes; each category keeps its slot (by six-month rank) in every chart, and stacks and rings draw in an order where the one weak pair (blue and violet) never touches. Red and green stay reserved for money out and in |
 | DB | **Turso** (libSQL) + **Drizzle ORM** | `drizzle-orm/libsql`. Native vectors via `F32_BLOB`. Local dev uses `turso dev` |
-| Auth | **`packages/auth`** (~100 lines, Web Crypto) | Single account from env; see §6 |
+| Auth | **`packages/auth`** (one small file, Web Crypto) | Single account from env; see §6 |
 | Categorizing | **AI SDK `experimental_decide`** → `typesafe-ai/jev` | Decision model with probabilities (§5.1). Through Vercel AI Gateway |
 | Questions | **AI SDK `streamText`** + tools → `deepseek/deepseek-v4.1-flash` | Vercel AI Gateway (§5.6). No provider packages |
 | Embeddings (maybe later) | **AI SDK** → `openai/text-embedding-3-small` @ 512 dims | Only if exact-description memory proves too narrow |
 | Hosting | **Vercel** | One project per app (Root Directory `apps/app` / `apps/web`) |
 | Lint/format | **oxlint + oxfmt** | No ESLint or Prettier. oxfmt sorts Tailwind classes natively |
-| Tests | Vitest (unit + AI evals); Playwright later | |
+| Tests | **Vitest**: unit tests in `packages/*`, and `apps/app` server tests against a temp SQLite file with the real migrations (no model calls); live AI evals run by hand | CI runs everything but the evals (§8.4) |
 
 **About the model ID:** DeepSeek shipped V4.1 Flash on 2026-09-10. On AI Gateway it's `deepseek/deepseek-v4.1-flash` (input $0.30, output $1.20 per 1M tokens at the time of writing). Model IDs live in env (`DECISION_MODEL`, `CHAT_MODEL`) so self-hosters can swap them for any gateway model.
 
@@ -179,24 +179,23 @@ From the founder's sketch: "goat side" means *which side of the coin are you on?
 ```
 goatside/
 ├─ apps/
-│  ├─ web/                 # landing / project site: TanStack Start, prerendered
-│  └─ app/                 # core app: TanStack Start, SSR + server fns
+│  ├─ app/                 # the self-hosted app: TanStack Start, SSR + server functions
+│  └─ web/                 # landing page + docs (Fumadocs, content/docs)
 ├─ packages/
-│  ├─ ui/                  # shadcn components (Base UI), tokens, chart wrappers
-│  ├─ db/                  # drizzle schema, migrations, client factory, vector helpers, seed
+│  ├─ core/                # pure TS: money, entry parser, dates, account and name scanning
+│  ├─ ai/                  # Jev decisions (category, people, accounts, duplicates), ask prompt, evals
+│  ├─ db/                  # Drizzle schema, migrations, client factory, demo seed
 │  ├─ auth/                # single-account credentials + signed session tokens
-│  ├─ ai/                  # provider setup, parser pipeline, agent + tools, prompts, evals
-│  └─ core/                # pure TS: money (PHP), deterministic parser, date words, domain types
-├─ docs/
-│  └─ self-hosting.md
+│  └─ ui/                  # shadcn components (Base UI), brand, theme tokens, styles
+├─ .github/workflows/ci.yml  # checks on every push; migrations on main (§8.4)
 ├─ turbo.json
 ├─ pnpm-workspace.yaml     # workspaces + version catalog
 ├─ .oxlintrc.json          # one lint config for the whole repo
-├─ LICENSE
+├─ AGENTS.md               # agent notes; each app and package has its own too
 └─ PLAN.md
 ```
 
-`packages/core` has no runtime dependencies, which makes it trivially testable. It holds the most important logic: the amount and sign parser.
+`packages/core` has no runtime dependencies, which makes it trivially testable. It holds the most important logic: the amount and sign parser. The self-hosting guide lives in `apps/web/content/docs/self-hosting`. There's no LICENSE yet (§10).
 
 ---
 
@@ -233,6 +232,8 @@ raw text
   │                          anything below → saved with the best guess + a question
   │
   └─ 5. save                 status parsed | needs_review | pending (no model); questions rows
+                             one db.batch: the entry, its rows and its questions land together,
+                             and the phone-chosen entry id makes a resend return what was saved
 ```
 
 Model failures (timeout 6s, one retry) never block logging; the line just saves with less certainty. `resolveLine` is pure and unit-tested with AI SDK's mock decision model.
@@ -342,7 +343,7 @@ Store `embedding_model` on each row so re-embedding stays possible. A `pnpm reem
 ### 5.5 Quality & safety
 
 - **Evals:** see §5.2.5. Next: grow the category set toward ~100 entries, and add held-out phrasing. Amounts never pass through a model, so the amount invariant holds by construction.
-- **Prompt injection:** transaction text is the owner's own, but the ask prompt still treats descriptions as data. The ask tools are read-only; future write tools need approval.
+- **Prompt injection:** transaction text is the owner's own, but the ask prompt still treats descriptions as data. The read tools are fixed queries, and every write tool needs the owner's approval (§5.3).
 - **Privacy:** the ledger lives in the owner's Turso database. Entry text and amounts go through the owner's AI Gateway to TypeSafe (categorizing); questions and the ledger rows the tools return go to DeepSeek. The README should say plainly what leaves the instance.
 
 ### 5.6 Vercel AI Gateway
@@ -377,13 +378,13 @@ streamText({ model: "deepseek/deepseek-v4.1-flash", system, messages, tools,
 - **Session:** a cookie `<expiresAt>.<HMAC-SHA256(SESSION_SECRET, expiry + username + password)>`, `HttpOnly`, `SameSite=Lax`, `Secure` in production, 30 days, renewed once past halfway. No session table: changing the username, password or secret invalidates every session.
 - **Sign-in form:** a plain HTML `POST /login` handled by a server route, so it works before hydration and credentials never land in a URL. It has an origin check (TanStack's CSRF middleware); server functions get Start's built-in CSRF protection.
 - **Throttling:** every attempt is recorded in `login_attempts` *before* counting, so parallel bursts can't slip under the limit. Any browser gets 5 failures per IP and 25 overall per 15 minutes. A browser that signed in under the current credentials carries a signed `goatside_device` cookie (1 year) that bypasses those caps, so an attacker filling them can't lock the owner out. The bypass ends once that device has more than 10 failures in 24 hours, so a stolen device cookie is worth at most 10 extra guesses a day, and changing the password revokes every device. A brand-new device can still be blocked during an attack; Vercel's firewall rate limits can sit in front of this.
-- **Why not Better Auth anymore:** with one env-defined account, its user, account and session tables, OAuth flow and adapters were all unused weight. `packages/auth` is about 100 lines with 16 tests.
+- **Why not Better Auth anymore:** with one env-defined account, its user, account and session tables, OAuth flow and adapters were all unused weight. `packages/auth` is one file of under 200 lines, with 20 tests.
 
 ---
 
 ## 7. Data model
 
-> As built in `packages/db/src/schema` (migrations `0000`–`0003`). Embedding columns may arrive later; retrieval currently uses exact-description memory and recent examples.
+> As built in `packages/db/src/schema` (migrations `0000`–`0003`). Retrieval uses exact-description memory and recent examples; embedding columns are deferred (§5.4).
 
 All money is stored as **integer centavos**, always PHP, and formatted with `Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' })`. The day a transaction belongs to is `local_date` (`YYYY-MM-DD` in the owner's timezone), so month grouping is a string prefix with no timezone math. `created_at` orders entries within a day. There's no separate `occurred_at`: a backdated entry only knows its day anyway.
 
@@ -399,7 +400,7 @@ accounts       id, name, kind ('bank'|'ewallet'|'credit_card'|'cash'), color,
 categories     id, name, emoji, kind ('expense'|'income'),
                sort, archived            unique (kind, lower(name))
 
-merchants      id, name, default_category_id?
+merchants      id, name, default_category_id?   (reserved: nothing writes it yet)
 people         id, name, aliases (json)
 
 entries        id, raw_text, mode ('log'|'ask'), created_at
@@ -410,7 +411,10 @@ transactions   id, entry_id?, kind ('expense'|'income'|'lend'|'settle'|'transfer
                description, note, category_id?, merchant_id?, person_id?,
                split?, account_id?, to_account_id? (transfers), recurring, status ('pending'|'parsed'|'needs_review'|'confirmed'),
                ai_confidence, created_at, updated_at, deleted_at (soft delete → undo)
-               + embedding F32_BLOB(512), embedding_model   (M3)
+               -- a split bill is your expense row (split = ways) plus one lend row per
+               -- person, linked by entry_id + description + local_date. Rows added to an
+               -- existing line copy its created_at, so the composer's "undo" still
+               -- targets the newest entry
 
 corrections    id, transaction_id, field, from_value, to_value, created_at
 
@@ -462,18 +466,20 @@ CHAT_MODEL=deepseek/deepseek-v4.1-flash
 
 Env is validated with Zod on first use, so a missing var fails loudly with a clear message. Locally it lives in `apps/app/.env.local`; on Vercel, in the project's environment variables (`vercel env pull` syncs them down).
 
-### 8.3 Self-host flow (`docs/self-hosting.md`)
+### 8.3 Self-host flow (`apps/web/content/docs/self-hosting`)
 
 1. Fork the repo.
 2. Create a Turso database and token, then run `pnpm db:migrate` against it.
 3. Import the fork in Vercel with Root Directory `apps/app`, add the env vars (username, password, session secret, Turso URL and token), deploy.
+4. Optional: add `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` as Actions secrets on the fork, so later migrations apply on their own (§8.4).
 
 Later: a **Deploy to Vercel** button (`vercel.com/new/clone?repository-url=…&root-directory=apps/app&env=…`) so steps 1 and 3 become one click. Turso is also available through the Vercel Marketplace, which could provision the database and its env vars from the same flow.
 
-### 8.4 CI
+### 8.4 CI (`.github/workflows/ci.yml`)
 
-- GitHub Actions runs lint, typecheck, unit tests and evals (only on `packages/ai` changes). Vercel's Git integration handles preview and production deploys.
-- Migrations run with `drizzle-kit` against Turso before deploy.
+- **check**, on every push and pull request: `pnpm install --frozen-lockfile`, lint, format check, typecheck, tests. AI evals hit paid models, so they stay manual. The route trees aren't diffed: `tsr generate` (run by typecheck) drops the Start `Register` block the Vite plugin writes into `routeTree.gen.ts`, so don't commit what typecheck rewrites there.
+- **migrate**, on pushes to `main` once **check** passes: `pnpm db:migrate` with the `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN` Actions secrets. Without them it's skipped with a notice. Runs on `main` are never cancelled mid-way, and migrations run one at a time.
+- Vercel's Git integration deploys the same push on its own and can finish before **migrate**, so for a minute or two new code can meet the old schema. Keep migrations additive, or apply them by hand before pushing.
 
 **Cost estimate:** a categorization is a few hundred input tokens on Jev ($0.042 per 1M tokens at the time of writing), so effectively free; a question is a few thousand DeepSeek tokens, a fraction of a cent. Hundreds of entries a month should cost well under $1 in AI. Turso's and Vercel's free tiers should cover one person.
 
@@ -481,20 +487,55 @@ Later: a **Deploy to Vercel** button (`vercel.com/new/clone?repository-url=…&r
 
 ## 9. Milestones
 
-| # | Milestone | Done when |
+| # | Milestone | Status |
 |---|---|---|
-| M0 | **Scaffold** | Turborepo + pnpm, shadcn monorepo (`-t start -b base`), both apps build with Nitro (Vercel Build Output verified locally). **Status: done; first Vercel deploy pending** |
-| M1 | **Auth + DB** | Zod env validation; single-account sign-in from env with throttling; Drizzle schema migrated to Turso; default categories seeded. **Status: done, tested locally** |
-| M2 | **Manual logging (no AI)** | `core.preparse` with tests; composer saves rows; feed grouped by day; month totals. Usable on its own. **Status: done (composer with live preview, optimistic save, undo, edit drawer, month switcher, interim daily bars + category breakdown)** |
-| M3 | **AI parsing** | Jev categorization through AI Gateway, memory and examples from confirmed rows, questions for uncertain fields, corrections, undo, eval suite. **Status: done; tested live, evals in §5.2.5** |
-| M4 | **Dashboard** | Month switcher, daily bars, category breakdown, Insights page, category management. **Status: desktop review view built (KPIs, pace with projection, spending donut, day-by-day, calendar heatmap, six-month trend by category, money in and out, sortable/searchable table, people and repeats rail); category management built (rename, emoji, add, hide, merge, agent re-file suggestions)** |
-| M5 | **Ask mode + People** | Tool-calling agent with streamed answers and inline charts; IOUs, splits, settle-up. **Status: ask mode with read tools and approved write actions; IOUs, splits, People pages (history, nicknames, merge, partial settle, drafted reminders) built; accounts (banks, e-wallets, credit cards, cash) with balances, transfers and agent setup built; inline charts pending** |
-| M6 | **Polish + ship** | PWA + offline queue, quick-repeat chips, monthly recap, CSV export, `docs/self-hosting.md`, landing page. **Status: PWA (install, offline open, offline logging with an outbox) built (§2.4.2); quick-repeat chips and CSV export of the Transactions table built** |
-| Later | | "Of all time" records (lowest-spend day/week/month, streaks), budgets and pace line, recurring detection, receipt photo (vision model), bank/e-wallet CSV import |
+| M0 | **Scaffold**: Turborepo + pnpm, shadcn monorepo, both apps build with Nitro | Done; first Vercel deploy pending |
+| M1 | **Auth + DB**: env validation, single-account sign-in with throttling, Drizzle on Turso, default categories | Done |
+| M2 | **Manual logging (no AI)**: parser, composer, feed, month totals | Done |
+| M3 | **AI parsing**: Jev categorization, memory and examples, questions, corrections, evals | Done; evals in §5.2.5 |
+| M4 | **Dashboard**: overview charts, Transactions table, category management | Done |
+| M5 | **Ask mode + People + Accounts**: tool-calling agent with approved writes; IOUs, splits, settle-up; accounts, balances, transfers | Done; inline charts in answers pending |
+| M6 | **Polish + ship**: PWA and offline queue, quick picks, CSV export, landing page and docs, CI | Done except the monthly recap and a LICENSE |
+| Later | | "Of all time" records (lowest-spend day/week/month, streaks), budgets and a pace line, receipt photo (vision model), bank/e-wallet statement import |
 
 ---
 
-## 10. Remaining questions (non-blocking)
+## 10. Known issues and next
 
-1. **License.** MIT is the simplest. AGPL stops someone from turning it into a closed hosted service, which fits the self-host-only positioning. MIT is the default unless you prefer otherwise.
-2. **Public demo.** A read-only demo instance with seeded data would help the landing page. It's nice to have and can wait until M6.
+From the code audit on 2026-10-11, roughly by leverage. Fixed since: double-saved offline entries, split bills losing their shares on delete, re-filing after a relation answer, offline pages outliving the session, stale People pages, reopened account balances.
+
+**Bugs and risks**
+
+- **Some multi-row writes aren't atomic.** `editTransaction` (`ledger.server.ts`), `refile` (`questions.server.ts`), `mergePeople` (`people.server.ts`) and `mergeCategory` (`settings.server.ts`) are several separate writes. Logging already uses one `db.batch` (`saveLines`); apply the same here.
+- **Agent approvals aren't tied to what the card showed.** `execute` re-runs the filter or re-plans the settle (`ask-actions.server.ts`, `ask-people.server.ts`), so rows that change between the card and the tap can be affected, against §5.3.
+- **Client outbox races** (`lib/outbox.ts`, `composer.tsx`): "undo" while a send is in flight deletes the previous entry, removing an entry mid-send can be ignored, two tabs overwrite each other's queue, and rejected entries retry forever with no backoff.
+- **Repayments aren't capped consistently.** Typed or answered repayments aren't capped (`packages/ai/src/people.ts` `planRows`), the Settle button caps, and the drawer and agent refuse. Needs a decision: cap, ask, or settle what's owed plus a new IOU for the rest.
+- **Agent write tools accept unbounded amounts** (`ask-people.server.ts`, `ask-actions.server.ts`, and the `settleUp` server function).
+- **Read and write ask tools filter differently**: read tools ignore account nicknames (`ask.server.ts` vs `ask-actions.server.ts`).
+- **The demo seed's split bills have no `entry_id`** (`packages/db/scripts/demo.ts`), so split features don't show on demo data.
+- In the edit drawer, someone's share still shows editable description and date fields, which the server refuses.
+
+**Performance**
+
+- `monthView` makes 5 sequential stages of DB round trips and reads settings 4 times; the Accounts pages load the whole month view just to learn the month; there's no index on `transactions.entry_id` or `created_at`.
+- Undoing a bulk move is one UPDATE per row (`restoreCategories`, `restoreAccounts`).
+- The agent chat client loads on every page (`agent-provider.tsx`).
+
+**Hardening and housekeeping**
+
+- No security headers (CSP, frame-ancestors, nosniff, Referrer-Policy).
+- `getRequestIP` trusts the leftmost `X-Forwarded-For`, which is only safe on Vercel.
+- `shadcn` (the CLI) is a runtime dependency of `packages/ui`; `nitro` is pinned to a beta.
+- About 30 functions call `getDb()` instead of taking `db`, which keeps tests on one database per file.
+
+**Open questions**
+
+1. **License.** The project calls itself open source but has no LICENSE. MIT is the simplest. AGPL stops someone from turning it into a closed hosted service, which fits the self-host-only positioning.
+2. **Public demo.** A read-only demo instance with seeded data would help the landing page.
+
+**Product direction**
+
+- A Deploy to Vercel button (§8.3), now that migrations can apply from CI.
+- Bank and e-wallet statement import, the mirror of CSV export; it also fills a new instance's empty ledger.
+- Budgets and a pace line: the pace projection exists, and `budgets` is sketched in §7.
+- A monthly recap and "of all time" records (§2.5, §2.6), as read models over existing data.
