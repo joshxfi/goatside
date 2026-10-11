@@ -5,6 +5,7 @@ import { formatPeso } from "@workspace/core/money"
 import {
   type StatementResult,
   type StatementRow,
+  linesFromCsv,
   readStatement,
   statementMentions,
 } from "@workspace/core/statement"
@@ -98,10 +99,12 @@ export function ImportStatement({
     setStep({ name: "pick" })
   }
 
-  async function read(bytes: Uint8Array, password?: string) {
+  async function read(bytes: Uint8Array, csv: boolean, password?: string) {
     setStep({ name: "reading" })
     try {
-      const lines = await readPdfLines(bytes, password)
+      const lines = csv
+        ? linesFromCsv(new TextDecoder().decode(bytes))
+        : await readPdfLines(bytes, password)
       const result = readStatement(lines, { kind: account.kind })
       if (!result.ok) {
         const at = result.check.firstBreak
@@ -142,7 +145,7 @@ export function ImportStatement({
       console.error("[goatside] statement import:", error)
       setStep({
         name: "failed",
-        message: "Couldn't read that file. Is it a PDF statement?",
+        message: "Couldn't read that file. Is it a PDF or CSV statement?",
       })
     }
   }
@@ -155,12 +158,15 @@ export function ImportStatement({
       description={`Into ${account.name}`}
     >
       {step.name === "pick" && (
-        <Pick account={account} onFile={(bytes) => void read(bytes)} />
+        <Pick
+          account={account}
+          onFile={(bytes, csv) => void read(bytes, csv)}
+        />
       )}
       {step.name === "password" && (
         <Password
           wrong={step.wrong}
-          onSubmit={(password) => void read(step.bytes, password)}
+          onSubmit={(password) => void read(step.bytes, false, password)}
           onCancel={() => setStep({ name: "pick" })}
         />
       )}
@@ -200,7 +206,7 @@ function Pick({
   onFile,
 }: {
   account: Account
-  onFile: (bytes: Uint8Array) => void
+  onFile: (bytes: Uint8Array, csv: boolean) => void
 }) {
   const input = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
@@ -221,26 +227,28 @@ function Pick({
   return (
     <div className="flex flex-col gap-5 pb-2">
       <p className="text-sm text-muted-foreground">
-        Pick the PDF your bank or card sends you. Goatside reads it on this
-        device. The file and its password never leave it; only the rows it finds
-        are saved.
+        Pick the PDF your bank or card sends you, or a CSV export. Goatside
+        reads it on this device. The file and its password never leave it; only
+        the rows it finds are saved.
       </p>
       <input
         ref={input}
         type="file"
-        accept="application/pdf,.pdf"
+        accept="application/pdf,.pdf,text/csv,.csv"
         className="sr-only"
         tabIndex={-1}
         aria-hidden
         onChange={async (e) => {
           const file = e.target.files?.[0]
           e.target.value = ""
-          if (file) onFile(new Uint8Array(await file.arrayBuffer()))
+          if (!file) return
+          const csv = file.type === "text/csv" || /\.csv$/i.test(file.name)
+          onFile(new Uint8Array(await file.arrayBuffer()), csv)
         }}
       />
       <Button onClick={() => input.current?.click()}>
         <FileTextIcon />
-        Choose a PDF
+        Choose a file
       </Button>
       {history.length > 0 && (
         <section className="flex flex-col gap-2">

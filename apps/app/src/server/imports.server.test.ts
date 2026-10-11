@@ -315,6 +315,18 @@ describe("statement imports", () => {
     expect(await balanceOf(card.id)).toBe(0)
   })
 
+  it("doesn't take a friend's repayment for a transfer from your bank", async () => {
+    const wallet = await createAccount({ name: "GCash", kind: "ewallet" })
+    const bank = await createAccount({ name: "BPI", kind: "bank" })
+    await log("+1000 nini paid me back")
+    const input = bankStatement(wallet.id, [[day, "Cash in from BPI", 100_000]])
+    const preview = await previewImport(getDb(), input)
+    expect(preview.rows[0]).toMatchObject({
+      status: "transfer",
+      transfer: { accountId: bank.id },
+    })
+  })
+
   it("suggests cash for an ATM withdrawal, but not for its fee", async () => {
     const bank = await createAccount({ name: "GoTyme", kind: "bank" })
     const cash = await createAccount({ name: "Cash", kind: "cash" })

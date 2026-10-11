@@ -137,7 +137,7 @@ function Import({
     <section className="flex flex-col gap-3 rounded-2xl border bg-card p-4">
       <h2 className="text-sm font-medium">Import a statement</h2>
       <p className="text-xs text-muted-foreground">
-        Add the rows from the PDF your{" "}
+        Add the rows from the PDF or CSV your{" "}
         {account.kind === "credit_card" ? "card" : "bank"} sends you. Entries
         you already typed are matched, not added twice.
       </p>

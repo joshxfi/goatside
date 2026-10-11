@@ -215,6 +215,12 @@ export async function previewImport(
     units.set(key, unit)
   }
 
+  const others = book.known.filter((a) => a.id !== A)
+  // The owner's other account each row names ("Cash in from BPI").
+  const named = rows.map(
+    (r) => scanAccounts(r.details, others).mentions[0]?.accountId ?? null
+  )
+
   const open = prints.flatMap((print, i) => (imported.has(print) ? [] : [i]))
   const logged = pairUp(
     open.flatMap((i) => {
@@ -223,6 +229,9 @@ export async function previewImport(
         const gap = dayGap(row.localDate, unit.localDate)
         const limit = unit.transfer ? TRANSFER_DAYS : MATCH_DAYS
         if (unit.change !== row.amount || gap > limit) return []
+        // A row naming another of your accounts is a transfer; a payment
+        // from a friend of the same amount isn't the same money.
+        if (named[i] && !unit.transfer) return []
         // Exact date first; something already on this account before unfiled.
         return [
           { row: i, target: unit, key, score: gap + (unit.unfiled ? 0.5 : 0) },
@@ -234,7 +243,6 @@ export async function previewImport(
   // Transfers: the other side already logged on another account (spending
   // or income there, opposite amount), or another account named in the
   // details, or a payment to a card.
-  const others = book.known.filter((a) => a.id !== A)
   const looksLikeTransfer = (i: number) => {
     const row = rows[i]!
     if (FEE_WORDS.test(row.details)) return false
@@ -313,13 +321,12 @@ export async function previewImport(
         },
       }
     }
-    const named = scanAccounts(row.details, others).mentions[0]?.accountId
     const atm =
       row.amount < 0 && base.transferish && ATM_WORDS.test(row.details)
         ? others.find((a) => a.kind === "cash")?.id
         : null
     const target =
-      named ??
+      named[i] ??
       atm ??
       (account.kind === "credit_card" && row.amount > 0 ? payFrom?.id : null)
     if (target) {
