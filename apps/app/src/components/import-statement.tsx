@@ -809,7 +809,16 @@ function Done({
     },
   })
   const undo = useMutation({
-    mutationFn: () => undoStatementImport({ data: { id: result.importId! } }),
+    mutationFn: async () => {
+      // Matching moved the starting balance; put it back first, so undoing
+      // leaves the account where it was before the import.
+      if (fixed) {
+        await setAccountBalance({
+          data: { id: account.id, balance: result.balance },
+        })
+      }
+      return undoStatementImport({ data: { id: result.importId! } })
+    },
     onSuccess: async () => {
       await refresh()
       onClose()
