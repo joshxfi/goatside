@@ -9,6 +9,10 @@ including copy and design.
 - `src/components/`: shadcn components (`button`, `drawer`, `sheet`, `sidebar`, `table`,
   …) plus `brand.tsx` (`CoinMark`, `Coin`, `CoinFlip`, `Wordmark`). `CoinFlip` moves
   with Motion (`toss`, `tossKey`, `tilt`); only its loading spin is CSS.
+- `src/shims/`: stand-ins for `use-sync-external-store`, which Base UI pulls in. Its
+  CommonJS `require("react")` fails on Vercel ("Cannot find module 'react'"), so both
+  apps' `vite.config.ts` alias it to these. Any new app on these components needs the
+  same alias.
 - `src/hooks/`: `useIsMobile`, and `useTilt` for cards that lean toward the mouse (pair
   it with the `.tilt` class).
 - `src/styles/globals.css`: Tailwind v4, the theme tokens for light and dark, and shared

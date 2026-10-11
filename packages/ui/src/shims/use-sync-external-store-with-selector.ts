@@ -1,7 +1,8 @@
 /* oxlint-disable -- a port of React's own implementation, kept as is */
 /**
  * Stands in for `use-sync-external-store/shim/with-selector` (see the alias
- * in vite.config.ts and ./use-sync-external-store.ts for why). A direct ESM
+ * in apps/app and apps/web vite.config.ts, and ./use-sync-external-store.ts
+ * for why). A direct ESM
  * port of React's implementation, on React's built-in hook.
  */
 import {

@@ -7,7 +7,9 @@ import tailwindcss from "@tailwindcss/vite"
 import { nitro } from "nitro/vite"
 
 const shim = (name: string) =>
-  fileURLToPath(new URL(`./src/lib/shims/${name}.ts`, import.meta.url))
+  fileURLToPath(
+    new URL(`../../packages/ui/src/shims/${name}.ts`, import.meta.url)
+  )
 
 export default defineConfig({
   resolve: {
