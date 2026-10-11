@@ -139,7 +139,7 @@ function Hero() {
     <section className="grid items-center gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
       <div className="flex flex-col gap-6">
         <span className="flex w-fit items-center gap-2 rounded-full border bg-card px-3 py-1 text-sm text-muted-foreground">
-          <CoinMark rim={false} className="size-4" />
+          <CoinMark className="size-4.5" />
           Open source and self-hosted
         </span>
         <h1 className="font-display text-5xl leading-[1.02] tracking-tight text-balance md:text-7xl">
