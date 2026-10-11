@@ -214,20 +214,28 @@ export const transactions = sqliteTable(
 )
 
 /** What an import changed on entries it didn't add, as they were before. */
+export interface ImportUndoFields {
+  kind: (typeof TRANSACTION_KINDS)[number]
+  amount: number
+  accountId: string | null
+  toAccountId: string | null
+  categoryId: string | null
+  aiConfidence: number | null
+  recurring: boolean
+  status: (typeof TRANSACTION_STATUSES)[number]
+  importRef: string | null
+  split: number | null
+  personId: string | null
+  localDate: string
+  description: string
+}
+
 export interface ImportUndo {
   rows: {
     id: string
-    kind: (typeof TRANSACTION_KINDS)[number]
-    amount: number
-    accountId: string | null
-    toAccountId: string | null
-    categoryId: string | null
-    aiConfidence: number | null
-    recurring: boolean
-    status: (typeof TRANSACTION_STATUSES)[number]
-    importRef: string | null
-    /** The ref this import wrote; undo skips a row another import took. */
-    ref: string
+    /** The entry before the import, and as the import left it. */
+    before: ImportUndoFields
+    after: ImportUndoFields
   }[]
   /** Questions it closed (a transfer has no category to ask about). */
   questionIds: string[]

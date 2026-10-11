@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest"
 import { addDays } from "@workspace/core/dates"
 import type { StatementRow } from "@workspace/core/statement"
 import { schema } from "@workspace/db"
-import { log, resetDb, row } from "../../test/helpers"
+import { addPersonRow, liveRows, log, resetDb, row } from "../../test/helpers"
 import { accountBalances, createAccount } from "./accounts.server"
 import {
   type ImportDecision,
@@ -13,7 +13,7 @@ import {
   previewImport,
   undoImport,
 } from "./imports.server"
-import { setDeleted, today } from "./ledger.server"
+import { editTransaction, setDeleted, today } from "./ledger.server"
 import { getDb } from "./services"
 
 const t = schema.transactions
@@ -547,6 +547,74 @@ describe("statement imports", () => {
     }
     expect(await balanceOf(wallet.id)).toBe(-50_000)
     expect(await balanceOf(bank.id)).toBe(0)
+  })
+
+  it("undo keeps an edit made after the import, like a split", async () => {
+    const bank = await createAccount({ name: "GoTyme", kind: "bank" })
+    const typed = await log("180 lunch")
+    const id = typed.transactionIds[0]!
+    const input = bankStatement(bank.id, [[day, "Sample Diner", -18_000]])
+    const { result } = await importAsSuggested(input)
+    const nini = await addPersonRow("Nini")
+    await editTransaction({ id, type: "expense", people: [nini], ways: 2 })
+    await undoImport(getDb(), result.importId!)
+    const rows = await liveRows(typed.entryId)
+    // The split stands: ₱90 yours, ₱90 Nini's, still ₱180 in all.
+    expect(rows.reduce((s, r) => s + r.amount, 0)).toBe(-18_000)
+    expect((await row(id)).importRef).toBeNull()
+  })
+
+  it("matches an unfiled split bill by the whole charge", async () => {
+    const db = getDb()
+    const entryId = crypto.randomUUID()
+    await db
+      .insert(schema.entries)
+      .values({ id: entryId, rawText: "900 dinner split 3", mode: "log" })
+    const nini = await addPersonRow("Nini")
+    const daniel = await addPersonRow("Daniel")
+    const base = {
+      entryId,
+      localDate: day,
+      description: "dinner",
+      accountId: null,
+      status: "parsed" as const,
+    }
+    await db.insert(t).values([
+      { ...base, kind: "expense", amount: -30_000, split: 3 },
+      { ...base, kind: "lend", amount: -30_000, personId: nini },
+      { ...base, kind: "lend", amount: -30_000, personId: daniel },
+    ])
+    const card = await createAccount({
+      name: "Sample Card",
+      kind: "credit_card",
+    })
+    const input = cardStatement(card.id, [
+      [day, "SAMPLE RESTO CITY PH", -90_000],
+    ])
+    const { preview, result } = await importAsSuggested(input)
+    expect(preview.rows[0]!.status).toBe("logged")
+    expect(result.added).toBe(0)
+    // All three rows move to the card together.
+    const rows = await liveRows(entryId)
+    expect(rows.every((r) => r.accountId === card.id)).toBe(true)
+  })
+
+  it("doesn't take a card refund for a payment from your bank", async () => {
+    await createAccount({ name: "GoTyme", kind: "bank" })
+    const card = await createAccount({
+      name: "Sample Card",
+      kind: "credit_card",
+    })
+    const input = cardStatement(
+      card.id,
+      [
+        [addDays(day, -1), "SAMPLE SHOP CITY PH", -100_000],
+        [day, "SAMPLE SHOP REFUND", 100_000],
+      ],
+      { opening: 0 }
+    )
+    const preview = await previewImport(getDb(), input)
+    expect(preview.rows[1]).toMatchObject({ status: "new", transferish: false })
   })
 
   it("undo removes what the import added", async () => {

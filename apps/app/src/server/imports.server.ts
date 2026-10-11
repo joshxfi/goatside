@@ -17,7 +17,11 @@ import {
   fingerprintRows,
 } from "@workspace/core/statement"
 import { type Db, schema } from "@workspace/db"
-import type { AccountKind, ImportUndo } from "@workspace/db/schema"
+import type {
+  AccountKind,
+  ImportUndo,
+  ImportUndoFields,
+} from "@workspace/db/schema"
 import { accountBalances } from "./accounts.server"
 import { accountBook, saveLines } from "./agent.server"
 
@@ -37,6 +41,11 @@ const TRANSFER_WORDS =
 const ATM_WORDS = /\b(atm|withdrawal)\b/i
 /** A bank's charge is spending, even when it says "ATM". */
 const FEE_WORDS = /\b(fees?|charges?)\b/i
+/** Money back from a shop, not a payment from you. */
+const REFUND_WORDS =
+  /\b(refunds?|refunded|reversal|reversed|cash ?back|rebates?|adjustment)\b/i
+/** How card statements word your payment. */
+const PAYMENT_WORDS = /\b(payments?|paid|thank you)\b/i
 
 export interface StatementInput {
   accountId: string
@@ -60,6 +69,8 @@ interface Unit {
   linked: boolean
   /** One plain expense or income row, whose amount a link may correct. */
   single: boolean
+  /** Has your own expense or income row (not only IOU rows). */
+  own: boolean
 }
 
 export interface PreviewRow {
@@ -214,14 +225,20 @@ export async function previewImport(
   )
   const looksLikeTransfer = (i: number) => {
     const row = rows[i]!
-    if (FEE_WORDS.test(row.details)) return false
+    if (FEE_WORDS.test(row.details) || REFUND_WORDS.test(row.details))
+      return false
     return (
       TRANSFER_WORDS.test(row.details) ||
       (account.kind === "credit_card" && row.amount > 0)
     )
   }
+  // Money into a card is usually your payment, but a refund or cashback
+  // isn't: only a row worded like a payment defaults to a transfer.
   const cardPayment = (i: number) =>
-    account.kind === "credit_card" && rows[i]!.amount > 0
+    account.kind === "credit_card" &&
+    rows[i]!.amount > 0 &&
+    PAYMENT_WORDS.test(rows[i]!.details) &&
+    !REFUND_WORDS.test(rows[i]!.details)
 
   // Entries on this account, or unfiled. A split bill is one unit: your
   // share plus the others' shares, together the amount charged.
@@ -238,8 +255,13 @@ export async function previewImport(
       elsewhere.set(t.amount, [...(elsewhere.get(t.amount) ?? []), t])
     }
     const onA = t.accountId === A || t.toAccountId === A
+    const own = t.kind === "expense" || t.kind === "income"
+    // An unfiled split's IOU rows have no account either; they join their
+    // bill below. A lone unfiled IOU (someone paid for you) moved no money.
     const unfiled =
-      t.accountId === null && (t.kind === "expense" || t.kind === "income")
+      t.accountId === null &&
+      t.toAccountId === null &&
+      (own || (t.kind === "lend" && t.entryId !== null))
     if (!onA && !unfiled) continue
     const key = t.entryId
       ? `${t.entryId}|${t.description}|${t.localDate}|${t.accountId}`
@@ -256,13 +278,18 @@ export async function previewImport(
       transfer: t.kind === "transfer",
       linked: false,
       single: true,
+      own: false,
     }
+    unit.own ||= own
     unit.ids.push(t.id)
     unit.change += change
     // A transfer may carry the other side's ref, so it isn't "linked".
     if (t.importRef && t.kind !== "transfer") unit.linked = true
     unit.single = unit.ids.length === 1 && plain
     units.set(key, unit)
+  }
+  for (const [key, unit] of units) {
+    if (unit.unfiled && !unit.own) units.delete(key)
   }
   const byChange = new Map<number, Unit[]>()
   for (const unit of units.values()) {
@@ -359,6 +386,7 @@ export async function previewImport(
             transfer: false,
             linked: false,
             single: true,
+            own: true,
           }
           return [
             {
@@ -502,9 +530,9 @@ export async function commitImport(
   let linked = 0
   let transfers = 0
   const now = new Date()
-  // Entries this import changes instead of adding, with the ref it gives
+  // Entries this import changes instead of adding, with what it sets on
   // them, so undo can put them back.
-  const changed = new Map<string, string>()
+  const changed = new Map<string, Partial<ImportUndoFields>>()
   const converted: string[] = []
 
   for (const row of preview.rows) {
@@ -520,7 +548,15 @@ export async function commitImport(
 
     if (decision.action === "link" && row.match) {
       linked++
-      for (const id of row.match.ids) changed.set(id, row.fingerprint)
+      for (const id of row.match.ids) {
+        changed.set(id, {
+          importRef: row.fingerprint,
+          ...((row.match.unfiled || row.status === "maybe") && {
+            accountId: account.id,
+          }),
+          ...(row.status === "maybe" && { amount: row.amount }),
+        })
+      }
       extra.push(
         db
           .update(transactions)
@@ -558,7 +594,14 @@ export async function commitImport(
           ? row.transfer.convert
           : null
       if (convert) {
-        changed.set(convert.id, row.fingerprint)
+        changed.set(convert.id, {
+          ...sides,
+          categoryId: null,
+          aiConfidence: null,
+          recurring: false,
+          status: "parsed",
+          importRef: row.fingerprint,
+        })
         converted.push(convert.id)
         extra.push(
           db
@@ -634,6 +677,10 @@ export async function commitImport(
               recurring: transactions.recurring,
               status: transactions.status,
               importRef: transactions.importRef,
+              split: transactions.split,
+              personId: transactions.personId,
+              localDate: transactions.localDate,
+              description: transactions.description,
             })
             .from(transactions)
             .where(inArray(transactions.id, ids))
@@ -652,7 +699,11 @@ export async function commitImport(
     ])
     const undo: ImportUndo | null = ids.length
       ? {
-          rows: prior.map((r) => ({ ...r, ref: changed.get(r.id)! })),
+          rows: prior.map(({ id, ...before }) => ({
+            id,
+            before,
+            after: { ...before, ...changed.get(id) },
+          })),
           questionIds: closing.map((q) => q.id),
         }
       : null
@@ -771,21 +822,62 @@ export async function undoImport(db: Db, importId: string) {
     ? await db.select({ id: transactions.id }).from(transactions).where(live)
     : []
   const { rows = [], questionIds = [] } = record.undo ?? {}
-  await db.batch([
-    db.delete(imports).where(eq(imports.id, importId)),
-    ...rows.map(({ id, ref, ...before }) =>
-      db
-        .update(transactions)
-        .set(before)
+  // An entry edited since (a split, a new category) keeps the edit: undo
+  // only takes back the link. Otherwise it goes back to how it was.
+  const current = rows.length
+    ? await db
+        .select()
+        .from(transactions)
         .where(
           and(
-            eq(transactions.id, id),
-            eq(transactions.importRef, ref),
+            inArray(
+              transactions.id,
+              rows.map((r) => r.id)
+            ),
             isNull(transactions.deletedAt)
           )
         )
-    ),
-    ...(questionIds.length
+    : []
+  const now = new Map(current.map((t) => [t.id, t]))
+  const untouched = (id: string, after: ImportUndoFields) => {
+    const t = now.get(id)
+    return (
+      t !== undefined &&
+      (Object.keys(after) as (keyof ImportUndoFields)[]).every(
+        (k) => t[k] === after[k]
+      )
+    )
+  }
+  const restore = rows.flatMap(({ id, before, after }) => {
+    const t = now.get(id)
+    // Gone, or linked by another import since: leave it.
+    if (!t || t.importRef !== after.importRef) return []
+    // What the import can change. Split, people, date and description are
+    // only compared, to spot an edit.
+    const fields = {
+      kind: before.kind,
+      amount: before.amount,
+      accountId: before.accountId,
+      toAccountId: before.toAccountId,
+      categoryId: before.categoryId,
+      aiConfidence: before.aiConfidence,
+      recurring: before.recurring,
+      status: before.status,
+      importRef: before.importRef,
+    }
+    return [
+      db
+        .update(transactions)
+        .set(untouched(id, after) ? fields : { importRef: before.importRef })
+        .where(eq(transactions.id, id)),
+    ]
+  })
+  const reopen =
+    questionIds.length && rows.every((r) => untouched(r.id, r.after))
+  await db.batch([
+    db.delete(imports).where(eq(imports.id, importId)),
+    ...restore,
+    ...(reopen
       ? [
           db
             .update(questions)
