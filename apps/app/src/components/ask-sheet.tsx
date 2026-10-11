@@ -228,7 +228,9 @@ export function AskSheet({
             id="ask"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Ask a follow-up"
+            placeholder={
+              chat.messages.length ? "Ask a follow-up" : "Ask about your money"
+            }
             autoComplete="off"
             enterKeyHint="send"
             maxLength={500}

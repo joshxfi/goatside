@@ -386,7 +386,7 @@ function EditForm({
         if (valid) update.mutate(changes)
       }}
     >
-      <DrawerHeader className="items-center gap-1 text-center">
+      <DrawerHeader className="items-center gap-1 pb-5 text-center md:text-center">
         <DrawerTitle
           className={cn(
             "figure font-display text-5xl font-normal",
@@ -398,7 +398,7 @@ function EditForm({
             ? formatPeso(mine)
             : formatPeso(signed, { sign: signed > 0 })}
         </DrawerTitle>
-        <DrawerDescription>
+        <DrawerDescription className="max-w-xs text-balance">
           {transfer
             ? "Moves money between your accounts. Not spending."
             : share
