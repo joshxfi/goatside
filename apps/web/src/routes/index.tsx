@@ -105,12 +105,13 @@ function Hero() {
           Open source and self-hosted
         </span>
         <h1 className="font-display text-5xl leading-[1.02] tracking-tight text-balance md:text-7xl">
-          Which side of the coin are you on?
+          <span className="block">Type what you spent.</span>
+          <span className="block text-muted-foreground">It files itself.</span>
         </h1>
         <p className="max-w-lg text-lg text-pretty text-muted-foreground">
-          Goatside is a personal finance tracker you host yourself. Type what
-          you spent in plain words. Its agent files it, asks when it isn’t sure,
-          and turns your month into something you can actually read.
+          Goatside is a personal finance tracker you host yourself. Its agent
+          picks the category, the account and who owes whom, asks when it isn’t
+          sure, and turns your month into something you can actually read.
         </p>
         <div className="flex flex-wrap gap-3">
           <Link
