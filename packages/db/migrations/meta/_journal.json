@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1791630455636,
+      "when": 1791721542799,
       "tag": "0000_init",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1791631180906,
-      "tag": "0001_login_attempt_device",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1791633784445,
-      "tag": "0002_agent_questions",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1791648149067,
-      "tag": "0003_accounts",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1791710989043,
-      "tag": "0004_statement_imports",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1791714749382,
-      "tag": "0005_import_undo",
       "breakpoints": true
     }
   ]
