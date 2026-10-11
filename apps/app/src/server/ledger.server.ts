@@ -669,6 +669,18 @@ export async function editTransaction(data: {
     data.type !== undefined ||
     data.people !== undefined ||
     data.ways !== undefined
+  // A share is tied to its bill by description and date; changing either
+  // here would cut it loose. They follow your share instead.
+  if (
+    share &&
+    ((data.description !== undefined &&
+      data.description !== current.description) ||
+      (data.localDate !== undefined && data.localDate !== current.localDate))
+  ) {
+    throw new EditError(
+      "This is someone's share of a split bill. Open your share to change its description or date."
+    )
+  }
   if (regroup && (was === "settle" || share)) {
     throw new EditError(
       was === "settle"
