@@ -369,6 +369,23 @@ async function decide(
   ])
   const model = aiEnabled() ? serverEnv().DECISION_MODEL : null
   const imported = accountId !== undefined
+  // A statement repeats itself ("Outbound interbank transfer" 35 times):
+  // one category call per description and direction, not one per row.
+  const asked = new Map<string, ReturnType<typeof askModel>>()
+  const categorize = (
+    m: NonNullable<typeof model>,
+    line: Parameters<typeof askModel>[1],
+    abortSignal: AbortSignal
+  ) => {
+    if (!imported) return askModel(m, line, options, { abortSignal })
+    const key = `${line.direction}|${normalize(line.description)}`
+    let pending = asked.get(key)
+    if (!pending) {
+      pending = askModel(m, line, options, { abortSignal })
+      asked.set(key, pending)
+    }
+    return pending
+  }
 
   return inChunks(lines, DECIDE_CHUNK, async (original): Promise<Decision> => {
     // Accounts first: "using gcash" says how it was paid, not what for,
@@ -407,7 +424,7 @@ async function decide(
       await Promise.all([
         model && needsModel(line, memory)
           ? withTimeout("categorization", (abortSignal) =>
-              askModel(model, line, options, { abortSignal })
+              categorize(model, line, abortSignal)
             )
           : null,
         model && candidates.length
@@ -671,6 +688,9 @@ export async function saveLines(
   const rowsToInsert: (typeof transactions.$inferInsert)[] = []
   const questionsToInsert: (typeof questions.$inferInsert)[] = []
   let asked = false
+  // Statement rows ask once per description and direction; answering it
+  // files the rest of them too (`answer` in questions.server.ts).
+  const askedAbout = new Set<string>()
 
   for (const [i, draft] of lines.entries()) {
     const decision = decisions[i]
@@ -706,6 +726,14 @@ export async function saveLines(
           rowValues(row, base, personIds, j === 0 ? resolved : undefined)
         )
     // Ids chosen here, so questions can point at rows not yet written.
+    if (imported && resolved.questions.length) {
+      const key = `${resolved.direction}|${normalize(decision.description)}`
+      if (askedAbout.has(key)) {
+        resolved.questions = []
+        if (values[0]) values[0].status = "parsed"
+      }
+      askedAbout.add(key)
+    }
     const ids = values.map(() => crypto.randomUUID())
     rowsToInsert.push(...values.map((value, j) => ({ ...value, id: ids[j] })))
     transactionIds.push(...ids)

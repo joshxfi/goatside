@@ -37,6 +37,7 @@ import {
   type LineContext,
   directionOf,
   ensurePeople,
+  normalize,
   questionRow,
   rowValues,
 } from "./agent.server"
@@ -450,6 +451,24 @@ export async function answer(db: Db, questionId: string, value: string) {
         .update(transactions)
         .set({ categoryId: value })
         .where(eq(transactions.id, txn.id))
+      // An imported statement asks once for rows that read the same; the
+      // answer files them all.
+      if (txn.importRef && txn.entryId) {
+        await db
+          .update(transactions)
+          .set({ categoryId: value, status: "confirmed" })
+          .where(
+            and(
+              eq(transactions.entryId, txn.entryId),
+              eq(transactions.kind, txn.kind),
+              isNotNull(transactions.importRef),
+              isNull(transactions.deletedAt),
+              ne(transactions.id, txn.id),
+              ne(transactions.status, "confirmed"),
+              sql`lower(trim(${transactions.description})) = ${normalize(txn.description)}`
+            )
+          )
+      }
       break
     }
     case "relation": {
