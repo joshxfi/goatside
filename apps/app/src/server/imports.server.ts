@@ -48,6 +48,7 @@ export interface StatementInput {
 
 /** Logged rows that move together: one row, or the rows of a split bill. */
 interface Unit {
+  key: string
   ids: string[]
   /** What it did to the statement's account (or would, if unfiled). */
   change: number
@@ -55,6 +56,10 @@ interface Unit {
   description: string
   unfiled: boolean
   transfer: boolean
+  /** Linked to a row of another statement (a CSV of the same month, say). */
+  linked: boolean
+  /** One plain expense or income row, whose amount a link may correct. */
+  single: boolean
 }
 
 export interface PreviewRow {
@@ -63,13 +68,21 @@ export interface PreviewRow {
   details: string
   amount: number
   fingerprint: string
-  status: "imported" | "logged" | "transfer" | "new"
-  /** "logged": the entry it matches. */
+  /**
+   * "logged": the same amount, within two days. "maybe": close but not
+   * exact (amount, date, or another account), so the owner decides.
+   */
+  status: "imported" | "logged" | "maybe" | "transfer" | "new"
+  /** "logged" and "maybe": the entry it matches. */
   match?: {
     ids: string[]
     description: string
     localDate: string
+    /** What the entry says now; a "maybe" link sets it to the row's. */
+    amount: number
     unfiled: boolean
+    /** Filed under another account; linking moves it here. */
+    accountName: string | null
   }
   /** "transfer": the other account, and an entry there to turn into it. */
   transfer?: {
@@ -99,10 +112,10 @@ const dayGap = (a: string, b: string) =>
 
 /** One-to-one pairs, closest first, each side used once. */
 function pairUp<T>(
-  pairs: { row: number; target: T; key: string; score: number }[]
+  pairs: { row: number; target: T; key: string; score: number }[],
+  used = new Set<string>()
 ): Map<number, T> {
   const out = new Map<number, T>()
-  const used = new Set<string>()
   for (const p of pairs.toSorted((a, b) => a.score - b.score)) {
     if (out.has(p.row) || used.has(p.key)) continue
     out.set(p.row, p.target)
@@ -173,6 +186,7 @@ export async function previewImport(
         accountId: transactions.accountId,
         toAccountId: transactions.toAccountId,
         personId: transactions.personId,
+        split: transactions.split,
         importRef: transactions.importRef,
       })
       .from(transactions)
@@ -185,64 +199,12 @@ export async function previewImport(
     accountBook(db),
   ])
   const imported = new Set(stored.map((s) => s.ref))
-
-  // Entries on this account, or unfiled. A split bill is one unit: your
-  // share plus the others' shares, together the amount charged.
-  const units = new Map<string, Unit>()
-  for (const t of nearby) {
-    const onA = t.accountId === A || t.toAccountId === A
-    const unfiled =
-      t.accountId === null && (t.kind === "expense" || t.kind === "income")
-    if (!onA && !unfiled) continue
-    // Already matched to a statement row. A transfer may carry the other
-    // side's ref, so it can still match this side.
-    if (t.importRef && t.kind !== "transfer") continue
-    const key = t.entryId
-      ? `${t.entryId}|${t.description}|${t.localDate}|${t.accountId}`
-      : t.id
-    const change =
-      t.kind === "transfer" && t.toAccountId === A ? -t.amount : t.amount
-    const unit = units.get(key) ?? {
-      ids: [],
-      change: 0,
-      localDate: t.localDate,
-      description: t.description,
-      unfiled,
-      transfer: t.kind === "transfer",
-    }
-    unit.ids.push(t.id)
-    unit.change += change
-    units.set(key, unit)
-  }
-
   const others = book.known.filter((a) => a.id !== A)
+  const accountName = new Map(book.known.map((a) => [a.id, a.name]))
   // The owner's other account each row names ("Cash in from BPI").
   const named = rows.map(
     (r) => scanAccounts(r.details, others).mentions[0]?.accountId ?? null
   )
-
-  const open = prints.flatMap((print, i) => (imported.has(print) ? [] : [i]))
-  const logged = pairUp(
-    open.flatMap((i) => {
-      const row = rows[i]!
-      return [...units.entries()].flatMap(([key, unit]) => {
-        const gap = dayGap(row.localDate, unit.localDate)
-        const limit = unit.transfer ? TRANSFER_DAYS : MATCH_DAYS
-        if (unit.change !== row.amount || gap > limit) return []
-        // A row naming another of your accounts is a transfer; a payment
-        // from a friend of the same amount isn't the same money.
-        if (named[i] && !unit.transfer) return []
-        // Exact date first; something already on this account before unfiled.
-        return [
-          { row: i, target: unit, key, score: gap + (unit.unfiled ? 0.5 : 0) },
-        ]
-      })
-    })
-  )
-
-  // Transfers: the other side already logged on another account (spending
-  // or income there, opposite amount), or another account named in the
-  // details, or a payment to a card.
   const looksLikeTransfer = (i: number) => {
     const row = rows[i]!
     if (FEE_WORDS.test(row.details)) return false
@@ -251,22 +213,93 @@ export async function previewImport(
       (account.kind === "credit_card" && row.amount > 0)
     )
   }
+  const cardPayment = (i: number) =>
+    account.kind === "credit_card" && rows[i]!.amount > 0
+
+  // Entries on this account, or unfiled. A split bill is one unit: your
+  // share plus the others' shares, together the amount charged.
+  const units = new Map<string, Unit>()
+  // Plain entries on the owner's other accounts, by amount: the other side
+  // of a transfer, or an entry filed under the wrong account.
+  const elsewhere = new Map<number, typeof nearby>()
+  for (const t of nearby) {
+    const plain =
+      (t.kind === "expense" || t.kind === "income") &&
+      !t.personId &&
+      t.split === null
+    if (t.accountId && t.accountId !== A && !t.toAccountId && plain) {
+      elsewhere.set(t.amount, [...(elsewhere.get(t.amount) ?? []), t])
+    }
+    const onA = t.accountId === A || t.toAccountId === A
+    const unfiled =
+      t.accountId === null && (t.kind === "expense" || t.kind === "income")
+    if (!onA && !unfiled) continue
+    const key = t.entryId
+      ? `${t.entryId}|${t.description}|${t.localDate}|${t.accountId}`
+      : t.id
+    const change =
+      t.kind === "transfer" && t.toAccountId === A ? -t.amount : t.amount
+    const unit = units.get(key) ?? {
+      key,
+      ids: [],
+      change: 0,
+      localDate: t.localDate,
+      description: t.description,
+      unfiled,
+      transfer: t.kind === "transfer",
+      linked: false,
+      single: true,
+    }
+    unit.ids.push(t.id)
+    unit.change += change
+    // A transfer may carry the other side's ref, so it isn't "linked".
+    if (t.importRef && t.kind !== "transfer") unit.linked = true
+    unit.single = unit.ids.length === 1 && plain
+    units.set(key, unit)
+  }
+  const byChange = new Map<number, Unit[]>()
+  for (const unit of units.values()) {
+    byChange.set(unit.change, [...(byChange.get(unit.change) ?? []), unit])
+  }
+
+  const open = prints.flatMap((print, i) => (imported.has(print) ? [] : [i]))
+  const logged = pairUp(
+    open.flatMap((i) => {
+      const row = rows[i]!
+      return (byChange.get(row.amount) ?? []).flatMap((unit) => {
+        const gap = dayGap(row.localDate, unit.localDate)
+        const limit = unit.linked
+          ? 0
+          : unit.transfer
+            ? TRANSFER_DAYS
+            : MATCH_DAYS
+        if (gap > limit) return []
+        // A row naming another of your accounts is a transfer; a payment
+        // from a friend of the same amount isn't the same money.
+        if (named[i] && !unit.transfer) return []
+        // Exact date first; something already on this account before unfiled.
+        return [
+          {
+            row: i,
+            target: unit,
+            key: unit.key,
+            score: gap + (unit.unfiled ? 0.5 : 0),
+          },
+        ]
+      })
+    })
+  )
+  const usedUnits = new Set([...logged.values()].map((u) => u.key))
+
+  // Transfers: the other side already logged on another account (spending
+  // or income there, opposite amount), or another account named in the
+  // details, or a payment to a card.
   const counterparts = pairUp(
     open
       .filter((i) => !logged.has(i))
       .flatMap((i) => {
         const row = rows[i]!
-        return nearby.flatMap((t) => {
-          if (
-            !t.accountId ||
-            t.accountId === A ||
-            t.toAccountId ||
-            t.personId ||
-            (t.kind !== "expense" && t.kind !== "income") ||
-            t.amount !== -row.amount
-          ) {
-            return []
-          }
+        return (elsewhere.get(-row.amount) ?? []).flatMap((t) => {
           const gap = dayGap(row.localDate, t.localDate)
           const transferish =
             looksLikeTransfer(i) || TRANSFER_WORDS.test(t.description)
@@ -275,6 +308,68 @@ export async function previewImport(
         })
       })
   )
+
+  // Near misses, for the owner to confirm: a typed amount a little off
+  // (180 typed, 185 charged), a date up to a week off, or the right amount
+  // filed under another account (entries that name none go to the default).
+  const near = (a: number, b: number) =>
+    Math.sign(a) === Math.sign(b) &&
+    Math.abs(a - b) <= Math.max(2_000, Math.round(Math.abs(a) * 0.05))
+  const usedElsewhere = new Set([...counterparts.values()].map((t) => t.id))
+  const maybe = pairUp(
+    open
+      .filter(
+        (i) =>
+          !logged.has(i) && !counterparts.has(i) && !named[i] && !cardPayment(i)
+      )
+      .flatMap((i) => {
+        const row = rows[i]!
+        const here = [...units.values()].flatMap((unit) => {
+          if (!unit.single || unit.transfer || unit.linked) return []
+          const gap = dayGap(row.localDate, unit.localDate)
+          const exact = unit.change === row.amount
+          if (exact ? gap > 7 : gap > 3 || !near(unit.change, row.amount)) {
+            return []
+          }
+          const off = Math.abs(unit.change - row.amount) / Math.abs(row.amount)
+          return [
+            {
+              row: i,
+              target: { unit, accountId: null as string | null },
+              key: unit.key,
+              score: gap + off * 20,
+            },
+          ]
+        })
+        const there = (elsewhere.get(row.amount) ?? []).flatMap((t) => {
+          const gap = dayGap(row.localDate, t.localDate)
+          if (gap > MATCH_DAYS || t.importRef || usedElsewhere.has(t.id))
+            return []
+          const unit: Unit = {
+            key: t.id,
+            ids: [t.id],
+            change: t.amount,
+            localDate: t.localDate,
+            description: t.description,
+            unfiled: false,
+            transfer: false,
+            linked: false,
+            single: true,
+          }
+          return [
+            {
+              row: i,
+              target: { unit, accountId: t.accountId },
+              key: t.id,
+              score: gap + 1,
+            },
+          ]
+        })
+        return [...here, ...there]
+      }),
+    new Set(usedUnits)
+  )
+
   const payFrom =
     others.find(
       (a) => a.id === book.defaultAccountId && a.kind !== "credit_card"
@@ -292,16 +387,22 @@ export async function previewImport(
       transferish: looksLikeTransfer(i),
     }
     if (imported.has(prints[i]!)) return { ...base, status: "imported" }
-    const unit = logged.get(i)
+    const matched = logged.get(i)
+    const close = maybe.get(i)
+    const unit = matched ?? close?.unit
     if (unit) {
       return {
         ...base,
-        status: "logged",
+        status: matched ? "logged" : "maybe",
         match: {
           ids: unit.ids,
           description: unit.description,
           localDate: unit.localDate,
+          amount: unit.change,
           unfiled: unit.unfiled,
+          accountName: close?.accountId
+            ? (accountName.get(close.accountId) ?? null)
+            : null,
         },
       }
     }
@@ -325,10 +426,7 @@ export async function previewImport(
       row.amount < 0 && base.transferish && ATM_WORDS.test(row.details)
         ? others.find((a) => a.kind === "cash")?.id
         : null
-    const target =
-      named[i] ??
-      atm ??
-      (account.kind === "credit_card" && row.amount > 0 ? payFrom?.id : null)
+    const target = named[i] ?? atm ?? (cardPayment(i) ? payFrom?.id : null)
     if (target) {
       return {
         ...base,
@@ -350,7 +448,8 @@ export async function previewImport(
 /** Is `decision` one the preview offered for this row? */
 function allowed(row: PreviewRow, decision: ImportDecision) {
   if (row.status === "imported") return decision.action === "skip"
-  if (decision.action === "link") return row.status === "logged"
+  if (decision.action === "link")
+    return row.status === "logged" || row.status === "maybe"
   return true
 }
 
@@ -415,7 +514,12 @@ export async function commitImport(
           .update(transactions)
           .set({
             importRef: row.fingerprint,
-            ...(row.match.unfiled && { accountId: account.id }),
+            // A near match takes the statement's word for the amount and
+            // account; the owner confirmed it's the same money.
+            ...((row.match.unfiled || row.status === "maybe") && {
+              accountId: account.id,
+            }),
+            ...(row.status === "maybe" && { amount: row.amount }),
           })
           .where(
             and(

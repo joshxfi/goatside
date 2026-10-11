@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start"
 import { z } from "zod"
+import { isValidDate } from "@workspace/core/dates"
 import { MAX_CENTAVOS } from "@workspace/core/money"
 import {
   ImportError,
@@ -18,7 +19,13 @@ export type {
   PreviewRow,
 } from "./imports.server"
 
-const DATE = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/)
+const DATE = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((d) => {
+    const [y, m, day] = d.split("-").map(Number)
+    return isValidDate(y!, m!, day!)
+  }, "Not a real date")
 const AMOUNT = z.number().int().min(-MAX_CENTAVOS).max(MAX_CENTAVOS)
 /** Balances can sit past a single entry's limit, so allow ten times. */
 const BALANCE = z

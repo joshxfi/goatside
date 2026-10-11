@@ -154,6 +154,72 @@ describe("statement imports", () => {
     expect((await live()).length).toBe(2)
   })
 
+  it("offers a near match and takes the statement's amount when linked", async () => {
+    const bank = await createAccount({ name: "GoTyme", kind: "bank" })
+    const typed = await log("180 iced coffee")
+    const input = bankStatement(bank.id, [[day, "Sample Cafe", -18_500]])
+    const preview = await previewImport(getDb(), input)
+    expect(preview.rows[0]).toMatchObject({
+      status: "maybe",
+      match: { description: "iced coffee", amount: -18_000 },
+    })
+    const result = await decide(input, [{ action: "link" }])
+    expect(result).toMatchObject({ added: 0, linked: 1 })
+    expect(await row(typed.transactionIds[0]!)).toMatchObject({
+      amount: -18_500,
+      accountId: bank.id,
+      importRef: preview.rows[0]!.fingerprint,
+    })
+  })
+
+  it("offers an entry filed under another account, and moves it", async () => {
+    const wallet = await createAccount({ name: "GCash", kind: "ewallet" })
+    const bank = await createAccount({ name: "GoTyme", kind: "bank" })
+    // Entries that name no account go to the default, GCash.
+    const typed = await log("250 lunch")
+    expect((await row(typed.transactionIds[0]!)).accountId).toBe(wallet.id)
+    const input = bankStatement(bank.id, [
+      [day, "Card payment at Sample Diner", -25_000],
+    ])
+    const preview = await previewImport(getDb(), input)
+    expect(preview.rows[0]).toMatchObject({
+      status: "maybe",
+      match: { description: "lunch", accountName: "GCash" },
+    })
+    // Linking says it's the same money, so it moves to the statement's account.
+    await decide(input, [{ action: "link" }])
+    expect((await row(typed.transactionIds[0]!)).accountId).toBe(bank.id)
+    expect(await balanceOf(wallet.id)).toBe(0)
+  })
+
+  it("doesn't call a far-off amount a near match", async () => {
+    const bank = await createAccount({ name: "GoTyme", kind: "bank" })
+    await log("180 iced coffee")
+    const input = bankStatement(bank.id, [[day, "Sample Cafe", -30_000]])
+    const preview = await previewImport(getDb(), input)
+    expect(preview.rows[0]!.status).toBe("new")
+  })
+
+  it("links rows another file of the same statement already added", async () => {
+    const bank = await createAccount({ name: "GoTyme", kind: "bank" })
+    await importAsSuggested(
+      bankStatement(bank.id, [[day, "QR PAYMENT 0042", -18_000]])
+    )
+    // The CSV export of the same month words it differently.
+    const csv = bankStatement(bank.id, [[day, "Qr Payment", -18_000]], {
+      fileHash: "d".repeat(64),
+    })
+    const preview = await previewImport(getDb(), csv)
+    expect(preview.rows[0]!.status).toBe("logged")
+    // But only on the exact day: a linked entry isn't stretched to fit.
+    const later = bankStatement(
+      bank.id,
+      [[addDays(day, 1), "Qr Payment", -18_000]],
+      { fileHash: "e".repeat(64) }
+    )
+    expect((await previewImport(getDb(), later)).rows[0]!.status).toBe("new")
+  })
+
   it("files a matched unfiled entry under the statement's account", async () => {
     const typed = await log("180 iced coffee")
     expect((await row(typed.transactionIds[0]!)).accountId).toBeNull()
