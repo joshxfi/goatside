@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "generate-routes": "tsr generate",
     "typecheck": "tsr generate && tsc --noEmit",
+    "test": "vitest run",
     "start": "node .output/server/index.mjs",
     "eval:ask": "tsx --env-file-if-exists=.env.local evals/ask.ts"
   },
@@ -47,6 +48,7 @@
     "@vitejs/plugin-react": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }
