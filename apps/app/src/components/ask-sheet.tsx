@@ -12,6 +12,16 @@ import {
   DrawerTitle,
 } from "@workspace/ui/components/drawer"
 import { CoinMark } from "@workspace/ui/components/brand"
+import { Bubble, BubbleContent } from "@workspace/ui/components/bubble"
+import { Message, MessageContent } from "@workspace/ui/components/message"
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@workspace/ui/components/message-scroller"
 
 export type AskChat = UseChatHelpers<UIMessage>
 
@@ -45,9 +55,6 @@ export function AskSheet({
   const desktop = useDesktop()
   const busy = chat.status === "submitted" || chat.status === "streaming"
   const last = chat.messages.at(-1)
-
-  // Changes as the answer streams in; remounting the end marker follows it.
-  const progress = `${chat.messages.length}:${last ? textOf(last).length : 0}:${chat.status}`
 
   function ask(question: string) {
     const trimmed = question.trim()
@@ -86,101 +93,126 @@ export function AskSheet({
           )}
         </DrawerHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 pt-4 pb-4">
-          {chat.messages.length === 0 && (
-            <div className="flex flex-col items-start gap-2 pt-2">
-              {SUGGESTIONS.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  type="button"
-                  onClick={() => ask(suggestion)}
-                  className="rounded-full border px-3.5 py-2 text-left text-sm transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] [@media(hover:hover)]:hover:bg-muted"
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-          )}
+        {/*
+          Follows a streaming answer only while you're at the bottom; scroll
+          up to re-read and it stays put, with a button back to the latest.
+          Each question you send settles near the top as a new turn.
+        */}
+        <MessageScrollerProvider autoScroll>
+          <MessageScroller className="flex-1">
+            <MessageScrollerViewport aria-label="Conversation">
+              <MessageScrollerContent className="gap-4 p-4">
+                {chat.messages.length === 0 && (
+                  <div className="flex flex-col items-start gap-2 pt-2">
+                    {SUGGESTIONS.map((suggestion) => (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        onClick={() => ask(suggestion)}
+                        className="rounded-full border px-3.5 py-2 text-left text-sm transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] [@media(hover:hover)]:hover:bg-muted"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
-          {chat.messages.map((message) =>
-            message.role === "user" ? (
-              <p
-                key={message.id}
-                className="enter-rise max-w-[85%] self-end rounded-2xl rounded-br-md bg-muted px-3.5 py-2 text-sm"
-              >
-                {textOf(message)}
-              </p>
-            ) : (
-              <div
-                key={message.id}
-                className="enter-fade flex flex-col gap-2 text-[15px] leading-relaxed"
-              >
-                {message.parts.map((part, i, parts) => {
-                  if (part.type === "text") {
-                    // Text before a tool call is narration ("I'll check…").
-                    const lastTool = parts.findLastIndex((p) =>
-                      p.type.startsWith("tool-")
-                    )
-                    return i > lastTool ? (
-                      <Answer key={i} text={part.text} />
-                    ) : null
-                  }
-                  if (
-                    isToolUIPart(part) &&
-                    getToolName(part) in ACTION_TITLES
-                  ) {
-                    return (
-                      <AgentAction
-                        key={part.toolCallId}
-                        part={part}
-                        onRespond={(response) =>
-                          void chat.addToolApprovalResponse(response)
-                        }
-                      />
-                    )
-                  }
-                  const label = TOOL_LABELS[part.type]
-                  if (!label) return null
-                  return (
-                    <p
-                      key={i}
-                      className="enter-fade flex items-center gap-1.5 text-xs text-muted-foreground"
+                {chat.messages.map((message) =>
+                  message.role === "user" ? (
+                    <MessageScrollerItem
+                      key={message.id}
+                      messageId={message.id}
+                      scrollAnchor
                     >
-                      <CoinMark rim={false} className="size-3.5" />
-                      {label}
-                    </p>
+                      <Message align="end" className="enter-rise">
+                        <MessageContent>
+                          <Bubble
+                            variant="muted"
+                            align="end"
+                            className="max-w-[85%]"
+                          >
+                            <BubbleContent className="rounded-2xl rounded-br-md px-3.5">
+                              {textOf(message)}
+                            </BubbleContent>
+                          </Bubble>
+                        </MessageContent>
+                      </Message>
+                    </MessageScrollerItem>
+                  ) : (
+                    <MessageScrollerItem
+                      key={message.id}
+                      messageId={message.id}
+                    >
+                      <Message className="enter-fade">
+                        <MessageContent className="gap-2 text-[15px] leading-relaxed">
+                          {message.parts.map((part, i, parts) => {
+                            if (part.type === "text") {
+                              // Text before a tool call is narration ("I'll check…").
+                              const lastTool = parts.findLastIndex((p) =>
+                                p.type.startsWith("tool-")
+                              )
+                              return i > lastTool ? (
+                                <Answer key={i} text={part.text} />
+                              ) : null
+                            }
+                            if (
+                              isToolUIPart(part) &&
+                              getToolName(part) in ACTION_TITLES
+                            ) {
+                              return (
+                                <AgentAction
+                                  key={part.toolCallId}
+                                  part={part}
+                                  onRespond={(response) =>
+                                    void chat.addToolApprovalResponse(response)
+                                  }
+                                />
+                              )
+                            }
+                            const label = TOOL_LABELS[part.type]
+                            if (!label) return null
+                            return (
+                              <p
+                                key={i}
+                                className="enter-fade flex items-center gap-1.5 text-xs text-muted-foreground"
+                              >
+                                <CoinMark rim={false} className="size-3.5" />
+                                {label}
+                              </p>
+                            )
+                          })}
+                        </MessageContent>
+                      </Message>
+                    </MessageScrollerItem>
                   )
-                })}
-              </div>
-            )
-          )}
+                )}
 
-          {busy && last?.role === "user" && (
-            <p className="enter-fade flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="coin-stage size-4">
-                <CoinMark className="coin-spinning size-4" />
-              </span>
-              Checking your ledger…
-            </p>
-          )}
+                {busy && last?.role === "user" && (
+                  <p className="enter-fade flex items-center gap-2 text-sm text-muted-foreground">
+                    <span className="coin-stage size-4">
+                      <CoinMark className="coin-spinning size-4" />
+                    </span>
+                    Checking your ledger…
+                  </p>
+                )}
 
-          {chat.error && (
-            <div className="enter-rise flex flex-col items-start gap-2 rounded-xl border border-dashed p-3 text-sm">
-              <p>{errorMessage(chat.error)}</p>
-              <button
-                type="button"
-                onClick={() => void chat.regenerate()}
-                className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
-              >
-                Try again
-              </button>
-            </div>
-          )}
-          <div
-            key={progress}
-            ref={(el) => el?.scrollIntoView({ block: "end" })}
-          />
-        </div>
+                {chat.error && (
+                  <div className="enter-rise flex flex-col items-start gap-2 rounded-xl border border-dashed p-3 text-sm">
+                    <p>{errorMessage(chat.error)}</p>
+                    <button
+                      type="button"
+                      onClick={() => void chat.regenerate()}
+                      className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                )}
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+            <MessageScrollerButton aria-label="Jump to the latest" />
+          </MessageScroller>
+        </MessageScrollerProvider>
 
         <form
           className="flex items-center gap-2 border-t px-4 pt-3 pb-[max(env(safe-area-inset-bottom),0.75rem)]"
