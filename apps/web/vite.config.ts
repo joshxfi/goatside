@@ -6,8 +6,17 @@ import tailwindcss from "@tailwindcss/vite"
 import { fumadocsMdx } from "fumadocs-mdx/vite"
 import { nitro } from "nitro/vite"
 
+// Canonical links and share cards need the site's own address. Vercel sets
+// VERCEL_PROJECT_PRODUCTION_URL (the custom domain once there is one).
+const siteUrl =
+  process.env.SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3001")
+
 export default defineConfig({
   resolve: { tsconfigPaths: true },
+  define: { "import.meta.env.SITE_URL": JSON.stringify(siteUrl) },
   plugins: [
     devtools(),
     // Compiles the docs in content/docs (see src/lib/source.ts).
@@ -15,11 +24,13 @@ export default defineConfig({
     tailwindcss(),
     tanstackStart({
       // The site is static: every route is rendered to HTML at build time.
-      // Links reach the docs pages; the search index and llms.txt files aren't
-      // linked from a page, so they're listed.
+      // Links reach the docs pages; the search index, sitemap, robots.txt and
+      // llms.txt files aren't linked from a page, so they're listed.
       prerender: { enabled: true, crawlLinks: true },
       pages: [
         { path: "/api/search" },
+        { path: "/sitemap.xml" },
+        { path: "/robots.txt" },
         { path: "/llms.txt" },
         { path: "/llms-full.txt" },
       ],

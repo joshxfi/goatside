@@ -1,15 +1,20 @@
 {
-  "short_name": "Goatside",
   "name": "Goatside",
-  "icons": [
-    {
-      "src": "favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
-    }
-  ],
+  "short_name": "Goatside",
+  "description": "An open-source, self-hosted finance tracker. Type what you spent and its agent files it.",
   "start_url": "/",
   "display": "standalone",
   "theme_color": "#f7f5f0",
-  "background_color": "#f7f5f0"
+  "background_color": "#f7f5f0",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
 }

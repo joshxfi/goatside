@@ -13,7 +13,7 @@ import {
 } from "fumadocs-ui/layouts/docs/page"
 import { useMDXComponents } from "@/components/mdx"
 import { baseOptions } from "@/lib/layout"
-import { REPO_BRANCH, REPO_URL } from "@/lib/site"
+import { REPO_BRANCH, REPO_URL, absolute } from "@/lib/site"
 import { docs, source, toMarkdownUrl } from "@/lib/source"
 
 export const Route = createFileRoute("/docs/$")({
@@ -23,16 +23,32 @@ export const Route = createFileRoute("/docs/$")({
     await docs.getPage(data.path)?.preload()
     return data
   },
-  head: ({ loaderData }) => ({
-    meta: loaderData
-      ? [
-          { title: `${loaderData.title} · Goatside docs` },
-          { name: "description", content: loaderData.description },
-          { property: "og:title", content: `${loaderData.title} · Goatside` },
-          { property: "og:description", content: loaderData.description },
-        ]
-      : [],
-  }),
+  head: ({ loaderData }) => {
+    if (!loaderData) return {}
+    const title = `${loaderData.title} · Goatside docs`
+    const url = absolute(loaderData.url)
+    return {
+      meta: [
+        { title },
+        { name: "description", content: loaderData.description },
+        { property: "og:type", content: "article" },
+        { property: "og:url", content: url },
+        { property: "og:title", content: title },
+        { property: "og:description", content: loaderData.description },
+        { name: "twitter:title", content: title },
+        { name: "twitter:description", content: loaderData.description },
+      ],
+      links: [
+        { rel: "canonical", href: url },
+        // The same page as Markdown, for LLMs and tools.
+        {
+          rel: "alternate",
+          type: "text/markdown",
+          href: loaderData.markdownUrl,
+        },
+      ],
+    }
+  },
 })
 
 const loadPage = createServerFn({ method: "GET" })
@@ -43,6 +59,7 @@ const loadPage = createServerFn({ method: "GET" })
 
     return {
       path: page.path,
+      url: page.url,
       title: page.data.title,
       description: page.data.description ?? "",
       markdownUrl: toMarkdownUrl(page.slugs),

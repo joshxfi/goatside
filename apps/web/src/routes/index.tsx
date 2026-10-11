@@ -29,9 +29,44 @@ import { DashboardPreview } from "@/components/landing/dashboard-preview"
 import { LiveComposer } from "@/components/landing/live-composer"
 import { PeopleDemo } from "@/components/landing/people-demo"
 import { DemoNote, SectionHeading } from "@/components/landing/ui"
-import { REPO_URL } from "@/lib/site"
+import {
+  AUTHOR,
+  REPO_URL,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  absolute,
+} from "@/lib/site"
 
-export const Route = createFileRoute("/")({ component: Landing })
+export const Route = createFileRoute("/")({
+  component: Landing,
+  head: () => ({
+    meta: [{ property: "og:url", content: absolute("/") }],
+    links: [{ rel: "canonical", href: absolute("/") }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify(STRUCTURED_DATA),
+      },
+    ],
+  }),
+})
+
+/** What search engines read about the project: an app, free, MIT licensed. */
+const STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: SITE_NAME,
+  description: SITE_DESCRIPTION,
+  url: absolute("/"),
+  image: absolute("/og.png"),
+  applicationCategory: "FinanceApplication",
+  operatingSystem: "Web",
+  isAccessibleForFree: true,
+  license: "https://opensource.org/licenses/MIT",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  author: { "@type": "Person", name: AUTHOR.name, url: AUTHOR.url },
+  sameAs: [REPO_URL],
+}
 
 const ctaClass = "h-11 px-5 text-base"
 
@@ -463,10 +498,32 @@ function Footer() {
   return (
     <footer className="border-t">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between md:px-6">
-        <span className="flex items-center gap-2">
-          <CoinMark className="size-5" />
-          Goatside is open source and self-hosted.
-        </span>
+        <div className="flex items-start gap-2">
+          <CoinMark className="mt-px size-5 shrink-0" />
+          <p className="flex flex-col gap-1">
+            <span>
+              Goatside is open source and self-hosted, under the{" "}
+              <a
+                href={`${REPO_URL}/blob/main/LICENSE`}
+                className="underline-offset-4 hover:text-foreground hover:underline"
+              >
+                MIT license
+              </a>
+              .
+            </span>
+            <span>
+              Built by {AUTHOR.name} (
+              <a
+                href={AUTHOR.url}
+                rel="author"
+                className="underline-offset-4 hover:text-foreground hover:underline"
+              >
+                {AUTHOR.handle}
+              </a>
+              ).
+            </span>
+          </p>
+        </div>
         <nav className="flex flex-wrap gap-x-5 gap-y-2">
           <Link to="/docs/$" className="hover:text-foreground">
             Docs

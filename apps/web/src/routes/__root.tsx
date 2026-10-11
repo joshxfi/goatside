@@ -2,24 +2,43 @@ import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router"
 import { RootProvider } from "fumadocs-ui/provider/tanstack"
 import { THEME_SCRIPT } from "@workspace/ui/lib/theme"
 import { DocsSearchDialog } from "@/components/search"
+import {
+  AUTHOR,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_TITLE,
+  absolute,
+} from "@/lib/site"
 
 import appCss from "@/styles/app.css?url"
 
-const DESCRIPTION =
-  "Goatside is an open-source personal finance tracker you host yourself. Type what you spent in plain words and its agent files it."
+const OG_ALT =
+  "Goatside: type what you spent, it files itself. An open-source, self-hosted finance tracker."
 
 export const Route = createRootRoute({
+  // Defaults for every page; the landing page and docs pages add their own
+  // title, description and canonical link.
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Goatside · Your self-hosted finance agent" },
-      { name: "description", content: DESCRIPTION },
-      {
-        property: "og:title",
-        content: "Goatside: your self-hosted finance agent",
-      },
-      { property: "og:description", content: DESCRIPTION },
+      { title: SITE_TITLE },
+      { name: "description", content: SITE_DESCRIPTION },
+      { name: "author", content: AUTHOR.name },
+      { property: "og:site_name", content: SITE_NAME },
+      { property: "og:type", content: "website" },
+      { property: "og:locale", content: "en_US" },
+      { property: "og:title", content: SITE_TITLE },
+      { property: "og:description", content: SITE_DESCRIPTION },
+      { property: "og:image", content: absolute("/og.png") },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      { property: "og:image:alt", content: OG_ALT },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: SITE_TITLE },
+      { name: "twitter:description", content: SITE_DESCRIPTION },
+      { name: "twitter:image", content: absolute("/og.png") },
+      { name: "twitter:image:alt", content: OG_ALT },
       {
         name: "theme-color",
         content: "#f7f5f0",
@@ -34,6 +53,7 @@ export const Route = createRootRoute({
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "manifest", href: "/manifest.json" },
     ],
   }),
