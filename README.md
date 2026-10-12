@@ -56,7 +56,7 @@ no analytics, no telemetry, no account with us. See
 ## Deploy your own
 
 You'll need GitHub, [Vercel](https://vercel.com) and [Turso](https://turso.tech)
-accounts, Node 22.12 or newer, [pnpm](https://pnpm.io) and the
+accounts, Node 24 or newer, [pnpm](https://pnpm.io) and the
 [Turso CLI](https://docs.turso.tech/cli).
 
 1. [Fork the repo](https://github.com/joshxfi/goatside/fork), clone your fork and run
@@ -78,7 +78,7 @@ The [full guide](apps/web/content/docs/self-hosting/index.mdx) covers each step,
 
 ## Local development
 
-Requires Node 22.12+, pnpm and the [Turso CLI](https://docs.turso.tech/cli) for the local
+Requires Node 24+, pnpm and the [Turso CLI](https://docs.turso.tech/cli) for the local
 database.
 
 ```sh

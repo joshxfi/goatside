@@ -18,7 +18,7 @@ the docs in `apps/web/content/docs` for how it behaves. Each app and package has
 
 ## Commands
 
-Run from the root. pnpm 12, Node 22.12+.
+Run from the root. pnpm 12, Node 24+.
 
 ```sh
 pnpm dev            # local DB :8080, app :3000, landing :3001
