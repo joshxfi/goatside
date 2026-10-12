@@ -69,7 +69,8 @@ You'll need GitHub and [Vercel](https://vercel.com) accounts. Node 24 or newer a
 4. Apply the migrations. Either add the URL and token as Actions secrets on your fork and
    run the CI workflow, or run
    `TURSO_DATABASE_URL=<url> TURSO_AUTH_TOKEN=<token> pnpm db:migrate` from your clone.
-5. Enable AI Gateway on your Vercel team, redeploy and sign in.
+5. Enable AI Gateway on your Vercel team and buy credit. $10 is the smallest top-up, and
+   the free monthly credit doesn't cover Goatside's models. Then redeploy and sign in.
 
 The [full guide](apps/web/content/docs/self-hosting/index.mdx) covers each step, plus
 [updating](apps/web/content/docs/self-hosting/updating.mdx), the

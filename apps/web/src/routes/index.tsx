@@ -172,8 +172,8 @@ function Hero() {
           </Link>
         </div>
         <p className="text-sm text-muted-foreground">
-          Runs on the free tiers of Vercel and Turso. AI for a month of entries
-          should cost well under a dollar.
+          Runs on the free tiers of Vercel and Turso. The agent needs $10 of AI
+          Gateway credit, and a month of entries costs well under a dollar.
         </p>
       </div>
 

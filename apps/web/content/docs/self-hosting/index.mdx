@@ -17,6 +17,30 @@ the app doesn't care which one you pick.
 - **Turso directly.** Create it with the [Turso CLI](https://docs.turso.tech/cli) on your
   own Turso account, then paste the URL and token into Vercel.
 
+## What it costs
+
+| Service    | Cost                                                                        |
+| ---------- | --------------------------------------------------------------------------- |
+| Vercel     | Free on the Hobby plan, which is for personal, non-commercial use           |
+| Turso      | Free plan, with far more room than one person's ledger needs                |
+| AI Gateway | $10 of credit, the smallest top-up, plus any card fee. Expires after a year |
+
+Vercel gives every team $5 of free AI Gateway credit a month, but it only covers some
+models. Goatside's two aren't among them, so the agent needs credits you buy.
+
+Both models are cheap. Jev, which files your entries, costs $0.042 per million input
+tokens, so a hundred entries cost well under a cent. DeepSeek V4.1 Flash, which answers
+your questions, costs $0.30 per million input tokens and $1.20 per million output tokens,
+about a cent or less per question. Credit expires a year after you buy it, and for one
+person, $10 is far more than a year's use. These are
+October 2026 prices. The [AI Gateway model list](https://vercel.com/ai-gateway/models)
+has current ones.
+
+Skip the credits and Goatside is free to run, without the agent. See
+[Running without AI](/docs/guide/privacy#running-without-ai).
+
+## Set it up
+
 <Steps>
 <Step>
 
@@ -140,8 +164,18 @@ If you skip this, Goatside opens on a page that says the database has no tables 
 ### Turn on AI Gateway
 
 The agent runs on [Vercel AI Gateway](https://vercel.com/docs/ai-gateway). On Vercel it
-signs in with your project's OIDC token, so there's no key to manage. Open **AI Gateway**
-on your Vercel team's dashboard and enable it.
+signs in with your project's OIDC token, so there's no key to manage.
+
+1. Open **AI Gateway** on your Vercel team's dashboard and enable it.
+2. Choose the credits balance in the top right and buy credit. $10 is the smallest
+   top-up, and the free monthly credit doesn't cover Goatside's models (see
+   [What it costs](#what-it-costs)).
+3. Optionally, set a [budget](https://vercel.com/docs/ai-gateway/observability-and-spend/budgets)
+   to cap what it can spend.
+
+If the credits run out, entries still save, uncategorized, and the agent can't answer
+until you add more. **Auto-reload** in the same dialog, off by default, can refill the
+balance for you.
 
 Skip this and Goatside still works, without the agent. See
 [Running without AI](/docs/guide/privacy#running-without-ai).
