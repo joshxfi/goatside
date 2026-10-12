@@ -35,8 +35,8 @@ warnings.
 
 `dev` is staging and `main` is production. Open pull requests against `dev`. To ship,
 merge `dev` into `main` with a merge commit, not a squash or rebase, so every
-Conventional Commit reaches release-please and the two branches keep one history. After
-a release pull request merges, merge `main` back into `dev`.
+Conventional Commit reaches release-please and the two branches keep one history. That
+merge is the release (see Releases below).
 
 CI (`.github/workflows/ci.yml`) runs install, lint, format check, typecheck and tests on
 every push. After a push to `main` or `dev` passes, it applies migrations to that
@@ -61,9 +61,11 @@ branch.
 - **Commits** are conventional with scopes (`fix(app): …`, `docs(web): …`, `test(app): …`).
   Run format, lint, typecheck and tests first. `feat`, `fix` and `perf` commits land in
   the changelog, so write them for self-hosters; mark breaking changes with `!`.
-- **Releases** come from release-please (`.github/workflows/release.yml`): merge its
-  release pull request to cut a version. Don't edit `CHANGELOG.md`, the root `version` or
-  `.release-please-manifest.json` by hand.
+- **Releases** happen when `dev` merges into `main`. `.github/workflows/release.yml` has
+  release-please open its release pull request, merges it, tags the version, publishes
+  the GitHub release, then brings the release commit back to `dev`. A `feat`, `fix` or
+  `perf` commit is what triggers a release. Don't edit `CHANGELOG.md`, the root `version`
+  or `.release-please-manifest.json` by hand.
 - **Before changing Turborepo config**, read the installed Turborepo docs (block below).
 
 ## Copy and design

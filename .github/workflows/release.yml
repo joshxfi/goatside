@@ -4,11 +4,16 @@ on:
   push:
     branches: [main]
 
+# One release at a time, never cut off halfway.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  # Keeps a release pull request open with the next version and its changelog,
-  # built from the Conventional Commits on main. Merging it tags the version
-  # and publishes the GitHub release.
-  release-please:
+  # Merging dev into main is the release: this cuts the version, the changelog
+  # entry, the tag and the GitHub release from the Conventional Commits that
+  # just landed, then brings the version bump back to dev.
+  release:
     # Forks are people's own deploys; only the main repo cuts releases.
     if: github.repository == 'joshxfi/goatside'
     runs-on: ubuntu-latest
@@ -17,9 +22,52 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+    env:
+      # A token in RELEASE_PLEASE_TOKEN lets CI run on the release commit;
+      # GitHub's own token can't start other workflows.
+      GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
     steps:
-      - uses: googleapis/release-please-action@v5
+      # Opens a release pull request with the next version and its changelog,
+      # when the new commits include a feat, fix or perf.
+      - id: pr
+        uses: googleapis/release-please-action@v5
         with:
-          # A token in RELEASE_PLEASE_TOKEN lets CI run on the release pull
-          # request; GitHub's own token can't start other workflows.
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          token: ${{ env.GH_TOKEN }}
+          skip-github-release: true
+
+      # Merges it straight away, so no one has to.
+      - if: steps.pr.outputs.pr
+        env:
+          NUMBER: ${{ fromJSON(steps.pr.outputs.pr).number }}
+        run: gh pr merge "$NUMBER" --repo "$GITHUB_REPOSITORY" --squash --delete-branch
+
+      # Tags the merged release and publishes it on GitHub Releases.
+      - id: release
+        if: steps.pr.outputs.pr
+        uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ env.GH_TOKEN }}
+          skip-github-pull-request: true
+
+      - uses: actions/checkout@v4
+        if: steps.release.outputs.release_created
+        with:
+          fetch-depth: 0
+          token: ${{ env.GH_TOKEN }}
+
+      # Brings the release commit back to dev: a fast-forward when dev hasn't
+      # moved since, a merge commit when it has. A conflict fails here, and
+      # main then needs merging into dev by hand.
+      - name: Sync dev
+        if: steps.release.outputs.release_created
+        run: |
+          git fetch origin main dev
+          if git merge-base --is-ancestor origin/dev origin/main; then
+            git push origin origin/main:refs/heads/dev
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git switch --create dev origin/dev
+            git merge --no-ff origin/main -m "chore: merge main into dev after release"
+            git push origin dev
+          fi
