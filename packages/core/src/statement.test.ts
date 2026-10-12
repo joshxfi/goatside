@@ -212,7 +212,17 @@ describe("readAmount", () => {
     expect(readAmount(input)).toBe(cents)
   })
 
+  it("reads a credit or debit mark as money in or out of the account", () => {
+    expect(readAmount("1,805.00 CR")).toBe(180_500)
+    expect(readAmount("500.00 DR")).toBe(-50_000)
+    // A card prints money in (a payment) as a negative amount.
+    expect(readAmount("1,805.00C", "credit_card")).toBe(-180_500)
+    expect(readAmount("23,815.55 C", "credit_card")).toBe(-2_381_555)
+    expect(readAmount("500.00 Dr", "credit_card")).toBe(50_000)
+  })
+
   it.each([
+    "- 5.00 CR",
     "2026",
     "1234",
     "1,234",
@@ -250,6 +260,18 @@ describe("readDate", () => {
     expect(readDateParts("Sep 30, 3:53 pm")).toEqual({ month: 9, day: 30 })
     // The hour isn't a two-digit year.
     expect(readDate("1 Sep, 02:51 AM")).toBeNull()
+  })
+
+  it("reads numeric dates only in a given order", () => {
+    expect(readDateParts("08/11", false)).toEqual({ month: 8, day: 11 })
+    expect(readDateParts("08/11", true)).toEqual({ month: 11, day: 8 })
+    expect(readDateParts("11/08/2026", true)).toEqual({
+      year: 2026,
+      month: 8,
+      day: 11,
+    })
+    expect(readDateParts("13/08", false)).toBeNull()
+    expect(readDateParts("08/11")).toBeNull()
   })
 
   it.each(["31 Feb 2026", "07/11/2026", "Outbound", "12 Foo 2026"])(
@@ -586,6 +608,83 @@ function savingsStatement(): StatementLine[] {
   ]
 }
 
+// A card statement whose rows share a page with a column of reminders,
+// so each row line starts with text from the other column. Numeric dates,
+// the posting date first, and payments marked with a C.
+function twoColumnCard(): StatementLine[] {
+  const row = (
+    y: number,
+    left: string | null,
+    post: string,
+    tran: string,
+    details: string,
+    amount: string
+  ) =>
+    line(
+      1,
+      y,
+      ...(left ? [text(14, left)] : []),
+      text(158, post),
+      text(182, tran),
+      text(209, details),
+      num(473, amount)
+    )
+  return [
+    line(1, 664, text(283, "9 September 2026"), text(385, "30 September 2026")),
+    line(
+      1,
+      746,
+      text(14, "currency of the issued card. Your due date"),
+      text(158, "Post"),
+      text(182, "Tran"),
+      text(209, "Description"),
+      text(454, "Amount")
+    ),
+    line(1, 738, text(158, "Date"), text(182, "Date")),
+    line(
+      1,
+      731,
+      text(14, "is at least 16 days after the cut-off."),
+      text(252, "Previous Balance"),
+      num(473, "1,000.00")
+    ),
+    row(
+      704,
+      "Pay on time to avoid a late fee.",
+      "08/11",
+      "08/08",
+      "SAMPLE GROCER CITY PHL",
+      "1,250.00"
+    ),
+    row(696, null, "08/12", "08/11", "SAMPLE COFFEE CITY PHL", "180.00"),
+    row(
+      688,
+      "Interest is charged on the balance",
+      "08/14",
+      "08/13",
+      "CASH PAYMENT - THANK YOU",
+      "1,000.00C"
+    ),
+    row(680, null, "08/21", "08/19", "SAMPLE STORE CITY PHL", "2,090.50"),
+    row(
+      672,
+      "from the cut-off date.",
+      "09/02",
+      "09/01",
+      "CASH PAYMENT - THANK YOU",
+      "2,020.50 C"
+    ),
+    line(
+      1,
+      660,
+      text(14, "Paying less than the total amount due will"),
+      text(295, "TOTAL AMOUNT DUE"),
+      num(473, "1,500.00")
+    ),
+    line(1, 650, text(14, "increase the interest you pay.")),
+  ]
+}
+
 describe("readStatement: other layouts", () => {
   it("reads a single signed amount column", () => {
     const result = readStatement(signed("-180.00"), { kind: "bank" })
@@ -700,6 +799,23 @@ describe("readStatement: other layouts", () => {
       ends: "pass",
       period: "pass",
     })
+  })
+
+  it("reads a two-column page with numeric dates and credit marks", () => {
+    const result = readStatement(twoColumnCard(), { kind: "credit_card" })
+    expect(result.problem).toBeUndefined()
+    expect(result.ok).toBe(true)
+    expect(result.summary).toEqual({ opening: 100_000, closing: 150_000 })
+    expect(
+      result.rows.map((r) => [r.localDate, r.postedDate, r.amount, r.details])
+    ).toEqual([
+      ["2026-08-08", "2026-08-11", -125_000, "SAMPLE GROCER CITY PHL"],
+      ["2026-08-11", "2026-08-12", -18_000, "SAMPLE COFFEE CITY PHL"],
+      ["2026-08-13", "2026-08-14", 100_000, "CASH PAYMENT - THANK YOU"],
+      ["2026-08-19", "2026-08-21", -209_050, "SAMPLE STORE CITY PHL"],
+      ["2026-09-01", "2026-09-02", 202_050, "CASH PAYMENT - THANK YOU"],
+    ])
+    expect(result.check).toMatchObject({ ends: "pass" })
   })
 
   it("says so when there are no rows at all", () => {
