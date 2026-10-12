@@ -63,7 +63,7 @@ function Home() {
         <MonthHeader month={data.month} today={data.today} viewer={viewer}>
           {/* One instance: a header bar on desktop, the bottom dock on phones. */}
           <Composer view={data} onAsk={ask}>
-            <Questions view={data} viewKey={m} onMore={setSelected} />
+            <Questions view={data} viewKey={m} />
           </Composer>
         </MonthHeader>
       </div>
@@ -99,7 +99,7 @@ function Home() {
         <div className="hidden lg:flex lg:flex-col lg:gap-4">
           {/* Stays mounted so the last card can leave; hidden once empty. */}
           <div className="max-w-2xl empty:hidden">
-            <Questions view={data} viewKey={m} onMore={setSelected} />
+            <Questions view={data} viewKey={m} />
           </div>
           <KpiRow view={data} />
           <AccountsStrip view={data} />
