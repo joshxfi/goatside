@@ -81,7 +81,6 @@ Open findings from the 2026-10-11 audit. Fix them with a failing test first.
   Settle button caps, and the drawer and agent refuse. The owner hasn't decided between
   cap, ask, or settle-plus-new-IOU yet.
 - Client outbox races (`lib/outbox.ts`): undo during a send, two tabs, endless retries.
-- Read and write ask tools match accounts differently (nicknames).
 - `monthView` makes 5 sequential DB round trips; there's no index on
   `transactions.entry_id` or `created_at`.
 - The demo seed's split bills have no `entry_id`, so split features don't show on demo

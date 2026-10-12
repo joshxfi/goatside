@@ -11,8 +11,10 @@ import { Button } from "@workspace/ui/components/button"
 import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
 import {
+  type EditBefore,
   deleteTransactions,
   restoreTransactions,
+  undoEdits,
   undoRecategorize,
 } from "@/server/ledger"
 import {
@@ -31,6 +33,7 @@ export const ACTION_TITLES: Record<string, string> = {
   addAccount: "Add an account",
   setAccountBalance: "Correct a balance",
   moveToAccount: "File under an account",
+  editEntries: "Change entries",
 }
 
 type Undo =
@@ -46,6 +49,7 @@ type Undo =
       kind: "refileAccounts"
       changes: { id: string; accountId: string | null }[]
     }
+  | { kind: "edits"; changes: EditBefore[] }
 
 interface Output {
   done: boolean
@@ -97,6 +101,10 @@ export function AgentAction({
         })
       if (action.kind === "refileAccounts")
         await undoMoveToAccount({ data: { changes: action.changes } })
+      if (action.kind === "edits") {
+        const result = await undoEdits({ data: { changes: action.changes } })
+        if (!result.ok) throw new Error(result.message)
+      }
       setUndone(true)
       await refresh()
       toast("Undone.")
