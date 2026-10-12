@@ -292,11 +292,12 @@ async function planEdits(
       continue
     }
 
-    if (input.description) {
+    // The model often repeats what's already there; only list real changes.
+    if (input.description && input.description !== row.description) {
       edit.description = input.description
       after.push(`called "${input.description}"`)
     }
-    if (input.date) {
+    if (input.date && input.date !== row.localDate) {
       edit.localDate = input.date
       after.push(`dated ${input.date}`)
     }

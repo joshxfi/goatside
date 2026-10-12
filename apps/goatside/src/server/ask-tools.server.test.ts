@@ -299,6 +299,24 @@ describe("editEntries", () => {
       reason: expect.stringContaining("split bill"),
     })
   })
+
+  it("doesn't list a description or date the entry already has", async () => {
+    await addPersonRow("Nini")
+    const coffee = await log("-135 iced coffee")
+    const id = coffee.transactionIds[0] as string
+    const { description, localDate } = await row(id)
+    const confirm = await approve("editEntries", {
+      ids: [id],
+      type: "lent",
+      person: "Nini",
+      description,
+      date: localDate,
+    })
+    expect(confirm).toMatchObject({ type: "user-approval" })
+    expect(confirm.reason).toContain("now lent to Nini")
+    expect(confirm.reason).not.toContain("called")
+    expect(confirm.reason).not.toContain("dated")
+  })
 })
 
 describe("write filters", () => {
