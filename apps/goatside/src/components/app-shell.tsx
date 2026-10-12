@@ -278,6 +278,7 @@ export function PageHeader({
       </div>
       <div className="flex items-center gap-2">
         {action}
+        <AskButton />
         <AccountMenu viewer={viewer} className="lg:hidden" />
       </div>
     </header>
@@ -353,6 +354,24 @@ export function TabBar() {
         ))}
       </ul>
     </nav>
+  )
+}
+
+/** Phone shortcut to the agent, so the current chat is one tap away. */
+export function AskButton() {
+  const { ask } = useAgent()
+  return (
+    <button
+      type="button"
+      aria-label="Ask Goatside"
+      onClick={() => ask()}
+      className={cn(
+        buttonVariants({ variant: "ghost", size: "icon-lg" }),
+        "rounded-full active:scale-[0.97] lg:hidden"
+      )}
+    >
+      <MessageCircleQuestionMarkIcon />
+    </button>
   )
 }
 
