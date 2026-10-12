@@ -13,11 +13,10 @@ import {
   tool,
   validateUIMessages,
 } from "ai"
-import { and, between, desc, eq, inArray, isNull, sql } from "drizzle-orm"
+import { and, between, eq, inArray, isNull, sql } from "drizzle-orm"
 import { z } from "zod"
 import { askInstructions } from "@workspace/ai/ask"
 import { DEFAULT_TIME_ZONE, todayIn } from "@workspace/core/dates"
-import { formatMoney } from "@workspace/core/money"
 import { type Db, schema } from "@workspace/db"
 import { ACCOUNT_KIND_LABELS } from "@workspace/core/accounts"
 import { accountBook } from "./agent.server"
@@ -28,15 +27,23 @@ import {
   approvalSecret,
 } from "./ask-actions.server"
 import { peopleTools } from "./ask-people.server"
+import {
+  FILTER,
+  entryRows,
+  entrySummary,
+  entryTotals,
+  entryWhere,
+  money,
+} from "./ask-search.server"
 import { serverEnv } from "./env"
 import { getDb } from "./services"
 import { loadCurrency } from "./settings.server"
 
-const { accounts, categories, settings, transactions } = schema
+const { categories, settings, transactions } = schema
 
 /** Keep requests small: the agent only needs the recent conversation. */
 const MAX_MESSAGES = 12
-const MAX_ROWS = 25
+const MAX_ROWS = 40
 
 const DATE = z
   .string()
@@ -47,11 +54,7 @@ const DIRECTION = z
   .default("both")
   .describe("out = spending, in = money received")
 
-const money = (cents: number) => ({
-  value: Math.round(cents) / 100,
-  text: formatMoney(cents),
-})
-
+/** Spending and income rows for totals; transfers and IOUs aren't either. */
 async function ledgerRows(
   db: Db,
   {
@@ -59,29 +62,23 @@ async function ledgerRows(
     to,
     direction,
     category,
-    text,
-    account,
+    accountId,
   }: {
     from: string
     to: string
     direction: "out" | "in" | "both"
     category?: string
-    text?: string
-    account?: string
+    accountId?: string
   }
 ) {
   return db
     .select({
-      id: transactions.id,
       amount: transactions.amount,
       localDate: transactions.localDate,
-      description: transactions.description,
       categoryName: categories.name,
-      accountName: accounts.name,
     })
     .from(transactions)
     .leftJoin(categories, eq(categories.id, transactions.categoryId))
-    .leftJoin(accounts, eq(accounts.id, transactions.accountId))
     .where(
       and(
         isNull(transactions.deletedAt),
@@ -95,21 +92,17 @@ async function ledgerRows(
         category
           ? sql`lower(coalesce(${categories.name}, 'uncategorized')) = ${category.trim().toLowerCase()}`
           : undefined,
-        text
-          ? sql`lower(${transactions.description}) like ${`%${text.trim().toLowerCase()}%`}`
-          : undefined,
-        account
-          ? sql`lower(${accounts.name}) = ${account.trim().toLowerCase()}`
-          : undefined
+        accountId ? eq(transactions.accountId, accountId) : undefined
       )
     )
-    .orderBy(desc(transactions.localDate), desc(transactions.createdAt))
 }
 
 const ACCOUNT = z
   .string()
   .optional()
-  .describe("Only entries paid from or received in this account, by name")
+  .describe(
+    "Only entries paid from or received in this account, by name, nickname or last four digits"
+  )
 
 function ledgerTools(db: Db) {
   return {
@@ -158,12 +151,18 @@ function ledgerTools(db: Db) {
         account: ACCOUNT,
       }),
       execute: async ({ from, to, groupBy, direction, category, account }) => {
+        let accountId: string | undefined
+        if (account) {
+          const found = await entryWhere(db, { account })
+          if ("problem" in found) return { problem: found.problem }
+          accountId = found.accountId
+        }
         const rows = await ledgerRows(db, {
           from,
           to,
           direction,
           category,
-          account,
+          accountId,
         })
         let out = 0
         let income = 0
@@ -214,53 +213,36 @@ function ledgerTools(db: Db) {
     }),
     findTransactions: tool({
       description:
-        "Individual transactions in a date range, filtered by text, category or direction. Use it for 'what did I buy', 'biggest expense', or 'when did I last pay X'.",
-      inputSchema: z.object({
-        from: DATE,
-        to: DATE,
-        direction: DIRECTION,
-        category: z.string().optional().describe("Category name"),
-        text: z
-          .string()
-          .optional()
-          .describe("Words to find in the description, e.g. a shop or person"),
-        account: ACCOUNT,
-        sort: z.enum(["newest", "largest"]).default("newest"),
-        limit: z.number().int().min(1).max(MAX_ROWS).default(10),
+        "Find entries of any kind: spending, income, transfers between accounts (card payments too), IOUs and repayments. Filter by any mix of dates, words, amount, account, category, person or kind; leave dates out to search all of them. Use it for 'what did I buy', 'biggest expense', 'when did I last pay X', 'what's on my card', and to get the ids of entries to change.",
+      inputSchema: FILTER.omit({ ids: true }).extend({
+        sort: z.enum(["newest", "oldest", "largest"]).default("newest"),
+        limit: z.number().int().min(1).max(MAX_ROWS).default(15),
       }),
-      execute: async ({
-        from,
-        to,
-        direction,
-        category,
-        text,
-        account,
-        sort,
-        limit,
-      }) => {
-        const rows = await ledgerRows(db, {
-          from,
-          to,
-          direction,
-          category,
-          text,
-          account,
-        })
-        const sorted =
-          sort === "largest"
-            ? rows.toSorted((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
-            : rows
+      execute: async ({ sort, limit, ...filter }) => {
+        let found = await entryWhere(db, filter)
+        if ("problem" in found) return { matches: 0, problem: found.problem }
+        let totals = await entryTotals(db, found.where, found.accountId)
+        // No entry has every word: show ones with some of them, flagged.
+        let loose = false
+        if (!totals.count && filter.text && filter.text.trim().includes(" ")) {
+          const some = await entryWhere(db, filter, { looseText: true })
+          if (!("problem" in some)) {
+            found = some
+            totals = await entryTotals(db, some.where, some.accountId)
+            loose = totals.count > 0
+          }
+        }
+        const rows = await entryRows(db, found.where, { sort, limit })
         return {
-          matches: rows.length,
-          total: money(rows.reduce((sum, r) => sum + r.amount, 0)),
-          transactions: sorted.slice(0, limit).map((r) => ({
-            id: r.id,
-            date: r.localDate,
-            description: r.description,
-            amount: money(r.amount),
-            category: r.categoryName ?? "Uncategorized",
-            ...(r.accountName && { account: r.accountName }),
-          })),
+          matches: totals.count,
+          ...(loose && {
+            note: "No entry has every word; these have some of them. Check they're the right ones.",
+          }),
+          ...(totals.count > rows.length && {
+            showing: rows.length,
+          }),
+          net: money(totals.net),
+          transactions: rows.map(entrySummary),
         }
       },
     }),
@@ -306,6 +288,7 @@ export async function askAgent(db: Db) {
       accounts: book.known.map((a) => ({
         name: a.name,
         kind: a.kind,
+        aliases: a.aliases,
         isDefault: a.id === book.defaultAccountId,
       })),
     }),
@@ -347,7 +330,7 @@ export async function answerAsk(body: unknown) {
     ...agent,
     messages: await convertToModelMessages(validated),
     experimental_toolApprovalSecret: approvalSecret(),
-    stopWhen: isStepCount(6),
+    stopWhen: isStepCount(8),
     reasoning: "none",
     maxOutputTokens: 800,
   })

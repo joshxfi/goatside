@@ -55,6 +55,7 @@ const WRITES = [
   "deleteEntries",
   "moveToCategory",
   "moveToAccount",
+  "editEntries",
   "addAccount",
   "setAccountBalance",
 ]
@@ -247,6 +248,39 @@ const SCENARIOS: Scenario[] = [
           )
         )
       return moved.length ? `${moved.length} grabfood entries moved` : null
+    },
+  },
+  {
+    name: "card payments",
+    // Paying the card is a transfer, which the search used to skip.
+    turns: ["when did I last pay my BPI card?"],
+    expect: [{ tool: "findTransactions", input: { account: "card" } }],
+  },
+  {
+    name: "retype as transfer",
+    turns: [
+      "+3000 refund via BPI Card",
+      "that 3000 refund on my card was really me paying the card from BPI Savings, make it a transfer",
+    ],
+    expect: [
+      {
+        tool: "editEntries",
+        input: { type: "transfer", fromAccount: "savings" },
+      },
+    ],
+    check: async (db) => {
+      const [refund] = await db
+        .select({ kind: schema.transactions.kind })
+        .from(schema.transactions)
+        .where(
+          and(
+            isNull(schema.transactions.deletedAt),
+            like(schema.transactions.description, "refund%")
+          )
+        )
+      return refund?.kind === "transfer"
+        ? null
+        : `refund is ${refund?.kind ?? "missing"}`
     },
   },
   {

@@ -618,7 +618,12 @@ const sameList = (a: string[], b: string[]) =>
  * "lent" is all theirs, "just me" is all yours. Changing any of them
  * re-plans the line; your row keeps its id, questions and history.
  */
-export async function editTransaction(data: {
+export async function editTransaction(data: EditInput) {
+  const write = await prepareEdit(data)
+  await write?.()
+}
+
+export interface EditInput {
   id: string
   categoryId?: string | null
   description?: string
@@ -635,7 +640,15 @@ export async function editTransaction(data: {
   recurring?: boolean
   /** Who a repayment, or one person's share of a split, is with. */
   personId?: string
-}) {
+}
+
+/**
+ * Checks an edit and works out every row it touches, without writing.
+ * Throws `EditError` when the edit doesn't fit; returns null when nothing
+ * would change, or the write to run. The agent's confirm card uses this to
+ * refuse before the owner approves.
+ */
+export async function prepareEdit(data: EditInput) {
   const db = getDb()
   const current = await db.query.transactions.findFirst({
     where: and(eq(transactions.id, data.id), isNull(transactions.deletedAt)),
@@ -841,8 +854,56 @@ export async function editTransaction(data: {
         }))
       : []
   const plannedOthers = reshaped || parts !== null
-  if (!Object.keys(changes).length && !plannedOthers) return
+  if (!Object.keys(changes).length && !plannedOthers) return null
 
+  return () =>
+    writeEdit(db, data.id, {
+      current,
+      changes,
+      others,
+      theirs,
+      accountId,
+      type,
+      was,
+      reshaped,
+      who,
+      wasPeople,
+      whole,
+      size,
+    })
+}
+
+async function writeEdit(
+  db: Db,
+  id: string,
+  {
+    current,
+    changes,
+    others,
+    theirs,
+    accountId,
+    type,
+    was,
+    reshaped,
+    who,
+    wasPeople,
+    whole,
+    size,
+  }: {
+    current: Row
+    changes: Partial<NewRow>
+    others: Row[]
+    theirs: { personId: string; amount: number | null }[]
+    accountId: string | null
+    type: EntryType
+    was: EntryType
+    reshaped: boolean
+    who: string[]
+    wasPeople: string[]
+    whole: number
+    size: number
+  }
+) {
   // New rows of a line need an entry to belong to.
   let entryId = current.entryId
   if (theirs.length > others.length && !entryId) {
@@ -856,7 +917,7 @@ export async function editTransaction(data: {
     entryId = changes.entryId = entry?.id ?? null
   }
 
-  await db.update(transactions).set(changes).where(eq(transactions.id, data.id))
+  await db.update(transactions).set(changes).where(eq(transactions.id, id))
 
   // Keep the others' rows in step: same wording, date and account as yours.
   const line = {
@@ -904,9 +965,9 @@ export async function editTransaction(data: {
 
   // Open questions still read the old line; give them the new one.
   if (changes.amount !== undefined)
-    await rescaleQuestions(db, data.id, { amount: whole, share: size })
+    await rescaleQuestions(db, id, { amount: whole, share: size })
   // Answered by hand: the owner picked these, so stop asking.
-  await resolveQuestionsFor(db, data.id, [
+  await resolveQuestionsFor(db, id, [
     ...(changes.categoryId !== undefined || type !== was
       ? (["category"] as const)
       : []),
@@ -918,14 +979,14 @@ export async function editTransaction(data: {
     (field) => field !== "entryId"
   )
   const history: (typeof corrections.$inferInsert)[] = changed.map((field) => ({
-    transactionId: data.id,
+    transactionId: id,
     field,
     fromValue: stringOf(current[field as keyof Row]),
     toValue: stringOf(changes[field]),
   }))
   if (!sameList(who, wasPeople) && type === "expense")
     history.push({
-      transactionId: data.id,
+      transactionId: id,
       field: "people",
       fromValue: wasPeople.join(","),
       toValue: who.join(","),

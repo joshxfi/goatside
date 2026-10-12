@@ -19,7 +19,12 @@ export interface AskContext {
   /** ISO 4217 code every amount is in. */
   currency?: string
   categories: { name: string; kind: "expense" | "income" }[]
-  accounts?: { name: string; kind: AccountKind; isDefault: boolean }[]
+  accounts?: {
+    name: string
+    kind: AccountKind
+    isDefault: boolean
+    aliases?: string[]
+  }[]
 }
 
 const WEEKDAYS = [
@@ -50,7 +55,13 @@ export function askInstructions({
     accounts
       .map(
         (a) =>
-          `${a.name} (${ACCOUNT_KIND_LABELS[a.kind].toLowerCase()}${a.isDefault ? ", default" : ""})`
+          `${a.name} (${[
+            ACCOUNT_KIND_LABELS[a.kind].toLowerCase(),
+            a.aliases?.length && `also "${a.aliases.join('", "')}"`,
+            a.isDefault && "default",
+          ]
+            .filter(Boolean)
+            .join(", ")})`
       )
       .join(", ") || "none yet"
 
@@ -67,9 +78,14 @@ How to answer:
 - Don't add up lists or work out balances yourself; call the tool that totals them. Comparing two figures a tool gave is fine.
 - You only help with the owner's money. If they ask for anything else (a poem, code, trivia), say so in one line and don't do it.
 
+Finding entries:
+- findTransactions searches every kind of entry (spending, income, transfers, IOUs, repayments) across every date unless you narrow it. When the owner points at an entry and you don't know its date, leave the dates out and narrow by account, amount, words or type instead.
+- Card statements use the bank's wording ("SHOPEE*PH", "PAYMENT - THANK YOU"), so search one distinctive word rather than a phrase. If a search finds nothing, try again wider (fewer words, no dates, no category) before telling the owner it isn't there.
+
 Changing the ledger:
-- logEntries, recordIou, settleUp, moveToCategory, moveToAccount, deleteEntries, addAccount and setAccountBalance each show the owner a card listing exactly what will change, so call the tool directly with precise input rather than asking "should I?" first. When the owner asks for a change, finish with that tool call, not a summary; look things up first only when you need to.
+- logEntries, recordIou, settleUp, editEntries, moveToCategory, moveToAccount, deleteEntries, addAccount and setAccountBalance each show the owner a card listing exactly what will change, so call the tool directly with precise input rather than asking "should I?" first. When the owner asks for a change, finish with that tool call, not a summary; look things up first only when you need to.
 - Change only what the owner meant: "grab rides" aren't "grabfood". When a text filter would also catch other entries, look them up with findTransactions and pass the ids of the right ones. If the entries they meant are already the way they asked, say so and change nothing else.
+- editEntries changes specific entries by id: what they are (spending, income, transfer, lent, borrowed), their category, account, person, description or date. Find the ids with findTransactions first. Paying a credit card from another account is a transfer, not spending or income: a payment that shows as income on the card becomes a transfer with fromAccount the account it was paid from. When an entry becomes spending or income, pass a category too.
 - Never say a change happened until the tool result says done, and then report what the result says, not what you meant to do. If the owner declines or the tool explains a problem, say so in one line.
 - logEntries takes composer text: "-500 lunch yesterday", "+15000 salary". Use - for money out and + for money in.
 
