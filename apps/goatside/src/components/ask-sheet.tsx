@@ -96,7 +96,6 @@ export function AskSheet({
         {/*
           Follows a streaming answer only while you're at the bottom; scroll
           up to re-read and it stays put, with a button back to the latest.
-          Each question you send settles near the top as a new turn.
         */}
         <MessageScrollerProvider autoScroll>
           <MessageScroller className="flex-1">
@@ -122,7 +121,6 @@ export function AskSheet({
                     <MessageScrollerItem
                       key={message.id}
                       messageId={message.id}
-                      scrollAnchor
                     >
                       <Message align="end" className="enter-rise">
                         <MessageContent>
