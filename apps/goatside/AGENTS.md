@@ -33,6 +33,12 @@ TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter app eval:ask
   (`MAX_CENTS`). An expected refusal throws a typed error (`EditError`,
   `AccountError`, …) that the wrapper turns into `{ ok: false, message }`; anything else
   throws.
+- **Setup check**: `getViewer` runs `checkSetup` (`setup.server.ts`) first and redirects
+  to `/setup` when env vars are missing, the database can't be opened, or shipped
+  migrations haven't run. It caches a pass for the server's lifetime. `getSetupProblem`
+  is the one server function besides `getViewer` without `authMiddleware`, since the
+  owner can't sign in yet; it names variables and counts migrations, never values or
+  raw errors.
 - **Keep request-scoped APIs (cookies, headers) in the wrappers**, never in
   `*.server.ts`, or the tests can't import them.
 - **Logging goes through `saveLines`**, which writes the entry, its rows and its questions

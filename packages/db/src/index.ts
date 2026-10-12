@@ -40,3 +40,8 @@ export async function seedDefaults(db: Db) {
 }
 
 export { schema }
+export {
+  MIGRATIONS,
+  pendingMigrations,
+  type ShippedMigration,
+} from "./migrations"

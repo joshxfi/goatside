@@ -9,6 +9,7 @@ import {
   getRequestIP,
   setCookie,
 } from "@tanstack/react-start/server"
+import { redirect } from "@tanstack/react-router"
 import { type SQL, and, count, eq, gte, lt } from "drizzle-orm"
 import {
   DEVICE_COOKIE,
@@ -23,6 +24,7 @@ import {
 import { schema, seedDefaults } from "@workspace/db"
 import { aiEnabled, authConfig, getDb } from "./services"
 import { loadCurrency } from "./settings.server"
+import { checkSetup } from "./setup.server"
 
 const RENEW_WHEN_LEFT_MS = 15 * 24 * 60 * 60 * 1000
 const THROTTLE_WINDOW_MS = 15 * 60 * 1000
@@ -65,8 +67,12 @@ async function hasSession(): Promise<boolean> {
   return true
 }
 
-/** The owner's username if signed in, otherwise null. Used by route guards. */
+/**
+ * The owner's username if signed in, otherwise null. Used by route guards,
+ * so a deploy that can't run yet sends every page to /setup instead.
+ */
 export const getViewer = createServerFn().handler(async () => {
+  if (await checkSetup()) throw redirect({ to: "/setup" })
   return (await hasSession())
     ? {
         username: authConfig().username,
