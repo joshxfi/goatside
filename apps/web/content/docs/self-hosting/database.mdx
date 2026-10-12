@@ -8,22 +8,62 @@ migrations are written with [Drizzle](https://orm.drizzle.team) and live in `pac
 
 ## Migrations
 
-Your fork's GitHub Actions can apply migrations for you. Add your database URL and token
-as secrets on your fork, under **Settings → Secrets and variables → Actions**:
+Vercel doesn't migrate the database, so an update that changes the tables needs its
+migrations run too. You can run them from GitHub Actions or from your computer. If a
+deploy is ahead of its database, Goatside opens on a page that says how many migrations
+haven't run, instead of failing on every page.
 
-| Secret               | Value                                   |
-| -------------------- | --------------------------------------- |
-| `TURSO_DATABASE_URL` | `libsql://goatside-<you>.turso.io`      |
-| `TURSO_AUTH_TOKEN`   | the token from `turso db tokens create` |
+### Your URL and token
 
-Then every push to `main` runs the checks and, once they pass, applies any new
-migrations. Without the secrets, that step is skipped and nothing else changes.
+Both ways need your database's URL and token.
+
+<Tabs groupId="database" persist items={["Vercel Marketplace", "Turso directly"]}>
+<Tab value="Vercel Marketplace">
+
+They're your Vercel project's `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`. In the
+project, open **Storage** and select the database to see them. Or copy them into your
+clone with the Vercel CLI:
+
+```sh
+cd apps/goatside
+vercel link    # first time only
+vercel env pull .env.production.local --environment=production
+```
+
+Delete that file once you've used the values. Git ignores it, but it holds your
+production token.
+
+</Tab>
+<Tab value="Turso directly">
+
+```sh
+turso db show goatside --url
+turso db tokens create goatside
+```
+
+</Tab>
+</Tabs>
+
+### With GitHub Actions
+
+Your fork can apply migrations on every push to `main`, once the checks pass.
+
+1. Open your fork's **Actions** tab and enable workflows. GitHub turns them off on
+   new forks, and until you do, nothing runs.
+2. Under **Settings → Secrets and variables → Actions**, add `TURSO_DATABASE_URL` and
+   `TURSO_AUTH_TOKEN` as repository secrets.
+
+To migrate without pushing, open **CI** on the **Actions** tab and choose **Run
+workflow** on `main`. Without the secrets, the migrate job skips its work and leaves a
+notice on the run.
 
 Vercel deploys the same push on its own and can finish first. Until the migration lands,
-usually a minute or two, anything that needs the new tables or columns can fail. If an
-update adds a migration and you'd rather avoid that, run it by hand before you push.
+usually a minute or two, Goatside shows that it's waiting for it and checks again every
+15 seconds. If you'd rather avoid that, run the migration by hand before you push.
 
-To run migrations by hand, from your clone:
+### From your computer
+
+From your clone:
 
 ```sh
 TURSO_DATABASE_URL=libsql://goatside-<you>.turso.io \
@@ -69,8 +109,8 @@ TURSO_DATABASE_URL=http://127.0.0.1:8090 pnpm --filter @workspace/db demo
 ## Backups
 
 Your ledger is only in your database, so keep a copy. Turso keeps point-in-time history
-you can restore from, and how far back depends on your plan. You can also export the
-database as a SQLite file at any time:
+you can restore from, and how far back depends on your plan. With the Turso CLI, you can
+also export the database as a SQLite file at any time:
 
 ```sh
 turso db export goatside

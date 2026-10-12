@@ -3,19 +3,27 @@ title: Deploy to Vercel
 description: Put your own Goatside on Vercel with a Turso database, step by step.
 ---
 
-A Goatside deploy is one Vercel project, built from `apps/goatside`, and one Turso database.
-You'll need a [GitHub](https://github.com), [Vercel](https://vercel.com) and
-[Turso](https://turso.tech) account, Node 24 or newer and
-[pnpm](https://pnpm.io) on your computer, and the
-[Turso CLI](https://docs.turso.tech/cli).
+A Goatside deploy is one Vercel project, built from `apps/goatside`, and one
+[Turso](https://turso.tech) database. You'll need a [GitHub](https://github.com) and a
+[Vercel](https://vercel.com) account. Everything can be done in the browser. If you'd
+rather run the database setup from your computer, you also need Node 24 or newer and
+[pnpm](https://pnpm.io).
+
+You can create the database in two ways. Both give Goatside the same two variables, so
+the app doesn't care which one you pick.
+
+- **Vercel Marketplace.** Add Turso from your Vercel project's **Storage** tab. Vercel
+  bills it and sets the variables for you. No Turso account or CLI.
+- **Turso directly.** Create it with the [Turso CLI](https://docs.turso.tech/cli) on your
+  own Turso account, then paste the URL and token into Vercel.
 
 <Steps>
 <Step>
 
 ### Fork the repo
 
-[Fork goatside on GitHub](https://github.com/joshxfi/goatside/fork), then clone your fork
-and install its dependencies:
+[Fork goatside on GitHub](https://github.com/joshxfi/goatside/fork). To work from your
+computer too, clone your fork and install its dependencies:
 
 ```sh
 git clone https://github.com/<you>/goatside
@@ -29,9 +37,46 @@ Your fork is what Vercel deploys. Keeping it synced with this repo is how you
 </Step>
 <Step>
 
-### Create the database
+### Import it in Vercel
 
-Create a Turso database and a token for it:
+In Vercel, choose **Add New → Project** and import your fork. Set **Root Directory** to
+`apps/goatside`. Vercel detects TanStack Start and builds it with Nitro. Leave the other
+build settings as they are.
+
+Before you deploy, add these under **Environment Variables**:
+
+| Variable            | Value                                                              |
+| ------------------- | ------------------------------------------------------------------ |
+| `GOATSIDE_USERNAME` | The username you'll sign in with                                   |
+| `GOATSIDE_PASSWORD` | A password of 12 or more characters. The app lives on a public URL |
+| `SESSION_SECRET`    | 32 or more random characters. Run `openssl rand -base64 32`        |
+
+Then deploy. The app can't open until it has a database, so this first deploy is only
+there to create the project.
+
+</Step>
+<Step>
+
+### Add the database
+
+Pick a location close to where you live. Every request makes a few database calls, so
+distance shows up as lag.
+
+<Tabs groupId="database" persist items={["Vercel Marketplace", "Turso directly"]}>
+<Tab value="Vercel Marketplace">
+
+In your Vercel project, open **Storage**, choose **Create Database** and pick
+**Turso Cloud**. Name the database `goatside`, choose a plan and a region, and connect it
+to your project.
+
+Vercel adds `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` to the project's environment
+variables. Goatside reads those names, so there's nothing to rename.
+
+</Tab>
+<Tab value="Turso directly">
+
+Install the [Turso CLI](https://docs.turso.tech/cli), then create a database and a token
+for it:
 
 ```sh
 turso auth login
@@ -40,57 +85,54 @@ turso db show goatside --url          # libsql://goatside-<you>.turso.io
 turso db tokens create goatside
 ```
 
-Keep the URL and the token. They're your `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`.
+In your Vercel project, open **Settings → Environment Variables** and add:
+
+| Variable             | Value                             |
+| -------------------- | --------------------------------- |
+| `TURSO_DATABASE_URL` | The URL from `turso db show`      |
+| `TURSO_AUTH_TOKEN`   | The token from `turso db tokens…` |
+
+</Tab>
+</Tabs>
 
 </Step>
 <Step>
 
 ### Set up the tables
 
-From your clone, apply the migrations to the new database:
+Vercel doesn't migrate the database. Run the migrations from GitHub or from your
+computer. Both need the database's URL and token, and
+[Database](/docs/self-hosting/database#your-url-and-token) shows where to find them.
+
+<Tabs groupId="migrate" persist items={["GitHub Actions", "Your computer"]}>
+<Tab value="GitHub Actions">
+
+1. Open your fork's **Actions** tab and enable workflows. GitHub turns them off on new
+   forks.
+2. Under **Settings → Secrets and variables → Actions**, add `TURSO_DATABASE_URL` and
+   `TURSO_AUTH_TOKEN` as repository secrets.
+3. On the **Actions** tab, open **CI**, choose **Run workflow** on `main` and wait for it
+   to finish. Its `migrate` job sets up the tables.
+
+From then on, every push to `main` applies new migrations on its own.
+
+</Tab>
+<Tab value="Your computer">
+
+From your clone:
 
 ```sh
-TURSO_DATABASE_URL=libsql://goatside-<you>.turso.io \
+TURSO_DATABASE_URL=<url> \
 TURSO_AUTH_TOKEN=<token> \
 pnpm db:migrate
 ```
 
-To have later migrations applied for you, add `TURSO_DATABASE_URL` and
-`TURSO_AUTH_TOKEN` as Actions secrets on your fork, under **Settings → Secrets and
-variables → Actions**. Every push to `main` then applies new migrations once the
-checks pass. More in [Database](/docs/self-hosting/database#migrations).
+Run it again whenever an update adds a migration, or switch to GitHub Actions later.
 
-<Callout type="warn">
-  Vercel doesn't migrate the database. Without the secrets, run this again
-  whenever an update adds a migration.
-</Callout>
+</Tab>
+</Tabs>
 
-</Step>
-<Step>
-
-### Import it in Vercel
-
-In Vercel, choose **Add New → Project** and import your fork. Set **Root Directory** to
-`apps/goatside`. Vercel detects TanStack Start and builds it with Nitro. Leave the other build
-settings as they are.
-
-</Step>
-<Step>
-
-### Add your environment variables
-
-Before you deploy, add these under **Environment Variables**:
-
-| Variable             | Value                                                              |
-| -------------------- | ------------------------------------------------------------------ |
-| `GOATSIDE_USERNAME`  | The username you'll sign in with                                   |
-| `GOATSIDE_PASSWORD`  | A password of 12 or more characters. The app lives on a public URL |
-| `SESSION_SECRET`     | 32 or more random characters. Run `openssl rand -base64 32`        |
-| `TURSO_DATABASE_URL` | Your database URL from step 2                                      |
-| `TURSO_AUTH_TOKEN`   | Your token from step 2                                             |
-
-You don't need `AI_GATEWAY_API_KEY` on Vercel. See
-[Environment variables](/docs/self-hosting/environment) for everything Goatside reads.
+If you skip this, Goatside opens on a page that says the database has no tables yet.
 
 </Step>
 <Step>
@@ -107,10 +149,13 @@ Skip this and Goatside still works, without the agent. See
 </Step>
 <Step>
 
-### Deploy and sign in
+### Redeploy and sign in
 
-Deploy, open your project's URL and sign in with your username and password. Goatside
-adds the default categories the first time you sign in.
+Vercel applies new environment variables only to new deployments. Open
+**Deployments**, choose **Redeploy** on the latest one, and wait for it to finish.
+
+Open your project's URL and sign in with your username and password. Goatside adds the
+default categories the first time you sign in.
 
 Then [install it on your phone](/docs/guide/phone) and log your first entry.
 
@@ -119,7 +164,27 @@ Then [install it on your phone](/docs/guide/phone) and log your first entry.
 
 ## Pick a function region
 
-This step is optional. Each request makes a few database calls, so the app is fastest
-when its function runs near your database. In your Vercel project, open **Settings →
-Functions** and set the **Function Region** to the one closest to your Turso location.
-For Singapore, that's `sin1`.
+This step is optional. The app is fastest when its function runs near your database. In
+your Vercel project, open **Settings → Functions** and set the **Function Region** to the
+one closest to your database. For Singapore, that's `sin1`.
+
+## Preview deployments
+
+Vercel adds environment variables to every environment by default, so a preview
+deployment of another branch uses your real database. If you push branches to your fork,
+limit the Turso variables to **Production**, or give previews a second database.
+
+## If something's wrong
+
+Goatside checks its setup when a page loads. If it can't run, it shows what's missing
+instead of an error:
+
+- **Environment variables** that are missing or too short, by name. Fix them under
+  **Settings → Environment Variables**, then redeploy.
+- **The database can't be opened.** Check `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN`,
+  then redeploy. The function logs under **Logs** have the exact error.
+- **Migrations that haven't run.** Run them, then choose **Check again**. Right after an
+  update, GitHub Actions may still be migrating, so the page checks again on its own.
+
+A new password that doesn't work is a different problem. Changes to variables reach only
+new deployments, so the old password still applies until you redeploy.

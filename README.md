@@ -55,21 +55,21 @@ no analytics, no telemetry, no account with us. See
 
 ## Deploy your own
 
-You'll need GitHub, [Vercel](https://vercel.com) and [Turso](https://turso.tech)
-accounts, Node 24 or newer, [pnpm](https://pnpm.io) and the
-[Turso CLI](https://docs.turso.tech/cli).
+You'll need GitHub and [Vercel](https://vercel.com) accounts. Node 24 or newer and
+[pnpm](https://pnpm.io) are only needed to set up the database from your computer.
 
-1. [Fork the repo](https://github.com/joshxfi/goatside/fork), clone your fork and run
-   `pnpm install`.
-2. Create a database with `turso db create goatside`, then get its URL
-   (`turso db show goatside --url`) and a token (`turso db tokens create goatside`).
-3. Apply the migrations:
-   `TURSO_DATABASE_URL=<url> TURSO_AUTH_TOKEN=<token> pnpm db:migrate`.
-4. Import your fork in Vercel with **Root Directory** set to `apps/goatside`.
-5. Add `GOATSIDE_USERNAME`, `GOATSIDE_PASSWORD` (12 or more characters),
-   `SESSION_SECRET` (`openssl rand -base64 32`), `TURSO_DATABASE_URL` and
-   `TURSO_AUTH_TOKEN` as environment variables.
-6. Enable AI Gateway on your Vercel team, deploy and sign in.
+1. [Fork the repo](https://github.com/joshxfi/goatside/fork).
+2. Import your fork in Vercel with **Root Directory** set to `apps/goatside`, and add
+   `GOATSIDE_USERNAME`, `GOATSIDE_PASSWORD` (12 or more characters) and `SESSION_SECRET`
+   (`openssl rand -base64 32`) as environment variables.
+3. Add a [Turso](https://turso.tech) database. Either create one from your Vercel
+   project's **Storage** tab, which sets `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for
+   you, or create it with the [Turso CLI](https://docs.turso.tech/cli) and add those two
+   variables yourself.
+4. Apply the migrations. Either add the URL and token as Actions secrets on your fork and
+   run the CI workflow, or run
+   `TURSO_DATABASE_URL=<url> TURSO_AUTH_TOKEN=<token> pnpm db:migrate` from your clone.
+5. Enable AI Gateway on your Vercel team, redeploy and sign in.
 
 The [full guide](apps/web/content/docs/self-hosting/index.mdx) covers each step, plus
 [updating](apps/web/content/docs/self-hosting/updating.mdx), the

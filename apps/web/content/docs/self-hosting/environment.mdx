@@ -10,12 +10,12 @@ and fill it in. `vercel env pull` copies the values set on Vercel into that file
 
 ## Required
 
-| Variable             | What it is                                                                                              |
-| -------------------- | ------------------------------------------------------------------------------------------------------- |
-| `GOATSIDE_USERNAME`  | Your username. There's exactly one account.                                                             |
-| `GOATSIDE_PASSWORD`  | Your password, at least 12 characters.                                                                  |
-| `SESSION_SECRET`     | At least 32 characters, used to sign your sign-in cookies. Generate one with `openssl rand -base64 32`. |
-| `TURSO_DATABASE_URL` | Your database. `libsql://…` for Turso; locally, `http://127.0.0.1:8080` from `pnpm db:dev`.             |
+| Variable             | What it is                                                                                                                          |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `GOATSIDE_USERNAME`  | Your username. There's exactly one account.                                                                                         |
+| `GOATSIDE_PASSWORD`  | Your password, at least 12 characters.                                                                                              |
+| `SESSION_SECRET`     | At least 32 characters, used to sign your sign-in cookies. Generate one with `openssl rand -base64 32`.                             |
+| `TURSO_DATABASE_URL` | Your database. `libsql://…` for Turso; locally, `http://127.0.0.1:8080` from `pnpm db:dev`. The Vercel Marketplace sets it for you. |
 
 <Callout type="warn">
   Changing the username, password or session secret signs out every device. See
@@ -26,7 +26,7 @@ and fill it in. `vercel env pull` copies the values set on Vercel into that file
 
 | Variable             | Default                        | What it is                                                                                                                                 |
 | -------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `TURSO_AUTH_TOKEN`   |                                | Your Turso token. Needed for Turso; not for the local database.                                                                            |
+| `TURSO_AUTH_TOKEN`   |                                | Your Turso token. Needed for Turso, not for the local database. The Vercel Marketplace sets it for you.                                    |
 | `AI_GATEWAY_API_KEY` |                                | An AI Gateway key. Not needed on Vercel, where the project's OIDC token signs in. Needed locally or on another host for the agent to work. |
 | `DECISION_MODEL`     | `typesafe-ai/jev`              | The model that files entries. Any AI Gateway model ID.                                                                                     |
 | `CHAT_MODEL`         | `deepseek/deepseek-v4.1-flash` | The model that answers your questions. Any AI Gateway model ID.                                                                            |
