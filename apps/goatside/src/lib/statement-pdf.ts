@@ -29,25 +29,26 @@ export async function readPdfLines(
   password?: string
 ): Promise<StatementLine[]> {
   const pdfjs = await loadPdfjs()
-  let doc
+  const task = pdfjs.getDocument({
+    // pdf.js takes ownership of the buffer it's given.
+    data: bytes.slice(),
+    password,
+    verbosity: 0,
+  })
   try {
-    doc = await pdfjs.getDocument({
-      // pdf.js takes ownership of the buffer it's given.
-      data: bytes.slice(),
-      password,
-      verbosity: 0,
-    }).promise
-  } catch (error) {
-    // pdf.js doesn't export its PasswordException class.
-    if (error instanceof Error && error.name === "PasswordException") {
-      const { code } = error as Error & { code?: number }
-      throw new PasswordError(
-        code === pdfjs.PasswordResponses.INCORRECT_PASSWORD
-      )
+    let doc
+    try {
+      doc = await task.promise
+    } catch (error) {
+      // pdf.js doesn't export its PasswordException class.
+      if (error instanceof Error && error.name === "PasswordException") {
+        const { code } = error as Error & { code?: number }
+        throw new PasswordError(
+          code === pdfjs.PasswordResponses.INCORRECT_PASSWORD
+        )
+      }
+      throw error
     }
-    throw error
-  }
-  try {
     const lines: StatementLine[] = []
     for (let p = 1; p <= doc.numPages; p++) {
       const page = await doc.getPage(p)
@@ -72,7 +73,8 @@ export async function readPdfLines(
     }
     return lines
   } finally {
-    await doc.destroy()
+    // Ends the worker too, including after a password failure.
+    await task.destroy()
   }
 }
 
