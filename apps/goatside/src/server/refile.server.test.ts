@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest"
 import { eq } from "drizzle-orm"
 import { schema } from "@workspace/db"
 import { addPersonRow, liveRows, log, resetDb, row } from "../../test/helpers"
-import { createAccount } from "./accounts.server"
+import { createAccount, setDefaultAccount } from "./accounts.server"
 import { logText } from "./ledger.server"
 import { mergePeople } from "./people.server"
 import { answer } from "./questions.server"
@@ -38,7 +38,12 @@ describe("answering a relation question", () => {
   beforeEach(resetDb)
 
   it("files 'borrowed' to no account", async () => {
-    await createAccount({ name: "GCash", kind: "ewallet", balance: 0 })
+    const gcash = await createAccount({
+      name: "GCash",
+      kind: "ewallet",
+      balance: 0,
+    })
+    await setDefaultAccount(gcash.id)
     const entry = await log("-350 lunch")
     const own = entry.transactionIds[0]!
     expect((await row(own)).accountId).not.toBeNull()
@@ -60,6 +65,7 @@ describe("answering a relation question", () => {
       kind: "ewallet",
       balance: 0,
     })
+    await setDefaultAccount(gcash.id)
     const entry = await log("-350 lunch")
     const own = entry.transactionIds[0]!
     const q = await relationQuestion(own, 35000, {
