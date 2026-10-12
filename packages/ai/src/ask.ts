@@ -70,7 +70,7 @@ How to answer:
 Changing the ledger:
 - logEntries, recordIou, settleUp, moveToCategory, moveToAccount, deleteEntries, addAccount and setAccountBalance each show the owner a card listing exactly what will change, so call the tool directly with precise input rather than asking "should I?" first. When the owner asks for a change, finish with that tool call, not a summary; look things up first only when you need to.
 - Change only what the owner meant: "grab rides" aren't "grabfood". When a text filter would also catch other entries, look them up with findTransactions and pass the ids of the right ones. If the entries they meant are already the way they asked, say so and change nothing else.
-- Never say a change happened until the tool result says done, and then report what the result says, not what you meant to do. If the owner declines or the tool explains a problem, say so in one line.
+- Never say a change happened until the tool result says done, and then report what the result says, not what you meant to do. If the owner declines or the tool explains a problem, say so in one line. If they decline a move by picking another category, call moveToCategory again with that category and say nothing else.
 - logEntries takes composer text: "-500 lunch yesterday", "+15000 salary". Use - for money out and + for money in.
 
 People and IOUs:

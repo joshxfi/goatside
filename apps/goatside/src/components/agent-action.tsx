@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   type DynamicToolUIPart,
   type ToolUIPart,
@@ -10,6 +10,8 @@ import { CheckIcon, Undo2Icon, XIcon } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import { toast } from "@workspace/ui/components/sonner"
 import { cn } from "@workspace/ui/lib/utils"
+import { OtherCategories } from "@/components/category-choices"
+import { categoriesQuery } from "@/lib/queries"
 import {
   deleteTransactions,
   restoreTransactions,
@@ -47,6 +49,14 @@ type Undo =
       changes: { id: string; accountId: string | null }[]
     }
 
+/** What the owner can send back from a confirm card. */
+export interface ApprovalResponse {
+  id: string
+  approved: boolean
+  /** For the model: why it was declined, and what to do instead. */
+  reason?: string
+}
+
 interface Output {
   done: boolean
   message: string
@@ -67,12 +77,31 @@ export function AgentAction({
   onRespond,
 }: {
   part: ToolUIPart<UITools> | DynamicToolUIPart
-  onRespond: (response: { id: string; approved: boolean }) => void
+  onRespond: (response: ApprovalResponse) => void
 }) {
   const queryClient = useQueryClient()
   const [undone, setUndone] = useState(false)
-  const title = ACTION_TITLES[getToolName(part)] ?? "Change"
+  // The category the owner picked over the agent's, once they have.
+  const [instead, setInstead] = useState<string | null>(null)
+  const tool = getToolName(part)
+  const title = ACTION_TITLES[tool] ?? "Change"
   const approval = "approval" in part ? part.approval : undefined
+  const waiting =
+    part.state === "approval-requested" && approval && !approval.isAutomatic
+
+  // A move names its category; offer the rest, and a new one, in its place.
+  const moving = waiting && tool === "moveToCategory"
+  const { data: categoryList } = useQuery({
+    ...categoriesQuery(),
+    enabled: Boolean(moving),
+  })
+  const named = (part.input as { newCategory?: unknown } | undefined)
+    ?.newCategory
+  const active = categoryList?.categories.filter((c) => !c.archived) ?? []
+  const target =
+    moving && typeof named === "string"
+      ? active.find((c) => c.name.toLowerCase() === named.trim().toLowerCase())
+      : undefined
 
   const refresh = () =>
     Promise.all(
@@ -106,11 +135,7 @@ export function AgentAction({
   }
 
   // Waiting for the owner.
-  if (
-    part.state === "approval-requested" &&
-    approval &&
-    !approval.isAutomatic
-  ) {
+  if (waiting) {
     return (
       <div className="enter-rise flex flex-col gap-3 rounded-2xl border bg-card p-3.5">
         <div className="flex flex-col gap-1">
@@ -121,6 +146,24 @@ export function AgentAction({
             {approval.requestReason ?? "Goatside wants to make a change."}
           </p>
         </div>
+        {target && (
+          <div className="flex flex-wrap gap-2">
+            <OtherCategories
+              categories={active}
+              kind={target.kind}
+              exclude={[target.id]}
+              label="Another category…"
+              onPick={(c) => {
+                setInstead(`${c.emoji} ${c.name}`)
+                onRespond({
+                  id: approval.id,
+                  approved: false,
+                  reason: `The owner wants these entries in "${c.name}" instead. Call moveToCategory again with the same filter and newCategory "${c.name}".`,
+                })
+              }}
+            />
+          </div>
+        )}
         <div className="flex gap-2">
           <Button
             size="sm"
@@ -145,9 +188,11 @@ export function AgentAction({
     return (
       <p className="enter-fade flex items-center gap-1.5 text-xs text-muted-foreground">
         <XIcon className="size-3.5" />
-        {approval?.isAutomatic && approval.reason
-          ? approval.reason
-          : "Cancelled. Nothing changed."}
+        {instead
+          ? `Moving them to ${instead} instead.`
+          : approval?.isAutomatic && approval.reason
+            ? approval.reason
+            : "Cancelled. Nothing changed."}
       </p>
     )
   }
