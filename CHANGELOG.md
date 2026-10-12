@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/joshxfi/goatside/compare/v0.2.0...v0.3.0) (2026-10-12)
+
+
+### Features
+
+* **app:** explain what's missing on a setup page ([d943105](https://github.com/joshxfi/goatside/commit/d9431057c69c801e6aae3baa0c79ad5df1a30333))
+
 ## [0.2.0](https://github.com/joshxfi/goatside/compare/v0.1.0...v0.2.0) (2026-10-11)
 
 
