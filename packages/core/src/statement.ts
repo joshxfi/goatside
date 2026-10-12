@@ -124,11 +124,15 @@ function fullYear(text: string | undefined): number | undefined {
 /**
  * Reads a statement date: `11 Jul 2026`, `5 September 2026`, `11-Jul-26`,
  * `Jul 11, 2026`, `2026-07-11`, or one without a year (`9 Aug`, `Aug 9`).
- * Numeric dates like `07/11/2026` aren't read: the day and month order
- * differs between banks.
+ * A time after it (`1 Sep, 02:51 AM`) is dropped. Numeric dates like
+ * `07/11/2026` aren't read: the day and month order differs between banks.
  */
 export function readDateParts(text: string): DateParts | null {
-  const t = text.trim().replace(/\s+/g, " ").replace(/[.,]$/, "")
+  const t = text
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/,? \d{1,2}:\d{2}(?::\d{2})?(?: ?[ap]\.?m\.?)?$/i, "")
+    .replace(/[.,]$/, "")
   let m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/)
   if (m) {
     const parts = { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]) }
@@ -252,10 +256,23 @@ const lineText = (line: StatementLine) =>
 // ---------------------------------------------------------------------------
 // Period
 
-/** `06 Aug 2026 to 05 Sep 2026`, `Period: 11 Jul 2026 - 10 Oct 2026`. */
+/**
+ * `06 Aug 2026 to 05 Sep 2026`, `Period: 11 Jul 2026 - 10 Oct 2026`, or
+ * days within one month: `1-30 Sep 2026`, `Sep 1 - 30, 2026`.
+ */
 export function readPeriod(lines: StatementLine[]): StatementPeriod | null {
   for (const line of ordered(lines)) {
-    const text = lineText(line).replace(/\s+/g, " ")
+    const text = lineText(line)
+      .replace(/\s+/g, " ")
+      // Spell a range of days out as two dates.
+      .replace(
+        /\b(\d{1,2}) ?[-–] ?(\d{1,2}) ([A-Za-z]{3,9}\.?,? \d{4})\b/,
+        "$1 $3 - $2 $3"
+      )
+      .replace(
+        /\b([A-Za-z]{3,9}\.?) (\d{1,2}) ?[-–] ?(\d{1,2}),? (\d{4})\b/,
+        "$1 $2, $4 - $1 $3, $4"
+      )
     const m = text.match(
       /(\d{1,2}[ -][A-Za-z]{3,9}\.?(?:[ ,-]+\d{4})?|[A-Za-z]{3,9}\.? \d{1,2}(?:,? \d{4})?)\s+(?:to|-|–|—)\s+(\d{1,2}[ -][A-Za-z]{3,9}\.?[ ,-]+\d{4}|[A-Za-z]{3,9}\.? \d{1,2},? \d{4})/
     )
@@ -510,9 +527,9 @@ export interface ExtractOptions {
 
 /**
  * Turns the layout's row lines into rows with `roles` as the meaning of
- * each amount column. Lines with only details text attach to the nearest
- * row on the same page: GoTyme centers the date between two lines of
- * details, Maya continues the details on the line below.
+ * each amount column. Lines with only details text attach to a row on the
+ * same page: details usually continue on the lines below, but some
+ * statements center the date between two lines of details.
  */
 export function extractRows(
   lines: StatementLine[],
@@ -536,7 +553,13 @@ export function extractRows(
     : 20
 
   // Details-only lines: everything between the details column and the
-  // amounts, nothing else on the line.
+  // amounts, nothing else on the line. Details continue below their row,
+  // sometimes for several lines, so a line goes to the nearest row above
+  // it. A row with no details on its own line has its date centered
+  // between two halves, so it takes the line just above it when nearer.
+  const bare = new Set(
+    layout.rowLines.filter((l) => !parseRowLine(l)!.details.length)
+  )
   const extra = new Map<StatementLine, StatementLine[]>()
   for (const line of all) {
     if (rowSet.has(line)) continue
@@ -547,19 +570,21 @@ export function extractRows(
         readAmount(c.text) === null
     )
     if (!onlyDetails) continue
-    let best: StatementLine | null = null
+    let above: StatementLine | null = null
+    let below: StatementLine | null = null
     for (const row of layout.rowLines) {
       if (row.page !== line.page) continue
       const d = Math.abs(row.y - line.y)
       if (d >= pitch) continue
-      // On a tie, the row above (details continue downwards).
-      if (
-        !best ||
-        d < Math.abs(best.y - line.y) ||
-        (d === Math.abs(best.y - line.y) && row.y > best.y)
-      )
-        best = row
+      if (row.y > line.y) {
+        if (!above || row.y < above.y) above = row
+      } else if (!below || row.y > below.y) below = row
     }
+    const best =
+      above &&
+      !(below && bare.has(below) && line.y - below.y < above.y - line.y)
+        ? above
+        : below
     if (best) extra.set(best, [...(extra.get(best) ?? []), line])
   }
 
