@@ -29,6 +29,10 @@ pnpm test           # vitest in core, ai, auth and apps/goatside
 pnpm db:generate    # new migration after a schema change
 ```
 
+`pnpm install` also installs a lefthook pre-commit hook (`lefthook.yml`) that formats
+staged files with oxfmt, re-stages them, and lints staged code with oxlint at zero
+warnings.
+
 CI (`.github/workflows/ci.yml`) runs install, lint, format check, typecheck and tests on
 every push, and applies migrations on `main` when the repo has database secrets.
 

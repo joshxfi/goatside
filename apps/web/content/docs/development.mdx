@@ -42,6 +42,10 @@ pnpm db:generate  # new migration after editing packages/db/src/schema
 pnpm db:studio    # browse the local DB
 ```
 
+`pnpm install` sets up a pre-commit hook with [lefthook](https://lefthook.dev). It formats
+the files you stage with oxfmt and lints them with oxlint, so a commit with a lint warning
+stops. To skip it once, commit with `--no-verify`.
+
 Sample data and evals:
 
 ```sh

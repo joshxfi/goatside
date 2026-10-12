@@ -1,0 +1,18 @@
+# Git hooks, installed by `pnpm install` (lefthook's postinstall).
+# Skip once with `git commit --no-verify` or `LEFTHOOK=0 git commit`.
+
+pre-commit:
+  parallel: true
+  jobs:
+    # Formats what's staged and stages the result. oxfmt skips files it
+    # doesn't format and the ones in .oxfmtrc.json's ignorePatterns.
+    - name: format
+      run: pnpm exec oxfmt --no-error-on-unmatched-pattern {staged_files}
+      stage_fixed: true
+
+    # Same rules as `pnpm lint`, which must stay at zero warnings.
+    - name: lint
+      glob: "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"
+      exclude:
+        - "**/routeTree.gen.ts"
+      run: pnpm exec oxlint --deny-warnings {staged_files}
