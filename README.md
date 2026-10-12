@@ -134,8 +134,8 @@ first so we can agree on the approach.
 - Fix a ledger bug with a failing test first.
 - Write each commit, and the pull request title, as a
   [Conventional Commit](https://www.conventionalcommits.org), like
-  `fix(app): keep the outbox order after a retry`. Pull requests are squash-merged or
-  rebased onto `main`, and either way those messages become the changelog. Checks
+  `fix(app): keep the outbox order after a retry`. Pull requests go to `dev` and are
+  squash-merged or rebased, and either way those messages become the changelog. Checks
   enforce both, and `pnpm commitlint --from origin/main` lints your branch locally.
   Mark a breaking change with `!`, like `feat(db)!: …`.
 - When a change affects how Goatside behaves, update the docs in
@@ -143,11 +143,11 @@ first so we can agree on the approach.
 
 ## Releases
 
-[release-please](https://github.com/googleapis/release-please) keeps a release pull
-request open with the next version and its changelog, built from the commits on `main`.
-Merging it tags the version and publishes it on
-[GitHub Releases](https://github.com/joshxfi/goatside/releases). Before 1.0, a `feat`
-bumps the minor version and a `fix` the patch. Changes are listed in
+`dev` is staging and `main` is production. Merging `dev` into `main` releases what it
+brings: [release-please](https://github.com/googleapis/release-please) works out the next
+version and its changelog from the commits, and CI tags it and publishes it on
+[GitHub Releases](https://github.com/joshxfi/goatside/releases) right away. Before 1.0, a
+`feat` bumps the minor version and a `fix` the patch. Changes are listed in
 [`CHANGELOG.md`](./CHANGELOG.md).
 
 ## Security

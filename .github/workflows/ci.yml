@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # main is production, dev is staging.
+    branches: [main, dev]
   pull_request:
   # "Run workflow" on the Actions tab: lets a fork set up or migrate its
   # database without a clone.
@@ -10,8 +11,8 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  # Pull requests drop stale runs; main always finishes, so a migration is
-  # never cut off halfway.
+  # Pull requests drop stale runs; main and dev always finish, so a
+  # migration is never cut off halfway.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -36,8 +37,9 @@ jobs:
       # typecheck runs `tsr generate`, which drops the Start block the Vite plugin writes into routeTree.gen.ts, so CI doesn't diff the route trees.
       - run: pnpm test
 
-  # Rebase merges put every commit of a pull request on main, and release-please
-  # reads each one for the changelog, so each must be a Conventional Commit.
+  # Rebase merges put every commit of a pull request on dev, and from there on
+  # main, where release-please reads each one for the changelog, so each must be
+  # a Conventional Commit.
   commits:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -60,16 +62,21 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
 
-  # Applies new migrations to the production database once main passes, on
-  # a push or a manual run. Needs TURSO_DATABASE_URL and TURSO_AUTH_TOKEN in
-  # the repo's Actions secrets; a fork without them skips this job's work.
+  # Applies new migrations once main or dev passes, on a push or a manual
+  # run: main to production, dev to staging. Each runs in the GitHub
+  # environment named after its branch and reads TURSO_DATABASE_URL and
+  # TURSO_AUTH_TOKEN from that environment's secrets, falling back to the
+  # repo's Actions secrets. A fork without them skips this job's work.
+  # Forks migrate main only: a fork's own dev branch would fall back to the
+  # repo secrets, its production database.
   migrate:
     needs: check
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: (github.ref == 'refs/heads/main' || (github.ref == 'refs/heads/dev' && !github.event.repository.fork)) && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    environment: ${{ github.ref_name }}
     concurrency:
-      group: migrate
+      group: migrate-${{ github.ref_name }}
       cancel-in-progress: false
     env:
       TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
@@ -77,7 +84,7 @@ jobs:
     steps:
       - name: No database secrets
         if: env.TURSO_DATABASE_URL == ''
-        run: echo "::notice::TURSO_DATABASE_URL isn't set in this repo's Actions secrets, so no migrations ran."
+        run: echo "::notice::TURSO_DATABASE_URL isn't set for the ${{ github.ref_name }} environment or in this repo's Actions secrets, so no migrations ran."
 
       - uses: actions/checkout@v4
         if: env.TURSO_DATABASE_URL != ''
@@ -94,6 +101,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
         if: env.TURSO_DATABASE_URL != ''
 
-      # Skips migrations already applied, so every push to main is safe.
+      # Skips migrations already applied, so every push is safe.
       - run: pnpm db:migrate
         if: env.TURSO_DATABASE_URL != ''

@@ -4,7 +4,11 @@ import { addDays } from "@workspace/core/dates"
 import type { StatementRow } from "@workspace/core/statement"
 import { schema } from "@workspace/db"
 import { addPersonRow, liveRows, log, resetDb, row } from "../../test/helpers"
-import { accountBalances, createAccount } from "./accounts.server"
+import {
+  accountBalances,
+  createAccount,
+  setDefaultAccount,
+} from "./accounts.server"
 import {
   type ImportDecision,
   type StatementInput,
@@ -175,6 +179,7 @@ describe("statement imports", () => {
   it("offers an entry filed under another account, and moves it", async () => {
     const wallet = await createAccount({ name: "GCash", kind: "ewallet" })
     const bank = await createAccount({ name: "GoTyme", kind: "bank" })
+    await setDefaultAccount(wallet.id)
     // Entries that name no account go to the default, GCash.
     const typed = await log("250 lunch")
     expect((await row(typed.transactionIds[0]!)).accountId).toBe(wallet.id)
@@ -446,6 +451,7 @@ describe("statement imports", () => {
       kind: "bank",
       balance: 100_000,
     })
+    await setDefaultAccount(bank.id)
     // Typed today, after the statement ends.
     await log("250 lunch")
     const input = bankStatement(bank.id, [
@@ -513,6 +519,7 @@ describe("statement imports", () => {
       name: "Sample Card",
       kind: "credit_card",
     })
+    await setDefaultAccount(wallet.id)
     // Filed under GCash, the default; really the card payment.
     const paid = await log("500 sample shop")
     const before = await Promise.all(

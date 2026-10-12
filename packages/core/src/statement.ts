@@ -11,6 +11,9 @@ import { addDays, isValidDate, makeDate, type LocalDate } from "./dates"
 
 export type StatementKind = "bank" | "ewallet" | "credit_card" | "cash"
 
+/** On a card, a positive printed amount is a charge and the balance is owed. */
+const owedSign = (kind: StatementKind) => (kind === "credit_card" ? -1 : 1)
+
 export interface StatementCell {
   /** Left edge, in PDF points. */
   x: number
@@ -27,7 +30,7 @@ export interface StatementLine {
 }
 
 export interface StatementRow {
-  /** The transaction date (the first date column). */
+  /** The transaction date. */
   localDate: LocalDate
   /** The posting date, on statements that print both. */
   postedDate?: LocalDate
@@ -121,14 +124,24 @@ function fullYear(text: string | undefined): number | undefined {
   return text.length === 2 ? 2000 + n : n
 }
 
+const NUMERIC_DATE = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}|\d{2}))?$/
+
 /**
  * Reads a statement date: `11 Jul 2026`, `5 September 2026`, `11-Jul-26`,
  * `Jul 11, 2026`, `2026-07-11`, or one without a year (`9 Aug`, `Aug 9`).
- * Numeric dates like `07/11/2026` aren't read: the day and month order
- * differs between banks.
+ * A time after it (`1 Sep, 02:51 AM`) is dropped. Numeric dates like
+ * `07/11/2026` or `07/11` are read only when `dayFirst` is given: the day
+ * and month order differs between banks.
  */
-export function readDateParts(text: string): DateParts | null {
-  const t = text.trim().replace(/\s+/g, " ").replace(/[.,]$/, "")
+export function readDateParts(
+  text: string,
+  dayFirst?: boolean
+): DateParts | null {
+  const t = text
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/,? \d{1,2}:\d{2}(?::\d{2})?(?: ?[ap]\.?m\.?)?$/i, "")
+    .replace(/[.,]$/, "")
   let m = t.match(/^(\d{4})-(\d{2})-(\d{2})$/)
   if (m) {
     const parts = { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]) }
@@ -137,8 +150,13 @@ export function readDateParts(text: string): DateParts | null {
   let day: number | undefined
   let month: number | undefined
   let year: number | undefined
+  const numeric = dayFirst === undefined ? null : t.match(NUMERIC_DATE)
   m = t.match(/^(\d{1,2})[ -]([A-Za-z]{3,9})\.?(?:[ ,-]+(\d{4}|\d{2}))?$/)
-  if (m) {
+  if (numeric) {
+    day = Number(numeric[dayFirst ? 1 : 2])
+    month = Number(numeric[dayFirst ? 2 : 1])
+    year = fullYear(numeric[3])
+  } else if (m) {
     day = Number(m[1])
     month = MONTHS[m[2]!.toLowerCase()]
     year = fullYear(m[3])
@@ -172,10 +190,17 @@ const TRAILING_CODE = new RegExp(`\\s*${CODE}$`, "i")
  * Reads a printed amount into signed cents: `1,500.00`, `- 1,037.92`,
  * `(1,037.92)`, `PHP 3,884.33`, `1,037.92 USD`, `₱250.00`, `$12.00`, `0.00`.
  * Statements always print two decimals, so `2026` or `1234` alone isn't an
- * amount (years and card digits stay out).
+ * amount (years and card digits stay out). A credit or debit mark after it
+ * (`1,805.00 CR`, `1,805.00C`, `500.00 DR`) is money in or out of the
+ * account, signed as the statement for `kind` prints it.
  */
-export function readAmount(text: string): Cents | null {
+export function readAmount(
+  text: string,
+  kind: StatementKind = "bank"
+): Cents | null {
   let t = text.trim().replace(LEADING_MARK, "").replace(TRAILING_CODE, "")
+  const mark = t.match(/^(.*?)\s*(cr|c|dr)\.?$/i)
+  if (mark) t = mark[1]!.replace(TRAILING_CODE, "")
   let negative = false
   const parens = t.match(/^\((.*)\)$/)
   if (parens) {
@@ -184,7 +209,7 @@ export function readAmount(text: string): Cents | null {
   }
   const sign = t.match(/^[-−–]\s*(.*)$/)
   if (sign) {
-    if (negative) return null
+    if (negative || mark) return null
     negative = true
     t = sign[1]!
   }
@@ -193,6 +218,11 @@ export function readAmount(text: string): Cents | null {
   if (!m) return null
   const cents = Number(m[1]!.replaceAll(",", "")) * 100 + Number(m[2])
   if (!Number.isSafeInteger(cents) || cents > MAX_CENTS) return null
+  if (mark && negative) return null
+  if (mark && cents !== 0) {
+    const credit = mark[2]!.toLowerCase().startsWith("c")
+    return cents * (credit ? 1 : -1) * owedSign(kind)
+  }
   return negative && cents !== 0 ? -cents : cents
 }
 
@@ -252,10 +282,23 @@ const lineText = (line: StatementLine) =>
 // ---------------------------------------------------------------------------
 // Period
 
-/** `06 Aug 2026 to 05 Sep 2026`, `Period: 11 Jul 2026 - 10 Oct 2026`. */
+/**
+ * `06 Aug 2026 to 05 Sep 2026`, `Period: 11 Jul 2026 - 10 Oct 2026`, or
+ * days within one month: `1-30 Sep 2026`, `Sep 1 - 30, 2026`.
+ */
 export function readPeriod(lines: StatementLine[]): StatementPeriod | null {
   for (const line of ordered(lines)) {
-    const text = lineText(line).replace(/\s+/g, " ")
+    const text = lineText(line)
+      .replace(/\s+/g, " ")
+      // Spell a range of days out as two dates.
+      .replace(
+        /\b(\d{1,2}) ?[-–] ?(\d{1,2}) ([A-Za-z]{3,9}\.?,? \d{4})\b/,
+        "$1 $3 - $2 $3"
+      )
+      .replace(
+        /\b([A-Za-z]{3,9}\.?) (\d{1,2}) ?[-–] ?(\d{1,2}),? (\d{4})\b/,
+        "$1 $2, $4 - $1 $3, $4"
+      )
     const m = text.match(
       /(\d{1,2}[ -][A-Za-z]{3,9}\.?(?:[ ,-]+\d{4})?|[A-Za-z]{3,9}\.? \d{1,2}(?:,? \d{4})?)\s+(?:to|-|–|—)\s+(\d{1,2}[ -][A-Za-z]{3,9}\.?[ ,-]+\d{4}|[A-Za-z]{3,9}\.? \d{1,2},? \d{4})/
     )
@@ -322,21 +365,24 @@ export interface Layout {
   columns: AmountColumn[]
   /** The lines that start a row, in reading order. */
   rowLines: StatementLine[]
+  /** How to read numeric dates (`08/11`), when the statement has them. */
+  dayFirst: boolean | undefined
 }
 
 const anchor = (cell: StatementCell) => cell.x + (cell.width ?? 0)
 
-/** A date at the start of a line, possibly split over two or three cells. */
+/** A date starting at cell `from`, possibly split over two or three cells. */
 function leadingDate(
   cells: StatementCell[],
-  from: number
+  from: number,
+  dayFirst: boolean | undefined
 ): { parts: DateParts; used: number } | null {
   for (let n = 1; n <= 3 && from + n <= cells.length; n++) {
     const text = cells
       .slice(from, from + n)
       .map((c) => c.text)
       .join(" ")
-    const parts = readDateParts(text)
+    const parts = readDateParts(text, dayFirst)
     if (parts) return { parts, used: n }
   }
   return null
@@ -344,6 +390,8 @@ function leadingDate(
 
 interface RowParse {
   line: StatementLine
+  /** Left edge of the row's date. */
+  dateX: number
   date: DateParts
   posted?: DateParts
   details: string[]
@@ -352,11 +400,24 @@ interface RowParse {
   amounts: StatementCell[]
 }
 
-function parseRowLine(line: StatementLine): RowParse | null {
-  const first = leadingDate(line.cells, 0)
+/**
+ * A row starts at its date. Cells before the date are text from another
+ * column sharing the baseline (reminders printed beside the rows), not part
+ * of the row.
+ */
+function parseRowLine(
+  line: StatementLine,
+  dayFirst: boolean | undefined
+): RowParse | null {
+  let from = 0
+  let first = null
+  for (; from < line.cells.length && !first; from++) {
+    first = leadingDate(line.cells, from, dayFirst)
+  }
   if (!first) return null
-  let at = first.used
-  const second = leadingDate(line.cells, at)
+  const dateX = line.cells[from - 1]!.x
+  let at = from - 1 + first.used
+  const second = leadingDate(line.cells, at, dayFirst)
   if (second) at += second.used
   const rest = line.cells.slice(at)
   // Amounts are the last run of cells that read as money. Anything after
@@ -369,6 +430,7 @@ function parseRowLine(line: StatementLine): RowParse | null {
   const detailCells = rest.slice(0, start)
   return {
     line,
+    dateX,
     date: first.parts,
     ...(second && { posted: second.parts }),
     details: detailCells.map((c) => c.text),
@@ -397,27 +459,49 @@ function clusters(values: number[], gap: number): number[][] {
 }
 
 /**
- * Finds the rows and their columns from what the cells contain: lines that
- * start with a date and end with amounts, all sharing one date column.
- * Header words, when the text has them, only label the amount columns.
+ * Which number is the day in the statement's numeric dates (`08/11`): one
+ * over 12 settles it. When none is, the order that keeps the rows in date
+ * order over the shorter span. Undefined when there are none, or when the
+ * statement shows both orders.
+ */
+function numericDayFirst(lines: StatementLine[]): boolean | undefined {
+  const dates = ordered(lines).flatMap((line) => {
+    const m = line.cells
+      .map((c) => c.text.trim().match(NUMERIC_DATE))
+      .find((match) => match !== null)
+    return m
+      ? [[Number(m[1]), Number(m[2]), fullYear(m[3]) ?? 2024] as const]
+      : []
+  })
+  if (!dates.length) return undefined
+  const first = dates.some(([a]) => a > 12)
+  const second = dates.some(([, b]) => b > 12)
+  if (first && second) return undefined
+  return first || (!second && tighterDayFirst(dates))
+}
+
+/**
+ * Finds the rows and their columns from what the cells contain: lines with
+ * a date followed by amounts, all sharing one date column. Header words,
+ * when the text has them, only label the amount columns.
  */
 export function detectLayout(lines: StatementLine[]): Layout | null {
+  const dayFirst = numericDayFirst(lines)
   const parsed = ordered(lines)
-    .map(parseRowLine)
+    .map((line) => parseRowLine(line, dayFirst))
     .filter((r): r is RowParse => r !== null)
   if (!parsed.length) return null
 
   // The date column most row-like lines share. A due date next to the
   // amount due, elsewhere on the page, isn't a row.
   const byX = clusters(
-    parsed.map((r) => r.line.cells[0]!.x),
+    parsed.map((r) => r.dateX),
     6
   ).toSorted((a, b) => b.length - a.length)
   const dateXs = byX[0]!
-  const rows = parsed.filter((r) => {
-    const x = r.line.cells[0]!.x
-    return x >= dateXs[0]! - 0.5 && x <= dateXs.at(-1)! + 0.5
-  })
+  const rows = parsed.filter(
+    (r) => r.dateX >= dateXs[0]! - 0.5 && r.dateX <= dateXs.at(-1)! + 0.5
+  )
   // Posting dates have to be on (nearly) every row to count as a column.
   const withPosted = rows.filter((r) => r.posted).length
   const postedDate = withPosted * 2 > rows.length
@@ -463,6 +547,7 @@ export function detectLayout(lines: StatementLine[]): Layout | null {
     amountsX,
     columns,
     rowLines: rows.map((r) => r.line),
+    dayFirst,
   }
 }
 
@@ -500,9 +585,6 @@ export function columnRoles(layout: Layout): AmountRole[][] {
 // ---------------------------------------------------------------------------
 // Rows
 
-/** On a card, a positive printed amount is a charge and the balance is owed. */
-const owedSign = (kind: StatementKind) => (kind === "credit_card" ? -1 : 1)
-
 export interface ExtractOptions {
   kind: StatementKind
   period: StatementPeriod | null
@@ -510,9 +592,9 @@ export interface ExtractOptions {
 
 /**
  * Turns the layout's row lines into rows with `roles` as the meaning of
- * each amount column. Lines with only details text attach to the nearest
- * row on the same page: GoTyme centers the date between two lines of
- * details, Maya continues the details on the line below.
+ * each amount column. Lines with only details text attach to a row on the
+ * same page: details usually continue on the lines below, but some
+ * statements center the date between two lines of details.
  */
 export function extractRows(
   lines: StatementLine[],
@@ -536,7 +618,15 @@ export function extractRows(
     : 20
 
   // Details-only lines: everything between the details column and the
-  // amounts, nothing else on the line.
+  // amounts, nothing else on the line. Details continue below their row,
+  // sometimes for several lines, so a line goes to the nearest row above
+  // it. A row with no details on its own line has its date centered
+  // between two halves, so it takes the line just above it when nearer.
+  const bare = new Set(
+    layout.rowLines.filter(
+      (l) => !parseRowLine(l, layout.dayFirst)!.details.length
+    )
+  )
   const extra = new Map<StatementLine, StatementLine[]>()
   for (const line of all) {
     if (rowSet.has(line)) continue
@@ -547,19 +637,21 @@ export function extractRows(
         readAmount(c.text) === null
     )
     if (!onlyDetails) continue
-    let best: StatementLine | null = null
+    let above: StatementLine | null = null
+    let below: StatementLine | null = null
     for (const row of layout.rowLines) {
       if (row.page !== line.page) continue
       const d = Math.abs(row.y - line.y)
       if (d >= pitch) continue
-      // On a tie, the row above (details continue downwards).
-      if (
-        !best ||
-        d < Math.abs(best.y - line.y) ||
-        (d === Math.abs(best.y - line.y) && row.y > best.y)
-      )
-        best = row
+      if (row.y > line.y) {
+        if (!above || row.y < above.y) above = row
+      } else if (!below || row.y > below.y) below = row
     }
+    const best =
+      above &&
+      !(below && bare.has(below) && line.y - below.y < above.y - line.y)
+        ? above
+        : below
     if (best) extra.set(best, [...(extra.get(best) ?? []), line])
   }
 
@@ -568,7 +660,7 @@ export function extractRows(
   // means it's really a signed amount column.
   const signs = new Map<AmountRole, Set<number>>()
   for (const line of layout.rowLines) {
-    const parsed = parseRowLine(line)!
+    const parsed = parseRowLine(line, layout.dayFirst)!
     const localDate = resolveYear(parsed.date, period, latest)
     const postedDate = parsed.posted
       ? resolveYear(parsed.posted, period, latest)
@@ -584,7 +676,7 @@ export function extractRows(
         (c) => at >= c.from - 12 && at <= c.to + 12
       )
       const role = roles[index]
-      const value = readAmount(cell.text)
+      const value = readAmount(cell.text, kind)
       if (!role || value === null || values[role] !== undefined) {
         return { rows: [], problem: "Couldn't line up the amount columns." }
       }
@@ -628,6 +720,16 @@ export function extractRows(
       y: line.y,
     })
   }
+  // A purchase never posts before it happens. When the second date is never
+  // later than the first, the statement prints the posting date first.
+  if (
+    rows.some((r) => r.postedDate && r.postedDate < r.localDate) &&
+    !rows.some((r) => r.postedDate && r.postedDate > r.localDate)
+  ) {
+    for (const r of rows) {
+      ;[r.localDate, r.postedDate] = [r.postedDate!, r.localDate]
+    }
+  }
   // Newest first (some banks and most CSV exports): put them in order, so
   // each running balance follows the one before it.
   const when = (r: StatementRow) => r.postedDate ?? r.localDate
@@ -655,7 +757,10 @@ const SUMMARY_WORDS: [RegExp, keyof StatementSummary][] = [
     /\b(opening|beginning|previous|starting)( statement)? balance\b|\bbalance forward\b/i,
     "opening",
   ],
-  [/\b(closing|ending|new|statement) balance\b/i, "closing"],
+  [
+    /\b(closing|ending|new|statement) balance\b|\btotal amount due\b/i,
+    "closing",
+  ],
   [
     /\btotal (credits?|deposits?|money in)\b|\bpayments?( and credits?)?$/i,
     "totalIn",
@@ -680,7 +785,7 @@ export function readSummary(
   const summary: StatementSummary = {}
 
   for (const line of others) {
-    const amounts = line.cells.map((c) => readAmount(c.text))
+    const amounts = line.cells.map((c) => readAmount(c.text, kind))
     const value = amounts.findLast((a) => a !== null)
     if (value == null) continue
     const label = line.cells
@@ -700,7 +805,7 @@ export function readSummary(
   if (Object.keys(summary).length) return summary
   const figures = others.flatMap((l) =>
     l.cells
-      .map((c) => readAmount(c.text))
+      .map((c) => readAmount(c.text, kind))
       .filter((a): a is number => a !== null)
   )
   const totalIn = rows.reduce((s, r) => s + Math.max(0, r.amount), 0)

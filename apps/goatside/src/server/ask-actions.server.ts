@@ -6,19 +6,26 @@
  */
 import { createHmac } from "node:crypto"
 import { type ToolApprovalStatus, tool } from "ai"
-import { and, between, desc, eq, inArray, isNull, sql } from "drizzle-orm"
+import { and, eq, inArray, isNull, sql } from "drizzle-orm"
 import { z } from "zod"
 import { ACCOUNT_KIND_LABELS } from "@workspace/core/accounts"
 import { formatMoney } from "@workspace/core/money"
 import { preparse } from "@workspace/core/preparse"
 import { type Db, schema } from "@workspace/db"
-import { type SavedLine, peopleWithBalances } from "./agent.server"
+import type { SavedLine } from "./agent.server"
+import { editApprovals, editTools } from "./ask-edit.server"
+import { peopleActionTools, peopleApprovals } from "./ask-people.server"
 import {
-  matchPerson,
-  peopleActionTools,
-  peopleApprovals,
-} from "./ask-people.server"
+  type EntryRow,
+  FILTER as SEARCH,
+  accountProblem,
+  entryLabel,
+  entryRows,
+  entryWhere,
+  matchAccount,
+} from "./ask-search.server"
 import {
+  type AccountBalance,
   accountBalances,
   createAccount,
   fileToAccount,
@@ -28,7 +35,7 @@ import { serverEnv } from "./env"
 import { logText, today } from "./ledger.server"
 import { getDb } from "./services"
 
-const { categories, corrections, people, transactions } = schema
+const { categories, corrections, transactions } = schema
 
 const MAX_MOVE = 200
 const MAX_DELETE = 50
@@ -41,27 +48,8 @@ export function approvalSecret() {
     .digest("hex")
 }
 
-const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
-
-/** Which entries a change applies to. Same vocabulary as findTransactions. */
-const FILTER = z.object({
-  from: DATE.describe("First day, YYYY-MM-DD"),
-  to: DATE.describe("Last day, YYYY-MM-DD"),
-  text: z
-    .string()
-    .optional()
-    .describe("Words in the description, e.g. 'grab' or 'netflix'"),
-  category: z.string().optional().describe("Current category name"),
-  amount: z
-    .number()
-    .positive()
-    .optional()
-    .describe("Exact amount in the owner's currency, e.g. 500"),
-  direction: z.enum(["out", "in", "both"]).default("both"),
-  person: z
-    .string()
-    .optional()
-    .describe("Only IOU entries with this person, by name"),
+/** Which entries a change applies to: the same filter findTransactions takes. */
+const FILTER = SEARCH.extend({
   ids: z
     .array(z.string())
     .max(MAX_DELETE)
@@ -76,7 +64,7 @@ const MOVE = FILTER.extend({
   newCategory: z.string().describe("Category to move them to, by name"),
 })
 
-const FILE = FILTER.extend({
+const FILE = FILTER.omit({ account: true }).extend({
   account: z.string().describe("Account to file them under, by name"),
 })
 
@@ -124,13 +112,26 @@ const BALANCE = z.object({
 
 const cents = (value: number) => Math.round(value * 100)
 
-/** An open account by name or nickname, with its balance. */
-async function findAccount(db: Db, name: string) {
+/** An open account by name, nickname or last four digits, with its balance. */
+async function findAccount(
+  db: Db,
+  name: string
+): Promise<{ account: AccountBalance } | { problem: string }> {
+  const open = (await accountBalances(db)).filter((a) => !a.archived)
+  const fit = matchAccount(open, name)
+  return fit && "found" in fit
+    ? { account: fit.found }
+    : { problem: accountProblem(name, fit, open) }
+}
+
+/** An open account by its exact name or nickname. */
+async function sameName(db: Db, name: string) {
   const key = name.trim().toLowerCase()
   return (await accountBalances(db)).find(
     (a) =>
       !a.archived &&
-      (a.name.toLowerCase() === key || a.aliases.some((x) => x === key))
+      (a.name.toLowerCase() === key ||
+        a.aliases.some((x) => x.toLowerCase() === key))
   )
 }
 
@@ -147,70 +148,35 @@ const OWN: Kind[] = ["expense", "income"]
 const FILED: Kind[] = ["expense", "income", "lend", "settle"]
 const ANY: Kind[] = [...FILED, "transfer"]
 
-const matchColumns = {
-  id: transactions.id,
-  entryId: transactions.entryId,
-  kind: transactions.kind,
-  amount: transactions.amount,
-  localDate: transactions.localDate,
-  description: transactions.description,
-  categoryId: transactions.categoryId,
-  categoryName: categories.name,
-  accountId: transactions.accountId,
-  personName: people.name,
-}
-
-/** Entries a filter picks out, newest first, one past `limit` to detect more. */
-async function matches(db: Db, filter: Filter, limit: number, kinds: Kind[]) {
-  let personId: string | undefined
-  if (filter.person) {
-    const found = matchPerson(await peopleWithBalances(db), filter.person)
-    if (!found) return []
-    personId = found.id
-  }
-  return db
-    .select(matchColumns)
-    .from(transactions)
-    .leftJoin(categories, eq(categories.id, transactions.categoryId))
-    .leftJoin(people, eq(people.id, transactions.personId))
-    .where(
-      and(
-        isNull(transactions.deletedAt),
-        inArray(transactions.kind, kinds),
-        between(transactions.localDate, filter.from, filter.to),
-        filter.direction === "out"
-          ? sql`${transactions.amount} < 0`
-          : filter.direction === "in"
-            ? sql`${transactions.amount} > 0`
-            : undefined,
-        filter.category
-          ? sql`lower(coalesce(${categories.name}, 'uncategorized')) = ${filter.category.trim().toLowerCase()}`
-          : undefined,
-        filter.text
-          ? sql`lower(${transactions.description}) like ${`%${filter.text.trim().toLowerCase()}%`}`
-          : undefined,
-        filter.amount
-          ? sql`abs(${transactions.amount}) = ${Math.round(filter.amount * 100)}`
-          : undefined,
-        personId ? eq(transactions.personId, personId) : undefined,
-        filter.ids?.length ? inArray(transactions.id, filter.ids) : undefined
-      )
-    )
-    .orderBy(desc(transactions.localDate), desc(transactions.createdAt))
-    .limit(limit + 1)
+/**
+ * Entries a filter picks out, newest first, one past `limit` to detect
+ * more. A filter needs ids or dates, so a change never sweeps the whole
+ * ledger by accident.
+ */
+async function matches(
+  db: Db,
+  filter: Filter,
+  limit: number,
+  kinds: Kind[]
+): Promise<{ rows: EntryRow[] } | { problem: string }> {
+  if (!filter.ids?.length && !filter.from && !filter.to)
+    return {
+      problem:
+        "Pass the ids findTransactions returned, or a date range with from and to.",
+    }
+  const found = await entryWhere(db, filter, { kinds })
+  if ("problem" in found) return found
+  return { rows: await entryRows(db, found.where, { limit: limit + 1 }) }
 }
 
 /** Why nothing matched, so the model can fix the filter. */
-async function nothingMatched(db: Db, filter: Filter) {
-  if (filter.person) {
-    const everyone = await peopleWithBalances(db)
-    if (!matchPerson(everyone, filter.person))
-      return `No one called "${filter.person}". People: ${everyone.map((p) => p.name).join(", ") || "none yet"}.`
-  }
-  return `No entries match that filter between ${filter.from} and ${filter.to}. Try fewer words, a wider date range, or findTransactions.`
+function nothingMatched(filter: Filter) {
+  return filter.ids?.length
+    ? "None of those ids is an entry this can change. Look them up again with findTransactions."
+    : `No entries match that filter${filter.from ? ` between ${filter.from} and ${filter.to ?? "now"}` : ""}. Try fewer words, a wider date range, or findTransactions.`
 }
 
-type Match = Awaited<ReturnType<typeof matches>>[number]
+type Match = EntryRow
 
 /**
  * Adds the other rows of any split bill among `rows`: deleting the owner's
@@ -220,17 +186,14 @@ async function withSplitRows(db: Db, rows: Match[]) {
   const entryIds = [...new Set(rows.flatMap((r) => r.entryId ?? []))]
   if (!entryIds.length) return rows
   const have = new Set(rows.map((r) => r.id))
-  const siblings = await db
-    .select(matchColumns)
-    .from(transactions)
-    .leftJoin(categories, eq(categories.id, transactions.categoryId))
-    .leftJoin(people, eq(people.id, transactions.personId))
-    .where(
-      and(
-        isNull(transactions.deletedAt),
-        inArray(transactions.entryId, entryIds)
-      )
-    )
+  const siblings = await entryRows(
+    db,
+    and(
+      isNull(transactions.deletedAt),
+      inArray(transactions.entryId, entryIds)
+    ),
+    { limit: 500 }
+  )
   const sameLine = (a: Match, b: Match) =>
     a.entryId === b.entryId &&
     a.description === b.description &&
@@ -243,33 +206,12 @@ async function withSplitRows(db: Db, rows: Match[]) {
   ]
 }
 
-/** How an entry reads on a card: "lunch" or "lent to Mara: grab". */
-function label(r: Match) {
-  const who = r.personName ?? "someone"
-  const iou =
-    r.kind === "lend"
-      ? r.amount < 0
-        ? `lent to ${who}`
-        : `borrowed from ${who}`
-      : r.kind === "settle"
-        ? r.amount > 0
-          ? `${who} paid you back`
-          : `paid ${who} back`
-        : r.kind === "transfer"
-          ? "transfer"
-          : null
-  const description = r.description || null
-  return iou && description
-    ? `${iou}: ${description}`
-    : (iou ?? description ?? "untitled")
-}
-
 function listed(rows: Match[]) {
   const shown = rows
     .slice(0, LISTED)
     .map(
       (r) =>
-        `${label(r)} (${r.localDate.slice(5)}, ${formatMoney(Math.abs(r.amount))})`
+        `${entryLabel(r)} (${r.localDate.slice(5)}, ${formatMoney(Math.abs(r.amount))})`
     )
     .join("; ")
   return rows.length > LISTED
@@ -294,6 +236,7 @@ async function findCategory(db: Db, name: string) {
 export function actionTools(db: Db) {
   const tools = {
     ...peopleActionTools(db),
+    ...editTools(db),
     moveToCategory: tool({
       description:
         "Re-file matching entries under another category, e.g. 'move all grab rides this month to Transport'. The owner confirms first.",
@@ -302,7 +245,9 @@ export function actionTools(db: Db) {
         const target = await findCategory(db, input.newCategory)
         if (!target)
           return { done: false, message: "That category doesn't exist." }
-        const rows = (await matches(db, input, MAX_MOVE, OWN)).filter(
+        const found = await matches(db, input, MAX_MOVE, OWN)
+        if ("problem" in found) return { done: false, message: found.problem }
+        const rows = found.rows.filter(
           (r) =>
             (r.amount > 0 ? "income" : "expense") === target.kind &&
             r.categoryId !== target.id
@@ -343,9 +288,10 @@ export function actionTools(db: Db) {
       inputSchema: FILTER,
       execute: async (input) => {
         const found = await matches(db, input, MAX_DELETE, ANY)
-        if (!found.length || found.length > MAX_DELETE)
+        if ("problem" in found) return { done: false, message: found.problem }
+        if (!found.rows.length || found.rows.length > MAX_DELETE)
           return { done: false, message: "Nothing matched." }
-        const ids = (await withSplitRows(db, found)).map((r) => r.id)
+        const ids = (await withSplitRows(db, found.rows)).map((r) => r.id)
         await db
           .update(transactions)
           .set({ deletedAt: new Date() })
@@ -387,7 +333,7 @@ export function actionTools(db: Db) {
         "Add one of the owner's accounts (bank, e-wallet, credit card or cash) with what it holds now. Call once per account. The owner confirms first.",
       inputSchema: NEW_ACCOUNT,
       execute: async (input) => {
-        if (await findAccount(db, input.name))
+        if (await sameName(db, input.name))
           return { done: false, message: `${input.name} is already set up.` }
         const card = input.kind === "credit_card"
         const balance = cents(input.balance ?? 0)
@@ -412,9 +358,9 @@ export function actionTools(db: Db) {
         "Correct what an account holds now (for a credit card, what's owed), when the owner says the real figure differs. Entries stay as they are. The owner confirms first.",
       inputSchema: BALANCE,
       execute: async ({ account, balance }) => {
-        const found = await findAccount(db, account)
-        if (!found)
-          return { done: false, message: `No account called ${account}.` }
+        const fit = await findAccount(db, account)
+        if ("problem" in fit) return { done: false, message: fit.problem }
+        const found = fit.account
         const value =
           found.kind === "credit_card" ? -cents(balance) : cents(balance)
         await setBalance(db, found.id, value)
@@ -435,12 +381,12 @@ export function actionTools(db: Db) {
         "File matching entries under one of the owner's accounts, e.g. 'those grab rides were on my credit card'. The owner confirms first.",
       inputSchema: FILE,
       execute: async (input) => {
-        const found = await findAccount(db, input.account)
-        if (!found)
-          return { done: false, message: `No account called ${input.account}.` }
-        const rows = (await matches(db, input, MAX_MOVE, FILED)).filter(
-          (r) => r.accountId !== found.id
-        )
+        const fit = await findAccount(db, input.account)
+        if ("problem" in fit) return { done: false, message: fit.problem }
+        const found = fit.account
+        const picked = await matches(db, input, MAX_MOVE, FILED)
+        if ("problem" in picked) return { done: false, message: picked.problem }
+        const rows = picked.rows.filter((r) => r.accountId !== found.id)
         if (!rows.length) return { done: false, message: "Nothing to move." }
         const { moved } = await fileToAccount(
           db,
@@ -467,21 +413,22 @@ export function actionApprovals(db: Db) {
   return {
     ...accountApprovals(db),
     ...peopleApprovals(db),
+    ...editApprovals(db),
     moveToCategory: async (input: z.infer<typeof MOVE>) => {
       const target = await findCategory(db, input.newCategory)
       if (!target)
         return denied(
           `There's no "${input.newCategory}" category. Check the category list.`
         )
-      const rows = (await matches(db, input, MAX_MOVE, OWN)).filter(
+      const found = await matches(db, input, MAX_MOVE, OWN)
+      if ("problem" in found) return denied(found.problem)
+      const rows = found.rows.filter(
         (r) =>
           (r.amount > 0 ? "income" : "expense") === target.kind &&
           r.categoryId !== target.id
       )
       if (!rows.length)
-        return denied(
-          `${await nothingMatched(db, input)} Or they're already there.`
-        )
+        return denied(`${nothingMatched(input)} Or they're already there.`)
       if (rows.length > MAX_MOVE)
         return denied(
           `That matches more than ${MAX_MOVE} entries. Narrow it down.`
@@ -492,8 +439,10 @@ export function actionApprovals(db: Db) {
       }
     },
     deleteEntries: async (input: Filter) => {
-      const found = await matches(db, input, MAX_DELETE, ANY)
-      if (!found.length) return denied(await nothingMatched(db, input))
+      const picked = await matches(db, input, MAX_DELETE, ANY)
+      if ("problem" in picked) return denied(picked.problem)
+      const found = picked.rows
+      if (!found.length) return denied(nothingMatched(input))
       if (found.length > MAX_DELETE)
         return denied(
           `That matches more than ${MAX_DELETE} entries. Narrow it down.`
@@ -573,7 +522,7 @@ function savedLine(line: SavedLine, names: Map<string, string>) {
 function accountApprovals(db: Db) {
   return {
     addAccount: async (input: z.infer<typeof NEW_ACCOUNT>) => {
-      if (await findAccount(db, input.name))
+      if (await sameName(db, input.name))
         return denied(`${input.name} is already one of the owner's accounts.`)
       const card = input.kind === "credit_card"
       const balance = cents(input.balance ?? 0)
@@ -592,11 +541,9 @@ function accountApprovals(db: Db) {
       }
     },
     setAccountBalance: async (input: z.infer<typeof BALANCE>) => {
-      const found = await findAccount(db, input.account)
-      if (!found)
-        return denied(
-          `There's no account called ${input.account}. Check the accounts tool.`
-        )
+      const fit = await findAccount(db, input.account)
+      if ("problem" in fit) return denied(fit.problem)
+      const found = fit.account
       const value =
         found.kind === "credit_card"
           ? -cents(input.balance)
@@ -609,18 +556,14 @@ function accountApprovals(db: Db) {
       }
     },
     moveToAccount: async (input: z.infer<typeof FILE>) => {
-      const found = await findAccount(db, input.account)
-      if (!found)
-        return denied(
-          `There's no account called ${input.account}. Check the accounts tool.`
-        )
-      const rows = (await matches(db, input, MAX_MOVE, FILED)).filter(
-        (r) => r.accountId !== found.id
-      )
+      const fit = await findAccount(db, input.account)
+      if ("problem" in fit) return denied(fit.problem)
+      const found = fit.account
+      const picked = await matches(db, input, MAX_MOVE, FILED)
+      if ("problem" in picked) return denied(picked.problem)
+      const rows = picked.rows.filter((r) => r.accountId !== found.id)
       if (!rows.length)
-        return denied(
-          `${await nothingMatched(db, input)} Or they're already there.`
-        )
+        return denied(`${nothingMatched(input)} Or they're already there.`)
       if (rows.length > MAX_MOVE)
         return denied(
           `That matches more than ${MAX_MOVE} entries. Narrow it down.`

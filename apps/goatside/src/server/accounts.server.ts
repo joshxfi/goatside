@@ -253,17 +253,6 @@ export async function createAccount(data: {
   // Through setBalance, so a reopened account reads what was typed even
   // with entries from before it was archived.
   await setBalance(db, id, data.balance ?? 0)
-  // The first account becomes the default, so entries start landing somewhere.
-  const prefs = await db.query.settings.findFirst({
-    where: eq(settings.id, 1),
-    columns: { defaultAccountId: true },
-  })
-  if (!prefs?.defaultAccountId) {
-    await db
-      .update(settings)
-      .set({ defaultAccountId: id })
-      .where(eq(settings.id, 1))
-  }
   return { id }
 }
 

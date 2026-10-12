@@ -2,12 +2,15 @@ import { useRef } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "@workspace/ui/components/sonner"
 import { formatMoney } from "@workspace/core/money"
-import { cn } from "@workspace/ui/lib/utils"
+import {
+  AnswerButton,
+  type CategoryChoice,
+  OtherCategories,
+} from "@/components/category-choices"
 import { AnimatePresence, EASE_OUT, m } from "@/components/motion"
 import { capitalize } from "@/lib/format"
 import { monthQuery } from "@/lib/queries"
 import {
-  type LedgerTxn,
   type MonthView,
   type OpenQuestion,
   answerQuestion,
@@ -20,11 +23,9 @@ import {
 export function Questions({
   view,
   viewKey,
-  onMore,
 }: {
   view: MonthView
   viewKey?: string
-  onMore: (txn: LedgerTxn) => void
 }) {
   const queryClient = useQueryClient()
   const queryKey = monthQuery(viewKey).queryKey
@@ -55,8 +56,6 @@ export function Questions({
   })
 
   const [question] = view.questions
-  const more =
-    question && view.transactions.find((t) => t.id === question.transaction.id)
 
   // An answered card steps back before the next one settles in; the last
   // one also folds away, so the composer below glides down.
@@ -71,8 +70,8 @@ export function Questions({
           key={question.id}
           question={question}
           remaining={view.questions.length}
+          categories={view.categories}
           onAnswer={(answer) => reply.mutate({ id: question.id, answer })}
-          onMore={more && (() => onMore(more))}
         />
       )}
     </AnimatePresence>
@@ -90,13 +89,13 @@ const leave = (followed: boolean) => ({
 function QuestionCard({
   question,
   remaining,
+  categories,
   onAnswer,
-  onMore,
 }: {
   question: OpenQuestion
   remaining: number
+  categories: CategoryChoice[]
   onAnswer: (answer: string) => void
-  onMore?: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const { transaction } = question
@@ -160,38 +159,18 @@ function QuestionCard({
               {option.label}
             </AnswerButton>
           ))}
-          {question.kind === "category" && onMore && (
-            <AnswerButton onClick={onMore}>Other…</AnswerButton>
+          {/* The suggestions can miss: any category, or a new one. */}
+          {question.kind === "category" && (
+            <OtherCategories
+              categories={categories}
+              kind={transaction.amount < 0 ? "expense" : "income"}
+              exclude={question.options.map((o) => o.value)}
+              onPick={(c) => onAnswer(c.id)}
+            />
           )}
         </div>
       </section>
     </m.div>
-  )
-}
-
-function AnswerButton({
-  guess,
-  tone,
-  className,
-  ...props
-}: React.ComponentProps<"button"> & {
-  /** The value currently saved on the entry. */
-  guess?: boolean
-  tone?: "income" | "expense"
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={guess ? true : undefined}
-      className={cn(
-        "flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] [@media(hover:hover)]:hover:bg-muted",
-        guess && "border-foreground/40 bg-muted",
-        tone === "income" && "text-income-foreground",
-        tone === "expense" && "text-expense-foreground",
-        className
-      )}
-      {...props}
-    />
   )
 }
 

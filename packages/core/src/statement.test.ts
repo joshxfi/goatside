@@ -212,7 +212,17 @@ describe("readAmount", () => {
     expect(readAmount(input)).toBe(cents)
   })
 
+  it("reads a credit or debit mark as money in or out of the account", () => {
+    expect(readAmount("1,805.00 CR")).toBe(180_500)
+    expect(readAmount("500.00 DR")).toBe(-50_000)
+    // A card prints money in (a payment) as a negative amount.
+    expect(readAmount("1,805.00C", "credit_card")).toBe(-180_500)
+    expect(readAmount("23,815.55 C", "credit_card")).toBe(-2_381_555)
+    expect(readAmount("500.00 Dr", "credit_card")).toBe(50_000)
+  })
+
   it.each([
+    "- 5.00 CR",
     "2026",
     "1234",
     "1,234",
@@ -234,6 +244,7 @@ describe("readDate", () => {
     ["11-Jul-26", "2026-07-11"],
     ["Jul 11, 2026", "2026-07-11"],
     ["2026-07-11", "2026-07-11"],
+    ["2026-07-11 14:30", "2026-07-11"],
   ])("%s → %s", (input, date) => {
     expect(readDate(input)).toBe(date)
   })
@@ -242,6 +253,25 @@ describe("readDate", () => {
     expect(readDateParts("9 Aug")).toEqual({ month: 8, day: 9 })
     expect(readDateParts("Aug 9")).toEqual({ month: 8, day: 9 })
     expect(readDate("9 Aug")).toBeNull()
+  })
+
+  it("drops a time after the date", () => {
+    expect(readDateParts("1 Sep, 02:51 AM")).toEqual({ month: 9, day: 1 })
+    expect(readDateParts("Sep 30, 3:53 pm")).toEqual({ month: 9, day: 30 })
+    // The hour isn't a two-digit year.
+    expect(readDate("1 Sep, 02:51 AM")).toBeNull()
+  })
+
+  it("reads numeric dates only in a given order", () => {
+    expect(readDateParts("08/11", false)).toEqual({ month: 8, day: 11 })
+    expect(readDateParts("08/11", true)).toEqual({ month: 11, day: 8 })
+    expect(readDateParts("11/08/2026", true)).toEqual({
+      year: 2026,
+      month: 8,
+      day: 11,
+    })
+    expect(readDateParts("13/08", false)).toBeNull()
+    expect(readDateParts("08/11")).toBeNull()
   })
 
   it.each(["31 Feb 2026", "07/11/2026", "Outbound", "12 Foo 2026"])(
@@ -258,6 +288,8 @@ describe("readPeriod", () => {
     ["Period: 11 Jul 2026 - 10 Oct 2026", "2026-07-11", "2026-10-10"],
     ["15 Dec 2026 to 14 Jan 2027", "2026-12-15", "2027-01-14"],
     ["Dec 15 to Jan 14, 2027", "2026-12-15", "2027-01-14"],
+    ["1-30 Sep 2026", "2026-09-01", "2026-09-30"],
+    ["Sep 1 - 30, 2026", "2026-09-01", "2026-09-30"],
   ])("%s", (input, start, end) => {
     expect(readPeriod([line(1, 100, text(10, input))])).toEqual({ start, end })
   })
@@ -452,6 +484,207 @@ const signed = (thirdAmount: string) => [
   ),
 ]
 
+// A savings account: summary figures without labels, a date and time on
+// each row, one signed amount column and a running balance, and up to four
+// lines of details below a row, the last ones nearer the next row.
+function savingsStatement(): StatementLine[] {
+  const row = (
+    page: number,
+    y: number,
+    when: string,
+    details: string,
+    amount: string,
+    balance: string,
+    ...below: string[]
+  ) => [
+    line(
+      page,
+      y,
+      text(40, when),
+      text(130, details),
+      num(468, amount),
+      num(550, balance)
+    ),
+    ...below.map((t, i) =>
+      line(page, y - (i ? 15.7 + i * 9.4 : 14), text(130, t))
+    ),
+  ]
+  const header = (page: number) => [
+    line(page, 783, text(341, "Statement of Account")),
+    line(
+      page,
+      759,
+      text(41, "Sample Savings (9012)"),
+      text(375, "Statement date: 2 October 2026")
+    ),
+    line(page, 728, text(40, "Transactions")),
+    line(page, 715, text(40, "1-30 Sep 2026")),
+  ]
+  return [
+    line(1, 783, text(341, "Statement of Account")),
+    line(1, 759, text(375, "Statement date: 2 October 2026")),
+    line(1, 674, num(553, "10,000.00 PHP")),
+    line(1, 653, text(41, "1234 5678 9012")),
+    line(1, 649, num(553, "7,000.00 PHP")),
+    line(1, 626, num(553, "- 1,680.00 PHP")),
+    line(1, 604, num(553, "0.82 PHP")),
+    line(1, 579, num(553, "- 0.16 PHP")),
+    line(1, 548, num(553, "15,320.66 PHP")),
+    line(1, 524, num(553, "20,000.00 PHP")),
+    line(1, 486, text(40, "Transactions")),
+    line(1, 473, text(40, "1-30 Sep 2026")),
+    ...row(
+      1,
+      425,
+      "1 Sep, 02:51 AM",
+      "Interest Applied (at 3.0% p.a.)",
+      "0.82",
+      "10,000.82",
+      "Reference ID: 1000000001"
+    ),
+    ...row(
+      1,
+      379,
+      "1 Sep, 02:51 AM",
+      "Base Interest Withholding Tax",
+      "- 0.16",
+      "10,000.66",
+      "Reference ID: 1000000002"
+    ),
+    ...row(
+      1,
+      333,
+      "1 Sep, 04:15 AM",
+      "Wallet Transfer",
+      "5,000.00",
+      "15,000.66",
+      "Reference ID: a1b2c3d4e5f6",
+      "SAMPLEBANKXXX",
+      "NINI SANTOS",
+      "XXXXXXXX1234"
+    ),
+    ...row(
+      1,
+      269,
+      "1 Sep, 04:18 AM",
+      "Wallet Transfer",
+      "2,000.00",
+      "17,000.66",
+      "Reference ID: b2c3d4e5f6a1",
+      "SAMPLEBANKXXX",
+      "DANIEL REYES",
+      "XXXXXXXX5678"
+    ),
+    ...row(
+      1,
+      205,
+      "2 Sep, 12:36 PM",
+      "Auto Cash-In",
+      "- 1,500.00",
+      "15,500.66",
+      "Reference ID: c3d4e5f6a1b2"
+    ),
+    line(1, 27, text(512, "Page 1 of 2")),
+    ...header(2),
+    ...row(
+      2,
+      677,
+      "30 Sep, 03:53 PM",
+      "Auto Cash-In",
+      "- 180.00",
+      "15,320.66",
+      "Reference ID: d4e5f6a1b2c3"
+    ),
+    line(2, 513, text(40, "Fees and charges")),
+    line(2, 499, text(40, "as of 6 Jul 2026")),
+    line(
+      2,
+      441,
+      text(40, "Transfer fee"),
+      text(429, "10.00 PHP per transaction")
+    ),
+    line(2, 426, text(40, "For transfers to other banks")),
+    line(2, 27, text(512, "Page 2 of 2")),
+  ]
+}
+
+// A card statement whose rows share a page with a column of reminders,
+// so each row line starts with text from the other column. Numeric dates,
+// the posting date first, and payments marked with a C.
+function twoColumnCard(): StatementLine[] {
+  const row = (
+    y: number,
+    left: string | null,
+    post: string,
+    tran: string,
+    details: string,
+    amount: string
+  ) =>
+    line(
+      1,
+      y,
+      ...(left ? [text(14, left)] : []),
+      text(158, post),
+      text(182, tran),
+      text(209, details),
+      num(473, amount)
+    )
+  return [
+    line(1, 664, text(283, "9 September 2026"), text(385, "30 September 2026")),
+    line(
+      1,
+      746,
+      text(14, "currency of the issued card. Your due date"),
+      text(158, "Post"),
+      text(182, "Tran"),
+      text(209, "Description"),
+      text(454, "Amount")
+    ),
+    line(1, 738, text(158, "Date"), text(182, "Date")),
+    line(
+      1,
+      731,
+      text(14, "is at least 16 days after the cut-off."),
+      text(252, "Previous Balance"),
+      num(473, "1,000.00")
+    ),
+    row(
+      704,
+      "Pay on time to avoid a late fee.",
+      "08/11",
+      "08/08",
+      "SAMPLE GROCER CITY PHL",
+      "1,250.00"
+    ),
+    row(696, null, "08/12", "08/11", "SAMPLE COFFEE CITY PHL", "180.00"),
+    row(
+      688,
+      "Interest is charged on the balance",
+      "08/14",
+      "08/13",
+      "CASH PAYMENT - THANK YOU",
+      "1,000.00C"
+    ),
+    row(680, null, "08/21", "08/19", "SAMPLE STORE CITY PHL", "2,090.50"),
+    row(
+      672,
+      "from the cut-off date.",
+      "09/02",
+      "09/01",
+      "CASH PAYMENT - THANK YOU",
+      "2,020.50 C"
+    ),
+    line(
+      1,
+      660,
+      text(14, "Paying less than the total amount due will"),
+      text(295, "TOTAL AMOUNT DUE"),
+      num(473, "1,500.00")
+    ),
+    line(1, 650, text(14, "increase the interest you pay.")),
+  ]
+}
+
 describe("readStatement: other layouts", () => {
   it("reads a single signed amount column", () => {
     const result = readStatement(signed("-180.00"), { kind: "bank" })
@@ -513,6 +746,76 @@ describe("readStatement: other layouts", () => {
     const result = readStatement(lines, { kind: "bank" })
     expect(result.ok).toBe(false)
     expect(result.problem).toMatch(/which column/)
+  })
+
+  it("reads a savings statement with times and details below the rows", () => {
+    const result = readStatement(savingsStatement(), { kind: "bank" })
+    expect(result.problem).toBeUndefined()
+    expect(result.ok).toBe(true)
+    expect(result.period).toEqual({ start: "2026-09-01", end: "2026-09-30" })
+    expect(result.summary).toEqual({ opening: 1_000_000, closing: 1_532_066 })
+    expect(
+      result.rows.map((r) => [r.localDate, r.amount, r.balance, r.details])
+    ).toEqual([
+      [
+        "2026-09-01",
+        82,
+        1_000_082,
+        "Interest Applied (at 3.0% p.a.) Reference ID: 1000000001",
+      ],
+      [
+        "2026-09-01",
+        -16,
+        1_000_066,
+        "Base Interest Withholding Tax Reference ID: 1000000002",
+      ],
+      [
+        "2026-09-01",
+        500_000,
+        1_500_066,
+        "Wallet Transfer Reference ID: a1b2c3d4e5f6 SAMPLEBANKXXX NINI SANTOS XXXXXXXX1234",
+      ],
+      [
+        "2026-09-01",
+        200_000,
+        1_700_066,
+        "Wallet Transfer Reference ID: b2c3d4e5f6a1 SAMPLEBANKXXX DANIEL REYES XXXXXXXX5678",
+      ],
+      [
+        "2026-09-02",
+        -150_000,
+        1_550_066,
+        "Auto Cash-In Reference ID: c3d4e5f6a1b2",
+      ],
+      [
+        "2026-09-30",
+        -18_000,
+        1_532_066,
+        "Auto Cash-In Reference ID: d4e5f6a1b2c3",
+      ],
+    ])
+    expect(result.check).toMatchObject({
+      running: "pass",
+      ends: "pass",
+      period: "pass",
+    })
+  })
+
+  it("reads a two-column page with numeric dates and credit marks", () => {
+    const result = readStatement(twoColumnCard(), { kind: "credit_card" })
+    expect(result.problem).toBeUndefined()
+    expect(result.ok).toBe(true)
+    expect(result.summary).toEqual({ opening: 100_000, closing: 150_000 })
+    expect(
+      result.rows.map((r) => [r.localDate, r.postedDate, r.amount, r.details])
+    ).toEqual([
+      ["2026-08-08", "2026-08-11", -125_000, "SAMPLE GROCER CITY PHL"],
+      ["2026-08-11", "2026-08-12", -18_000, "SAMPLE COFFEE CITY PHL"],
+      ["2026-08-13", "2026-08-14", 100_000, "CASH PAYMENT - THANK YOU"],
+      ["2026-08-19", "2026-08-21", -209_050, "SAMPLE STORE CITY PHL"],
+      ["2026-09-01", "2026-09-02", 202_050, "CASH PAYMENT - THANK YOU"],
+    ])
+    expect(result.check).toMatchObject({ ends: "pass" })
   })
 
   it("says so when there are no rows at all", () => {

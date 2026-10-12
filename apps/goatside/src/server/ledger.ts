@@ -17,6 +17,7 @@ import {
   trendView,
 } from "./ledger.server"
 import { restoreCategories } from "./ask-actions.server"
+import { restoreEdits } from "./ask-edit.server"
 import { AnswerError, answer } from "./questions.server"
 import { getDb } from "./services"
 import { authMiddleware } from "./session"
@@ -30,6 +31,7 @@ export type {
   TrendView,
 } from "./ledger.server"
 export type { OpenQuestion } from "./questions.server"
+export type { EditBefore } from "./ask-edit.server"
 
 const MONTH = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/)
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -174,3 +176,36 @@ export const undoRecategorize = createServerFn({ method: "POST" })
     })
   )
   .handler(({ data }) => restoreCategories(data.changes))
+
+/** Undo for the agent's editEntries: puts each entry back as it was. */
+export const undoEdits = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(
+    z.object({
+      changes: z
+        .array(
+          z.object({
+            id: z.uuid(),
+            type: z.enum(ENTRY_TYPES).optional(),
+            categoryId: z.uuid().nullable().optional(),
+            accountId: z.uuid().nullable().optional(),
+            toAccountId: z.uuid().optional(),
+            description: z.string().max(200).optional(),
+            localDate: DATE.optional(),
+            personId: z.uuid().optional(),
+          })
+        )
+        .min(1)
+        .max(20),
+    })
+  )
+  .handler(async ({ data }) => {
+    try {
+      await restoreEdits(data.changes)
+      return { ok: true as const }
+    } catch (error) {
+      if (error instanceof EditError)
+        return { ok: false as const, message: error.message }
+      throw error
+    }
+  })

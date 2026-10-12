@@ -5,7 +5,7 @@ import { buttonVariants } from "@workspace/ui/components/button"
 import { cn } from "@workspace/ui/lib/utils"
 import { monthName } from "@/lib/format"
 import type { Viewer } from "@/server/session"
-import { AccountMenu, DesktopSidebarTrigger } from "./app-shell"
+import { AccountMenu, AskButton, DesktopSidebarTrigger } from "./app-shell"
 
 export function MonthHeader({
   month,
@@ -69,7 +69,10 @@ export function MonthHeader({
         )}
       </div>
       {children}
-      <AccountMenu viewer={viewer} className="lg:hidden" />
+      <div className="flex items-center gap-2">
+        <AskButton />
+        <AccountMenu viewer={viewer} className="lg:hidden" />
+      </div>
     </header>
   )
 }

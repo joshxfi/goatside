@@ -33,8 +33,15 @@ pnpm db:generate    # new migration after a schema change
 staged files with oxfmt, re-stages them, and lints staged code with oxlint at zero
 warnings.
 
+`dev` is staging and `main` is production. Open pull requests against `dev`. To ship,
+merge `dev` into `main` with a merge commit, not a squash or rebase, so every
+Conventional Commit reaches release-please and the two branches keep one history. That
+merge is the release (see Releases below).
+
 CI (`.github/workflows/ci.yml`) runs install, lint, format check, typecheck and tests on
-every push, and applies migrations on `main` when the repo has database secrets.
+every push. After a push to `main` or `dev` passes, it applies migrations to that
+branch's database, using the `TURSO_*` secrets of the GitHub environment named after the
+branch.
 
 ## Rules that apply everywhere
 
@@ -54,9 +61,11 @@ every push, and applies migrations on `main` when the repo has database secrets.
 - **Commits** are conventional with scopes (`fix(app): …`, `docs(web): …`, `test(app): …`).
   Run format, lint, typecheck and tests first. `feat`, `fix` and `perf` commits land in
   the changelog, so write them for self-hosters; mark breaking changes with `!`.
-- **Releases** come from release-please (`.github/workflows/release.yml`): merge its
-  release pull request to cut a version. Don't edit `CHANGELOG.md`, the root `version` or
-  `.release-please-manifest.json` by hand.
+- **Releases** happen when `dev` merges into `main`. `.github/workflows/release.yml` has
+  release-please open its release pull request, merges it, tags the version, publishes
+  the GitHub release, then brings the release commit back to `dev`. A `feat`, `fix` or
+  `perf` commit is what triggers a release. Don't edit `CHANGELOG.md`, the root `version`
+  or `.release-please-manifest.json` by hand.
 - **Before changing Turborepo config**, read the installed Turborepo docs (block below).
 
 ## Copy and design
@@ -81,7 +90,6 @@ Open findings from the 2026-10-11 audit. Fix them with a failing test first.
   Settle button caps, and the drawer and agent refuse. The owner hasn't decided between
   cap, ask, or settle-plus-new-IOU yet.
 - Client outbox races (`lib/outbox.ts`): undo during a send, two tabs, endless retries.
-- Read and write ask tools match accounts differently (nicknames).
 - `monthView` makes 5 sequential DB round trips; there's no index on
   `transactions.entry_id` or `created_at`.
 - The demo seed's split bills have no `entry_id`, so split features don't show on demo
