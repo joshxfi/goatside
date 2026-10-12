@@ -5,8 +5,8 @@ on:
     types: [opened, reopened, edited]
 
 jobs:
-  # A squash merge turns the title into the commit on main that release-please
-  # reads, so it has to be a Conventional Commit. Rebase merges keep each
+  # A squash merge turns the title into the commit that release-please later
+  # reads on main, so it has to be a Conventional Commit. Rebase merges keep each
   # commit instead; CI lints those (`commits` in ci.yml).
   check:
     runs-on: ubuntu-latest

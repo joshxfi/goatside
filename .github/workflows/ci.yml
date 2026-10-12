@@ -37,8 +37,9 @@ jobs:
       # typecheck runs `tsr generate`, which drops the Start block the Vite plugin writes into routeTree.gen.ts, so CI doesn't diff the route trees.
       - run: pnpm test
 
-  # Rebase merges put every commit of a pull request on main, and release-please
-  # reads each one for the changelog, so each must be a Conventional Commit.
+  # Rebase merges put every commit of a pull request on dev, and from there on
+  # main, where release-please reads each one for the changelog, so each must be
+  # a Conventional Commit.
   commits:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
