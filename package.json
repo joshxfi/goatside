@@ -1,6 +1,6 @@
 {
   "name": "goatside",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "An open-source, self-hosted personal finance tracker with an agent that files what you type.",

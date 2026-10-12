@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.0](https://github.com/joshxfi/goatside/compare/v0.3.0...v0.4.0) (2026-10-12)
+
+
+### Features
+
+* **app:** add a chat button to the phone top bar ([0560d29](https://github.com/joshxfi/goatside/commit/0560d29147e3a6b64e528363d597b1beef805f60))
+* **app:** let the agent find any entry and change its type ([254057d](https://github.com/joshxfi/goatside/commit/254057d60abc454d07582cd086baf8d8d807ce5f))
+* **app:** pick any category or add one from confirmation cards ([da6a1f3](https://github.com/joshxfi/goatside/commit/da6a1f3c0c2098e18996d5faff72fca1b5a94aa5))
+
+
+### Bug fixes
+
+* **app:** keep the ask chat at the newest message ([fc1168c](https://github.com/joshxfi/goatside/commit/fc1168c72669438b8a0fd84dec44a814eb3d5b25))
+* **app:** leave entries unfiled until a default account is chosen ([60a6c26](https://github.com/joshxfi/goatside/commit/60a6c268cebc09af509673e31eb8677a971b1464))
+* **app:** leave unchanged descriptions and dates off edit cards ([a40dbbd](https://github.com/joshxfi/goatside/commit/a40dbbd7ecaad919bb0b47a43d88fc56314f5ec7))
+* **app:** make the phone tab bar taller so tabs aren't squashed ([872ebbe](https://github.com/joshxfi/goatside/commit/872ebbe1eeb8aec9ed7a2f192f592f683195ada5))
+* **core:** read numeric dates, credit marks and two-column statements ([ddee2ea](https://github.com/joshxfi/goatside/commit/ddee2eaa47189676cca28c4b8e1006cd84ee3494))
+* **core:** read statement dates with times and day-range periods ([452d733](https://github.com/joshxfi/goatside/commit/452d73344c4e5b90faa9a8ddeffbaed83cbe558e))
+
 ## [0.3.0](https://github.com/joshxfi/goatside/compare/v0.2.0...v0.3.0) (2026-10-12)
 
 
