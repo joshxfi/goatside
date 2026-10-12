@@ -331,7 +331,7 @@ export function TabBar() {
           Offline · showing what was last loaded
         </p>
       )}
-      <ul className="mx-auto grid h-14 max-w-md grid-cols-4">
+      <ul className="mx-auto grid h-16 max-w-md grid-cols-4">
         {TABS.map((page) => (
           <li key={page.to} className="flex">
             <Link
@@ -342,9 +342,9 @@ export function TabBar() {
                 event.preventDefault()
                 window.scrollTo({ top: 0, behavior: "smooth" })
               }}
-              className="group flex flex-1 flex-col items-center justify-center gap-0.5 text-xs text-muted-foreground transition-colors [-webkit-touch-callout:none] active:scale-[0.97] data-[status=active]:text-foreground"
+              className="group flex flex-1 flex-col items-center justify-center gap-1 text-xs text-muted-foreground transition-colors [-webkit-touch-callout:none] active:scale-[0.97] data-[status=active]:text-foreground"
             >
-              <span className="flex h-7 w-12 items-center justify-center rounded-full transition-colors group-data-[status=active]:bg-accent">
+              <span className="flex h-8 w-14 items-center justify-center rounded-full transition-colors group-data-[status=active]:bg-accent">
                 <page.icon aria-hidden className="size-5" />
               </span>
               {page.label}

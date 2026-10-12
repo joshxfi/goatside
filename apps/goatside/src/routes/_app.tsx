@@ -35,7 +35,7 @@ function AppLayout() {
           defaultOpen={viewer.sidebarOpen}
           data-typing={typing || undefined}
           // The phone tab bar's height, so pages and the composer clear it.
-          className="[--tab-bar:calc(3.5rem+env(safe-area-inset-bottom))] data-typing:[--tab-bar:0px] lg:[--tab-bar:0px]"
+          className="[--tab-bar:calc(4rem+env(safe-area-inset-bottom))] data-typing:[--tab-bar:0px] lg:[--tab-bar:0px]"
         >
           <AppSidebar viewer={viewer} />
           <SidebarInset className="min-w-0 bg-background">
