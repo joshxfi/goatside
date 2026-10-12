@@ -6,6 +6,7 @@ import {
   createAccount,
   removeAccount,
   setBalance,
+  setDefaultAccount,
 } from "./accounts.server"
 import { today } from "./ledger.server"
 import { getDb } from "./services"
@@ -18,12 +19,15 @@ async function balanceOf(id: string) {
 describe("accounts", () => {
   beforeEach(resetDb)
 
-  it("makes the first account the default and files entries there", async () => {
+  it("leaves entries unfiled until a default is chosen", async () => {
     const g = await createAccount({
       name: "GCash",
       kind: "ewallet",
       balance: 100000,
     })
+    const unfiled = await log("-180 iced coffee")
+    expect((await row(unfiled.transactionIds[0]!)).accountId).toBeNull()
+    await setDefaultAccount(g.id)
     await log("-250 lunch")
     const balances = await accountBalances(getDb())
     expect(balances.find((a) => a.id === g.id)).toMatchObject({
@@ -38,6 +42,7 @@ describe("accounts", () => {
       kind: "ewallet",
       balance: 100000,
     })
+    await setDefaultAccount(g.id)
     const { transactionIds } = await log("-250 lunch")
     await setBalance(getDb(), g.id, 50000)
     expect(await balanceOf(g.id)).toBe(50000)
