@@ -33,8 +33,15 @@ pnpm db:generate    # new migration after a schema change
 staged files with oxfmt, re-stages them, and lints staged code with oxlint at zero
 warnings.
 
+`dev` is staging and `main` is production. Open pull requests against `dev`. To ship,
+merge `dev` into `main` with a merge commit, not a squash or rebase, so every
+Conventional Commit reaches release-please and the two branches keep one history. After
+a release pull request merges, merge `main` back into `dev`.
+
 CI (`.github/workflows/ci.yml`) runs install, lint, format check, typecheck and tests on
-every push, and applies migrations on `main` when the repo has database secrets.
+every push. After a push to `main` or `dev` passes, it applies migrations to that
+branch's database, using the `TURSO_*` secrets of the GitHub environment named after the
+branch.
 
 ## Rules that apply everywhere
 
